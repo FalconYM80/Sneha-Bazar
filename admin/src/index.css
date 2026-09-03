@@ -1,0 +1,62 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+@import 'tailwindcss';
+
+@theme inline {
+  --color-brand: #16a34a;
+  --color-brand-light: #dcfce7;
+  --color-brand-mid: #86efac;
+  --color-surface: #f8faf8;
+  --color-card: #ffffff;
+  --color-border: #e8ece9;
+  --color-muted: #6b7280;
+  --color-sidebar: #ffffff;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  font-family: 'Poppins', system-ui, sans-serif;
+  background-color: #f4f6f4;
+  color: #111827;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-mono-data {
+  font-family: 'DM Mono', 'Courier New', monospace;
+  letter-spacing: -0.01em;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #d1d5db transparent;
+}
+
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 99px; }
+
+.sidebar-nav-item {
+  position: relative;
+  transition: background 0.15s, color 0.15s;
+}
+
+.sidebar-nav-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  background: #16a34a;
+  border-radius: 0 3px 3px 0;
+}
+
+.card-shadow {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.modal-shadow {
+  box-shadow: 0 20px 60px rgba(0,0,0,0.15), 0 8px 25px rgba(0,0,0,0.1);
+}
