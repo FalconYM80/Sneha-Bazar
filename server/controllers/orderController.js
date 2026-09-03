@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import Counter from "../models/Counter.js";
+import Cart from "../models/Cart.js";
 
 // Helper function to generate sequential order number using atomic counter
 const generateOrderNumber = async () => {
@@ -12,6 +13,61 @@ const generateOrderNumber = async () => {
   );
   
   return `SB-${counter.sequence_value}`;
+};
+
+// Helper function to process order items and validate products
+const processOrderItems = async (items) => {
+  const processedItems = [];
+  let totalAmount = 0;
+  let totalItemCount = 0;
+
+  for (const item of items) {
+    // Get product from database
+    const product = await Product.findById(item.product);
+    if (!product) {
+      throw new Error(`Product not found for ID: ${item.product}`);
+    }
+
+    // Check if product is active and available
+    if (!product.isActive) {
+      throw new Error(`Product is not active: ${product.name}`);
+    }
+
+    if (!product.isAvailable) {
+      throw new Error(`Product is not available: ${product.name}`);
+    }
+
+    // Calculate item details using current database price
+    const price = product.sellingPrice;
+    const quantity = item.quantity;
+    const subtotal = price * quantity;
+
+    // Add to totals
+    totalAmount += subtotal;
+    totalItemCount += quantity;
+
+    // Add processed item
+    processedItems.push({
+      product: product._id,
+      productName: product.name,
+      quantity: quantity,
+      price: price,
+      subtotal: subtotal,
+    });
+  }
+
+  return { processedItems, totalAmount, totalItemCount };
+};
+
+// Helper function to calculate preparation time
+const calculatePreparationTime = (totalItemCount) => {
+  if (totalItemCount >= 1 && totalItemCount <= 5) {
+    return 15;
+  } else if (totalItemCount >= 6 && totalItemCount <= 10) {
+    return 30;
+  } else {
+    return 45;
+  }
 };
 
 // Create a new order
@@ -48,13 +104,8 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // Process each item
-    const processedItems = [];
-    let totalAmount = 0;
-    let totalItemCount = 0;
-
+    // Validate each item structure
     for (const item of items) {
-      // Validate item structure
       if (!item.product || !item.quantity) {
         return res.status(400).json({
           success: false,
@@ -77,61 +128,13 @@ export const createOrder = async (req, res) => {
           message: "Quantity must be a positive integer",
         });
       }
-
-      // Get product from database
-      const product = await Product.findById(item.product);
-      if (!product) {
-        return res.status(400).json({
-          success: false,
-          message: `Product not found for ID: ${item.product}`,
-        });
-      }
-
-      // Check if product is active and available
-      if (!product.isActive) {
-        return res.status(400).json({
-          success: false,
-          message: `Product is not active: ${product.name}`,
-        });
-      }
-
-      if (!product.isAvailable) {
-        return res.status(400).json({
-          success: false,
-          message: `Product is not available: ${product.name}`,
-        });
-      }
-
-      // Calculate item details using current database price
-      const price = product.sellingPrice;
-      const quantity = item.quantity;
-      const subtotal = price * quantity;
-
-      // Add to totals
-      totalAmount += subtotal;
-      totalItemCount += quantity;
-
-      // Add processed item
-      processedItems.push({
-        product: product._id,
-        productName: product.name,
-        quantity: quantity,
-        price: price,
-        subtotal: subtotal,
-      });
     }
 
-    // Calculate preparation minutes based on total item count
-    let preparationMinutes;
-    if (totalItemCount >= 1 && totalItemCount <= 5) {
-      preparationMinutes = 15;
-    } else if (totalItemCount >= 6 && totalItemCount <= 10) {
-      preparationMinutes = 30;
-    } else {
-      preparationMinutes = 45;
-    }
+    // Process items and validate products
+    const { processedItems, totalAmount, totalItemCount } = await processOrderItems(items);
 
-    // Calculate estimated pickup time
+    // Calculate preparation time
+    const preparationMinutes = calculatePreparationTime(totalItemCount);
     const estimatedPickupTime = new Date(Date.now() + preparationMinutes * 60000);
 
     // Generate unique order number
@@ -376,6 +379,83 @@ export const getMyOrders = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Error retrieving customer orders",
+    });
+  }
+};
+
+// Checkout - create order from customer's cart
+export const checkout = async (req, res) => {
+  try {
+    // Get authenticated customer from middleware
+    const customer = req.customer;
+
+    // Validate customer exists (should always exist due to middleware)
+    if (!customer) {
+      return res.status(401).json({
+        success: false,
+        message: "Customer authentication required",
+      });
+    }
+
+    // Get customer's cart
+    const cart = await Cart.findOne({ customer: customer._id });
+
+    // Check if cart exists and is not empty
+    if (!cart || !cart.items || cart.items.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Cart is empty",
+      });
+    }
+
+    // Convert cart items to order items format
+    const orderItems = cart.items.map(item => ({
+      product: item.product,
+      quantity: item.quantity,
+    }));
+
+    // Process items and validate products
+    const { processedItems, totalAmount, totalItemCount } = await processOrderItems(orderItems);
+
+    // Calculate preparation time
+    const preparationMinutes = calculatePreparationTime(totalItemCount);
+    const estimatedPickupTime = new Date(Date.now() + preparationMinutes * 60000);
+
+    // Generate unique order number
+    const orderNumber = await generateOrderNumber();
+
+    // Create order
+    const order = await Order.create({
+      orderNumber,
+      customer: customer._id,
+      customerName: customer.name.trim(),
+      customerPhone: customer.phone.trim(),
+      items: processedItems,
+      totalAmount,
+      totalItemCount,
+      preparationMinutes,
+      estimatedPickupTime,
+      status: "pending",
+    });
+
+    // Clear the cart only after successful order creation
+    cart.items = [];
+    await cart.save();
+
+    // Populate product and customer references for response
+    const populatedOrder = await Order.findById(order._id)
+      .populate("customer", "name phone email")
+      .populate("items.product", "name itemCode company");
+
+    res.status(201).json({
+      success: true,
+      message: "Order placed successfully",
+      data: populatedOrder,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error during checkout",
     });
   }
 };
