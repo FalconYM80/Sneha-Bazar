@@ -8,16 +8,19 @@ const orderSchema = new mongoose.Schema(
       unique: true,
     },
     customer: {
-      name: {
-        type: String,
-        required: [true, "Customer name is required"],
-        trim: true,
-      },
-      phone: {
-        type: String,
-        required: [true, "Customer phone is required"],
-        trim: true,
-      },
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Customer",
+      required: [true, "Customer is required"],
+    },
+    customerName: {
+      type: String,
+      required: [true, "Customer name is required"],
+      trim: true,
+    },
+    customerPhone: {
+      type: String,
+      required: [true, "Customer phone is required"],
+      trim: true,
     },
     items: [
       {

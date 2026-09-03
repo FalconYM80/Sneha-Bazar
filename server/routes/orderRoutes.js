@@ -5,17 +5,22 @@ import {
   getOrderById,
   updateOrderStatus,
   deleteOrder,
+  getMyOrders,
 } from "../controllers/orderController.js";
+import { protectCustomer } from "../middleware/customerAuthMiddleware.js";
 
 const router = express.Router();
 
-// Create a new order
-router.post("/", createOrder);
+// Create a new order (protected - customer only)
+router.post("/", protectCustomer, createOrder);
 
-// Get all orders with optional filters
+// Get all orders with optional filters (admin endpoint - unprotected for now)
 router.get("/", getOrders);
 
-// Get a single order by ID
+// Get current customer's orders (protected - customer only)
+router.get("/my-orders", protectCustomer, getMyOrders);
+
+// Get a single order by ID (admin endpoint - unprotected for now)
 router.get("/:id", getOrderById);
 
 // Update order status

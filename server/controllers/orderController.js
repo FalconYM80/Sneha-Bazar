@@ -17,20 +17,16 @@ const generateOrderNumber = async () => {
 // Create a new order
 export const createOrder = async (req, res) => {
   try {
-    const { customer, items } = req.body;
+    const { items } = req.body;
 
-    // Validate customer information
-    if (!customer || !customer.name || !customer.phone) {
-      return res.status(400).json({
-        success: false,
-        message: "Customer name and phone are required",
-      });
-    }
+    // Get authenticated customer from middleware
+    const customer = req.customer;
 
-    if (customer.name.trim() === "" || customer.phone.trim() === "") {
-      return res.status(400).json({
+    // Validate customer exists (should always exist due to middleware)
+    if (!customer) {
+      return res.status(401).json({
         success: false,
-        message: "Customer name and phone cannot be empty",
+        message: "Customer authentication required",
       });
     }
 
@@ -144,10 +140,9 @@ export const createOrder = async (req, res) => {
     // Create order
     const order = await Order.create({
       orderNumber,
-      customer: {
-        name: customer.name.trim(),
-        phone: customer.phone.trim(),
-      },
+      customer: customer._id,
+      customerName: customer.name.trim(),
+      customerPhone: customer.phone.trim(),
       items: processedItems,
       totalAmount,
       totalItemCount,
@@ -156,11 +151,10 @@ export const createOrder = async (req, res) => {
       status: "pending",
     });
 
-    // Populate product references for response
-    const populatedOrder = await Order.findById(order._id).populate(
-      "items.product",
-      "name itemCode company"
-    );
+    // Populate product and customer references for response
+    const populatedOrder = await Order.findById(order._id)
+      .populate("customer", "name phone email")
+      .populate("items.product", "name itemCode company");
 
     res.status(201).json({
       success: true,
@@ -200,13 +194,14 @@ export const getOrders = async (req, res) => {
       const searchRegex = new RegExp(search, "i");
       query = query.or([
         { orderNumber: searchRegex },
-        { "customer.name": searchRegex },
-        { "customer.phone": searchRegex },
+        { customerName: searchRegex },
+        { customerPhone: searchRegex },
       ]);
     }
 
-    // Get orders with product populated, sorted by createdAt descending
+    // Get orders with product and customer populated, sorted by createdAt descending
     const orders = await query
+      .populate("customer", "name phone email")
       .populate("items.product", "name itemCode company")
       .sort({ createdAt: -1 });
 
@@ -236,10 +231,9 @@ export const getOrderById = async (req, res) => {
       });
     }
 
-    const order = await Order.findById(id).populate(
-      "items.product",
-      "name itemCode company"
-    );
+    const order = await Order.findById(id)
+      .populate("customer", "name phone email")
+      .populate("items.product", "name itemCode company");
 
     if (!order) {
       return res.status(404).json({
@@ -298,7 +292,9 @@ export const updateOrderStatus = async (req, res) => {
       id,
       { status },
       { new: true, runValidators: true }
-    ).populate("items.product", "name itemCode company");
+    )
+      .populate("customer", "name phone email")
+      .populate("items.product", "name itemCode company");
 
     res.status(200).json({
       success: true,
@@ -347,6 +343,39 @@ export const deleteOrder = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Error deleting order",
+    });
+  }
+};
+
+// Get current customer's orders
+export const getMyOrders = async (req, res) => {
+  try {
+    // Get authenticated customer from middleware
+    const customer = req.customer;
+
+    // Validate customer exists (should always exist due to middleware)
+    if (!customer) {
+      return res.status(401).json({
+        success: false,
+        message: "Customer authentication required",
+      });
+    }
+
+    // Get orders for the authenticated customer only
+    const orders = await Order.find({ customer: customer._id })
+      .populate("customer", "name phone email")
+      .populate("items.product", "name itemCode company")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      message: "Customer orders retrieved successfully",
+      data: orders,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error retrieving customer orders",
     });
   }
 };
