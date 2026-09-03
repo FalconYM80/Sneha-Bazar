@@ -197,11 +197,12 @@ export function IconInfo({ size = 15 }: { size?: number }) {
 
 // ── Shared components ────────────────────────────────────────────────────────
 
-const ORDER_STATUS_STYLES: Record<OrderStatus, { pill: string; dot: string }> = {
+const ORDER_STATUS_STYLES: Record<"Pending" | "Preparing" | "Ready for Pickup" | "Picked Up" | "Cancelled", { pill: string; dot: string }> = {
   "Pending":          { pill: "bg-amber-50 text-amber-700 border-amber-200",   dot: "bg-amber-400" },
   "Preparing":        { pill: "bg-blue-50 text-blue-700 border-blue-200",      dot: "bg-blue-500" },
   "Ready for Pickup": { pill: "bg-green-50 text-green-700 border-green-200",   dot: "bg-green-500" },
   "Picked Up":        { pill: "bg-gray-100 text-gray-500 border-gray-200",     dot: "bg-gray-400" },
+  "Cancelled":        { pill: "bg-red-50 text-red-700 border-red-200",         dot: "bg-red-400" },
 };
 
 const STOCK_STATUS_STYLES: Record<StockStatus, { pill: string; dot: string }> = {
@@ -210,7 +211,7 @@ const STOCK_STATUS_STYLES: Record<StockStatus, { pill: string; dot: string }> = 
   "Out of Stock": { pill: "bg-red-50 text-red-600 border-red-200",        dot: "bg-red-400" },
 };
 
-export function OrderStatusBadge({ status }: { status: OrderStatus }) {
+export function OrderStatusBadge({ status }: { status: "Pending" | "Preparing" | "Ready for Pickup" | "Picked Up" | "Cancelled" }) {
   const s = ORDER_STATUS_STYLES[status];
   return (
     <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium border ${s.pill}`}>

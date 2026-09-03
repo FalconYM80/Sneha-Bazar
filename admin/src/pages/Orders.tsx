@@ -1,22 +1,25 @@
-import { useState } from "react";
-import { ORDERS } from "../data";
-import type { Order, OrderStatus } from "../types";
+import { useState, useEffect } from "react";
+import { api } from "../services/api";
+import type { UIOrder } from "../types";
+import { mapOrder, mapUIOrderStatus } from "../types";
 import {
   OrderStatusBadge, ModalBackdrop, ModalCard, Avatar, Btn,
   SearchInput, IconX, IconCheck, IconChevronRight,
 } from "../components/ui";
 
+type UIOrderStatus = UIOrder["status"];
+
 const INR = (n: number) => "₹" + n.toLocaleString("en-IN");
 
-const STATUS_FLOW: OrderStatus[] = ["Pending", "Preparing", "Ready for Pickup", "Picked Up"];
+const STATUS_FLOW: UIOrderStatus[] = ["Pending", "Preparing", "Ready for Pickup", "Picked Up"];
 
-const NEXT_LABEL: Partial<Record<OrderStatus, string>> = {
+const NEXT_LABEL: Partial<Record<UIOrderStatus, string>> = {
   "Pending":   "Start Preparing",
   "Preparing": "Mark Ready for Pickup",
   "Ready for Pickup": "Mark as Picked Up",
 };
 
-const STATUS_BTN_STYLE: Partial<Record<OrderStatus, string>> = {
+const STATUS_BTN_STYLE: Partial<Record<UIOrderStatus, string>> = {
   "Pending":   "bg-blue-600 hover:bg-blue-700 text-white",
   "Preparing": "bg-green-600 hover:bg-green-700 text-white",
   "Ready for Pickup": "bg-gray-800 hover:bg-gray-900 text-white",
@@ -29,15 +32,31 @@ function OrderDetailModal({
   onClose,
   onAdvance,
 }: {
-  order: Order;
+  order: UIOrder;
   onClose: () => void;
-  onAdvance: (id: string) => void;
+  onAdvance: (id: string) => Promise<void>;
 }) {
+  const [advancing, setAdvancing] = useState(false);
+  const [error, setError] = useState("");
+  
   const total = order.items.reduce((a, i) => a + i.price, 0);
   const totalQty = order.items.reduce((a, i) => a + i.qty, 0);
   const idx = STATUS_FLOW.indexOf(order.status);
   const nextLabel = NEXT_LABEL[order.status];
   const btnStyle = STATUS_BTN_STYLE[order.status];
+
+  const handleAdvance = async () => {
+    setAdvancing(true);
+    setError("");
+    try {
+      await onAdvance(order.id);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update order status");
+    } finally {
+      setAdvancing(false);
+    }
+  };
 
   return (
     <ModalBackdrop onClose={onClose}>
@@ -46,7 +65,7 @@ function OrderDetailModal({
         <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
           <div>
             <div className="flex items-center gap-3 mb-1">
-              <span className="font-mono-data text-base font-bold text-gray-900">{order.id}</span>
+              <span className="font-mono-data text-base font-bold text-gray-900">{order.orderNumber}</span>
               <OrderStatusBadge status={order.status} />
             </div>
             <p className="text-xs text-gray-400">
@@ -150,15 +169,21 @@ function OrderDetailModal({
         </div>
 
         {/* Footer */}
+        {error && (
+          <div className="px-6 py-2 border-t border-gray-100">
+            <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+          </div>
+        )}
         <div className="px-6 py-4 border-t border-gray-100 flex gap-3 flex-shrink-0">
-          <Btn variant="outline" onClick={onClose} className="flex-1">Close</Btn>
+          <Btn variant="outline" onClick={onClose} className="flex-1" disabled={advancing}>Close</Btn>
           {nextLabel && (
             <button
-              onClick={() => { onAdvance(order.id); onClose(); }}
+              onClick={handleAdvance}
+              disabled={advancing}
               className={`flex-1 inline-flex items-center justify-center gap-2 text-sm font-semibold px-4 py-2.5 rounded-xl transition-colors ${btnStyle}`}
             >
-              {nextLabel}
-              <IconChevronRight size={14} />
+              {advancing ? "Updating..." : nextLabel}
+              {!advancing && <IconChevronRight size={14} />}
             </button>
           )}
         </div>
@@ -169,47 +194,92 @@ function OrderDetailModal({
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-const TABS: Array<"All" | OrderStatus> = ["All", "Pending", "Preparing", "Ready for Pickup", "Picked Up"];
+const TABS: Array<"All" | UIOrderStatus> = ["All", "Pending", "Preparing", "Ready for Pickup", "Picked Up"];
 
 export default function Orders() {
-  const [orders, setOrders] = useState(ORDERS);
-  const [tab, setTab] = useState<"All" | OrderStatus>("All");
+  const [orders, setOrders] = useState<UIOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [tab, setTab] = useState<"All" | UIOrderStatus>("All");
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Order | null>(null);
+  const [selected, setSelected] = useState<UIOrder | null>(null);
+
+  const fetchOrders = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await api.get("/orders");
+      const ordersData = Array.isArray(response) ? response : response.data || [];
+      const mappedOrders = ordersData.map(mapOrder);
+      setOrders(mappedOrders);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load orders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
 
   const visible = orders.filter((o) => {
     const mt = tab === "All" || o.status === tab;
-    const ms = o.customer.toLowerCase().includes(search.toLowerCase()) || o.id.toLowerCase().includes(search.toLowerCase());
+    const ms = o.customer.toLowerCase().includes(search.toLowerCase()) || o.orderNumber.toLowerCase().includes(search.toLowerCase());
     return mt && ms;
   });
 
   const counts: Record<string, number> = {};
   TABS.forEach((t) => { counts[t] = t === "All" ? orders.length : orders.filter((o) => o.status === t).length; });
 
-  const advance = (id: string) => {
-    setOrders((prev) =>
-      prev.map((o) => {
-        if (o.id !== id) return o;
-        const i = STATUS_FLOW.indexOf(o.status);
-        const next = STATUS_FLOW[i + 1];
-        return next ? { ...o, status: next } : o;
-      })
-    );
+  const advance = async (id: string) => {
+    const order = orders.find((o) => o.id === id);
+    if (!order) return;
+
+    const currentIdx = STATUS_FLOW.indexOf(order.status);
+    const nextStatus = STATUS_FLOW[currentIdx + 1];
+    if (!nextStatus) return;
+
+    const backendStatus = mapUIOrderStatus(nextStatus as UIOrderStatus);
+    
+    try {
+      await api.put(`/orders/${id}/status`, { status: backendStatus });
+      await fetchOrders();
+    } catch (err) {
+      throw err;
+    }
   };
 
   const selectedLive = selected ? orders.find((o) => o.id === selected.id) ?? selected : null;
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "#f4f6f4" }}>
-      {selectedLive && (
-        <OrderDetailModal
-          order={selectedLive}
-          onClose={() => setSelected(null)}
-          onAdvance={advance}
-        />
+      {loading && (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-sm text-gray-500">Loading orders...</p>
+        </div>
       )}
+      {error && !loading && (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <p className="text-sm text-red-600 mb-3">{error}</p>
+            <button onClick={fetchOrders} className="text-sm font-semibold text-green-700 hover:text-green-800">
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+      {!loading && !error && (
+        <>
+          {selectedLive && (
+            <OrderDetailModal
+              order={selectedLive}
+              onClose={() => setSelected(null)}
+              onAdvance={advance}
+            />
+          )}
 
-      <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-5">
+          <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-5">
 
         {/* Header */}
         <div>
@@ -288,7 +358,7 @@ export default function Orders() {
                         onClick={() => setSelected(o)}
                       >
                         <td className="px-6 py-4">
-                          <span className="font-mono-data text-xs font-semibold text-gray-700">{o.id}</span>
+                          <span className="font-mono-data text-xs font-semibold text-gray-700">{o.orderNumber}</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2.5">
@@ -317,7 +387,14 @@ export default function Orders() {
                         <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                           {nextLabel ? (
                             <button
-                              onClick={() => advance(o.id)}
+                              onClick={async () => {
+                                try {
+                                  await advance(o.id);
+                                } catch (err) {
+                                  // Error handling is done in the advance function
+                                  console.error("Failed to advance order:", err);
+                                }
+                              }}
                               className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${btnStyle}`}
                             >
                               {nextLabel}
@@ -340,6 +417,8 @@ export default function Orders() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
