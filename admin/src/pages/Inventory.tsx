@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { PRODUCTS } from "../data";
-import type { Product, StockStatus } from "../types";
+import { useEffect, useState } from "react";
+import { api } from "../services/api";
+import type { UIProduct, StockStatus } from "../types";
 import {
   StockStatusBadge, ModalBackdrop, ModalCard, FormField, TextInput,
   Btn, SearchInput, IconPlus, IconMinus, IconX, IconTrash, IconEdit,
@@ -8,8 +8,50 @@ import {
 
 const INR = (n: number) => "₹" + n.toLocaleString("en-IN");
 
-const CATS = ["All", "Staples", "Essentials", "Oils", "Pulses", "Dairy", "Spices", "Snacks", "Personal Care"];
 const FILTERS: Array<"All Status" | StockStatus> = ["All Status", "In Stock", "Low Stock", "Out of Stock"];
+
+interface BackendCategory {
+  _id: string;
+  name: string;
+  description?: string;
+  image?: string;
+}
+
+interface BackendProduct {
+  _id: string;
+  itemCode?: string;
+  name: string;
+  company?: string;
+  category: BackendCategory;
+  sellingPrice: number;
+  mrp?: number;
+  stockQuantity: number;
+  unit?: string;
+  image?: string;
+  isAvailable: boolean;
+  isActive: boolean;
+}
+
+const getStockStatus = (stock: number): StockStatus => {
+  if (stock === 0) return "Out of Stock";
+  if (stock <= 8) return "Low Stock";
+  return "In Stock";
+};
+
+const mapProduct = (product: BackendProduct): UIProduct => ({
+  id: product._id,
+  name: product.name,
+  category: product.category?.name || "Uncategorized",
+  categoryId: product.category?._id || "",
+  price: product.sellingPrice,
+  unit: product.unit || "unit",
+  stock: product.stockQuantity,
+  stockUnit: product.unit || "units",
+  status: getStockStatus(product.stockQuantity),
+  emoji: "📦",
+});
+
+
 
 // ── Update Stock Modal ────────────────────────────────────────────────────────
 
@@ -18,12 +60,27 @@ function UpdateStockModal({
   onClose,
   onSave,
 }: {
-  product: Product;
+  product: UIProduct;
   onClose: () => void;
-  onSave: (id: string, delta: number) => void;
+  onSave: (id: string, newStock: number) => Promise<void>;
 }) {
   const [delta, setDelta] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const newStock = Math.max(0, product.stock + delta);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError("");
+    try {
+      await onSave(product.id, newStock);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update stock");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <ModalBackdrop onClose={onClose}>
@@ -82,10 +139,16 @@ function UpdateStockModal({
           </div>
         </div>
 
+        {error && (
+          <div className="px-6 pb-2">
+            <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+          </div>
+        )}
+
         <div className="px-6 pb-5 flex gap-3">
-          <Btn variant="outline" onClick={onClose} className="flex-1">Cancel</Btn>
-          <Btn variant="primary" onClick={() => { onSave(product.id, delta); onClose(); }} className="flex-1">
-            Save Changes
+          <Btn variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Btn>
+          <Btn variant="primary" onClick={handleSave} className="flex-1" disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
           </Btn>
         </div>
       </ModalCard>
@@ -95,9 +158,50 @@ function UpdateStockModal({
 
 // ── Add Product Modal ─────────────────────────────────────────────────────────
 
-function AddProductModal({ onClose }: { onClose: () => void }) {
+function AddProductModal({ 
+  onClose, 
+  categories, 
+  onSuccess 
+}: { 
+  onClose: () => void; 
+  categories: BackendCategory[];
+  onSuccess: () => void;
+}) {
   const [f, setF] = useState({ name: "", category: "", price: "", stock: "", unit: "" });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
   const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
+
+  const handleSubmit = async () => {
+    if (!f.name.trim() || !f.category || f.price === "" || f.stock === "") {
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    if (Number(f.price) < 0 || Number(f.stock) < 0) {
+      setError("Price and stock cannot be negative");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      await api.post("/products", {
+        name: f.name,
+        category: f.category,
+        sellingPrice: parseFloat(f.price),
+        stockQuantity: parseInt(f.stock),
+        unit: f.unit || undefined,
+      });
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add product");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <ModalBackdrop onClose={onClose}>
@@ -115,7 +219,19 @@ function AddProductModal({ onClose }: { onClose: () => void }) {
             </FormField>
           </div>
           <FormField label="Category *">
-            <TextInput placeholder="e.g. Essentials" value={f.category} onChange={set("category")} />
+            <select
+              value={f.category}
+              onChange={(e) => set("category")(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
+              style={{ fontFamily: "inherit" }}
+            >
+              <option value="">Select category</option>
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat._id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
           </FormField>
           <FormField label="Price (₹) *">
             <TextInput placeholder="0.00" type="number" value={f.price} onChange={set("price")} />
@@ -127,9 +243,138 @@ function AddProductModal({ onClose }: { onClose: () => void }) {
             <TextInput placeholder="kg, packs, bottles…" value={f.unit} onChange={set("unit")} />
           </FormField>
         </div>
+        {error && (
+          <div className="px-6 pb-2">
+            <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+          </div>
+        )}
         <div className="px-6 pb-5 flex gap-3">
-          <Btn variant="outline" onClick={onClose} className="flex-1">Cancel</Btn>
-          <Btn variant="primary" onClick={onClose} className="flex-1">Add Product</Btn>
+          <Btn variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Btn>
+          <Btn variant="primary" onClick={handleSubmit} className="flex-1" disabled={saving}>
+            {saving ? "Adding..." : "Add Product"}
+          </Btn>
+        </div>
+      </ModalCard>
+    </ModalBackdrop>
+  );
+}
+
+// ── Edit Product Modal ────────────────────────────────────────────────────────
+
+function EditProductModal({ 
+  onClose, 
+  product, 
+  categories, 
+  onSuccess 
+}: { 
+  onClose: () => void; 
+  product: UIProduct;
+  categories: BackendCategory[];
+  onSuccess: () => void;
+}) {
+  const [f, setF] = useState({ 
+    name: product.name, 
+    category: product.categoryId, 
+    price: product.price.toString(), 
+    stock: product.stock.toString(), 
+    unit: product.unit 
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
+
+  // Sync form when product changes
+  useEffect(() => {
+    setF({
+      name: product.name,
+      category: product.categoryId,
+      price: product.price.toString(),
+      stock: product.stock.toString(),
+      unit: product.unit,
+    });
+  }, [product]);
+
+  const handleSubmit = async () => {
+    if (!f.name.trim() || !f.category || f.price === "" || f.stock === "") {
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    if (Number(f.price) < 0 || Number(f.stock) < 0) {
+      setError("Price and stock cannot be negative");
+      return;
+    }
+
+    setSaving(true);
+    setError("");
+
+    try {
+      await api.put(`/products/${product.id}`, {
+        name: f.name,
+        category: f.category,
+        sellingPrice: parseFloat(f.price),
+        stockQuantity: parseInt(f.stock),
+        unit: f.unit || undefined,
+      });
+      onSuccess();
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update product");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <ModalBackdrop onClose={onClose}>
+      <ModalCard className="w-[480px]">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <h3 className="text-sm font-bold text-gray-900">Edit Product</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors">
+            <IconX size={15} />
+          </button>
+        </div>
+        <div className="px-6 py-5 grid grid-cols-2 gap-4">
+          <div className="col-span-2">
+            <FormField label="Product Name *">
+              <TextInput placeholder="e.g. Tata Salt 1kg" value={f.name} onChange={set("name")} />
+            </FormField>
+          </div>
+          <FormField label="Category *">
+            <select
+              value={f.category}
+              onChange={(e) => set("category")(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
+              style={{ fontFamily: "inherit" }}
+            >
+              <option value="">Select category</option>
+              {categories.map((cat) => (
+                <option key={cat._id} value={cat._id}>
+                  {cat.name}
+                </option>
+              ))}
+            </select>
+          </FormField>
+          <FormField label="Price (₹) *">
+            <TextInput placeholder="0.00" type="number" value={f.price} onChange={set("price")} />
+          </FormField>
+          <FormField label="Stock *">
+            <TextInput placeholder="0" type="number" value={f.stock} onChange={set("stock")} />
+          </FormField>
+          <FormField label="Stock Unit">
+            <TextInput placeholder="kg, packs, bottles…" value={f.unit} onChange={set("unit")} />
+          </FormField>
+        </div>
+        {error && (
+          <div className="px-6 pb-2">
+            <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
+          </div>
+        )}
+        <div className="px-6 pb-5 flex gap-3">
+          <Btn variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Btn>
+          <Btn variant="primary" onClick={handleSubmit} className="flex-1" disabled={saving}>
+            {saving ? "Saving..." : "Save Changes"}
+          </Btn>
         </div>
       </ModalCard>
     </ModalBackdrop>
@@ -139,37 +384,93 @@ function AddProductModal({ onClose }: { onClose: () => void }) {
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function Inventory() {
-  const [products, setProducts] = useState(PRODUCTS);
+  const [products, setProducts] = useState<UIProduct[]>([]);
+  const [categories, setCategories] = useState<BackendCategory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [search, setSearch] = useState("");
-  const [cat, setCat] = useState("All");
+  const [cat, setCat] = useState<string>("All");
   const [filter, setFilter] = useState<"All Status" | StockStatus>("All Status");
-  const [updating, setUpdating] = useState<Product | null>(null);
+  const [updating, setUpdating] = useState<UIProduct | null>(null);
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<UIProduct | null>(null);
+
+  const fetchInventoryData = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [productsResponse, categoriesResponse] = await Promise.all([
+        api.get("/products"),
+        api.get("/categories")
+      ]);
+      
+      // Handle API response structure - check if it's wrapped in ApiResponse or direct
+      const productsData = Array.isArray(productsResponse) ? productsResponse : productsResponse.data || [];
+      const categoriesData = Array.isArray(categoriesResponse) ? categoriesResponse : categoriesResponse.data || [];
+      
+      const mappedProducts = productsData.map(mapProduct);
+      setProducts(mappedProducts);
+      setCategories(categoriesData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load inventory");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInventoryData();
+  }, []);
+
+  const handleSaveStock = async (id: string, newStock: number) => {
+    await api.put(`/products/${id}`, { stockQuantity: newStock });
+    await fetchInventoryData();
+  };
+
+  const handleDelete = async (product: UIProduct) => {
+    if (!window.confirm(`Are you sure you want to delete "${product.name}"?`)) {
+      return;
+    }
+
+    try {
+      await api.delete(`/products/${product.id}`);
+      await fetchInventoryData();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to delete product");
+    }
+  };
 
   const visible = products.filter((p) => {
     const ms = p.name.toLowerCase().includes(search.toLowerCase());
-    const mc = cat === "All" || p.category === cat;
+    const mc = cat === "All" || p.categoryId === cat;
     const mf = filter === "All Status" || p.status === filter;
     return ms && mc && mf;
   });
 
-  const handleSave = (id: string, delta: number) => {
-    setProducts((prev) =>
-      prev.map((p) => {
-        if (p.id !== id) return p;
-        const s = Math.max(0, p.stock + delta);
-        const status: StockStatus = s === 0 ? "Out of Stock" : s <= 8 ? "Low Stock" : "In Stock";
-        return { ...p, stock: s, status };
-      })
-    );
-  };
-
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "#f4f6f4" }}>
-      {updating && <UpdateStockModal product={updating} onClose={() => setUpdating(null)} onSave={handleSave} />}
-      {adding && <AddProductModal onClose={() => setAdding(false)} />}
+      {loading && (
+        <div className="flex items-center justify-center h-full">
+          <p className="text-sm text-gray-500">Loading inventory...</p>
+        </div>
+      )}
+      {error && !loading && (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-center">
+            <p className="text-sm text-red-600 mb-3">{error}</p>
+            <button onClick={fetchInventoryData} className="text-sm font-semibold text-green-700 hover:text-green-800">
+              Retry
+            </button>
+          </div>
+        </div>
+      )}
+      {!loading && !error && (
+        <>
+          {updating && <UpdateStockModal product={updating} onClose={() => setUpdating(null)} onSave={handleSaveStock} />}
+          {adding && <AddProductModal onClose={() => setAdding(false)} categories={categories} onSuccess={fetchInventoryData} />}
+          {editing && <EditProductModal onClose={() => setEditing(null)} product={editing} categories={categories} onSuccess={fetchInventoryData} />}
 
-      <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-5">
+          <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -205,15 +506,23 @@ export default function Inventory() {
 
             {/* Category pills */}
             <div className="flex gap-1 flex-wrap">
-              {CATS.map((c) => (
+              <button
+                onClick={() => setCat("All")}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                  cat === "All" ? "bg-green-600 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                }`}
+              >
+                All
+              </button>
+              {categories.map((c) => (
                 <button
-                  key={c}
-                  onClick={() => setCat(c)}
+                  key={c._id}
+                  onClick={() => setCat(c._id)}
                   className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
-                    cat === c ? "bg-green-600 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    cat === c._id ? "bg-green-600 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                   }`}
                 >
-                  {c}
+                  {c.name}
                 </button>
               ))}
             </div>
@@ -298,10 +607,16 @@ export default function Inventory() {
                           >
                             Update Stock
                           </button>
-                          <button className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors">
+                          <button 
+                            onClick={() => setEditing(p)}
+                            className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                          >
                             <IconEdit size={14} />
                           </button>
-                          <button className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                          <button 
+                            onClick={() => handleDelete(p)}
+                            className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                          >
                             <IconTrash size={14} />
                           </button>
                         </div>
@@ -331,6 +646,8 @@ export default function Inventory() {
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 }
