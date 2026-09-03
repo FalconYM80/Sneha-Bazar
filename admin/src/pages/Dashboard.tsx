@@ -4,8 +4,8 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import { WEEKLY_SALES, ORDERS, PRODUCTS } from "../data";
+import type { UIOrder } from "../types";
 import { OrderStatusBadge, Avatar, IconTrendingUp, IconShoppingBag, IconBox, IconAlertTriangle } from "../components/ui";
-import type { OrderStatus } from "../types";
 
 const INR = (n: number) => "₹" + n.toLocaleString("en-IN");
 
@@ -207,7 +207,7 @@ export default function Dashboard() {
                   return (
                     <tr key={o.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
-                        <span className="font-mono-data text-xs font-semibold text-gray-700">{o.id}</span>
+                        <span className="font-mono-data text-xs font-semibold text-gray-700">{o.orderNumber}</span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2.5">
@@ -225,7 +225,7 @@ export default function Dashboard() {
                         <span className="text-xs font-medium text-gray-600">{o.pickupTime}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <OrderStatusBadge status={o.status as OrderStatus} />
+                        <OrderStatusBadge status={o.status} />
                       </td>
                     </tr>
                   );

@@ -59,14 +59,10 @@ export interface Product {
 
 export interface Purchase {
   _id: string;
-
-  product: Product | string;
-
+  itemName: string;
   purchaseAmount: number;
-  mrp?: number;
-
+  mrp: number;
   purchaseDate: string;
-
   createdAt: string;
   updatedAt: string;
 }

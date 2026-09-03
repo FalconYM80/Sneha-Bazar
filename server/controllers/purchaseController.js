@@ -1,17 +1,16 @@
 import mongoose from "mongoose";
 import Purchase from "../models/Purchase.js";
-import Product from "../models/Product.js";
 
 // Create a new purchase record
 export const createPurchase = async (req, res) => {
   try {
-    const { product, purchaseAmount, mrp, purchaseDate } = req.body;
+    const { itemName, purchaseAmount, mrp, purchaseDate } = req.body;
 
     // Validate required fields
-    if (!product) {
+    if (!itemName || itemName.trim() === "") {
       return res.status(400).json({
         success: false,
-        message: "Product is required",
+        message: "Item name is required",
       });
     }
 
@@ -44,44 +43,18 @@ export const createPurchase = async (req, res) => {
       });
     }
 
-    // Validate product ObjectId
-    if (!mongoose.Types.ObjectId.isValid(product)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid product ID",
-      });
-    }
-
-    // Check if product exists and is active
-    const productExists = await Product.findOne({
-      _id: product,
-      isActive: true,
-    });
-    if (!productExists) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid or inactive product",
-      });
-    }
-
     // Create purchase record
     const purchase = await Purchase.create({
-      product,
+      itemName: itemName.trim(),
       purchaseAmount,
       mrp,
       purchaseDate: purchaseDate || Date.now(),
     });
 
-    // Populate product for response
-    const populatedPurchase = await Purchase.findById(purchase._id).populate(
-      "product",
-      "name itemCode company"
-    );
-
     res.status(201).json({
       success: true,
       message: "Purchase record created successfully",
-      data: populatedPurchase,
+      data: purchase,
     });
   } catch (error) {
     res.status(500).json({
@@ -99,34 +72,14 @@ export const getPurchases = async (req, res) => {
     // Build query
     let query = Purchase.find();
 
-    // If search is provided, we need to filter by product name
+    // If search is provided, filter by itemName using case-insensitive regex
     if (search) {
-      // First find products that match the search term
       const searchRegex = new RegExp(search, "i");
-      const matchingProducts = await Product.find({
-        name: searchRegex,
-        isActive: true,
-      }).select("_id");
-
-      const productIds = matchingProducts.map((p) => p._id);
-
-      // Filter purchases by matching product IDs
-      if (productIds.length > 0) {
-        query = query.where("product").in(productIds);
-      } else {
-        // If no products match, return empty array
-        return res.status(200).json({
-          success: true,
-          message: "Purchases retrieved successfully",
-          data: [],
-        });
-      }
+      query = query.where("itemName").regex(searchRegex);
     }
 
-    // Get purchases with product populated, sorted by purchaseDate descending
-    const purchases = await query
-      .populate("product", "name itemCode company")
-      .sort({ purchaseDate: -1 });
+    // Get purchases sorted by purchaseDate descending
+    const purchases = await query.sort({ purchaseDate: -1 });
 
     res.status(200).json({
       success: true,
@@ -154,10 +107,7 @@ export const getPurchaseById = async (req, res) => {
       });
     }
 
-    const purchase = await Purchase.findById(id).populate(
-      "product",
-      "name itemCode company"
-    );
+    const purchase = await Purchase.findById(id);
 
     if (!purchase) {
       return res.status(404).json({
@@ -183,7 +133,7 @@ export const getPurchaseById = async (req, res) => {
 export const updatePurchase = async (req, res) => {
   try {
     const { id } = req.params;
-    const { purchaseAmount, mrp, purchaseDate } = req.body;
+    const { itemName, purchaseAmount, mrp, purchaseDate } = req.body;
 
     // Check if ID is valid MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -202,6 +152,14 @@ export const updatePurchase = async (req, res) => {
       });
     }
 
+    // Validate itemName if provided
+    if (itemName !== undefined && itemName.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Item name cannot be empty",
+      });
+    }
+
     // Validate numeric values if provided
     if (purchaseAmount !== undefined && purchaseAmount < 0) {
       return res.status(400).json({
@@ -217,16 +175,17 @@ export const updatePurchase = async (req, res) => {
       });
     }
 
-    // Update purchase (product reference cannot be changed)
+    // Update purchase
     const updatedPurchase = await Purchase.findByIdAndUpdate(
       id,
       {
+        ...(itemName !== undefined && { itemName: itemName.trim() }),
         ...(purchaseAmount !== undefined && { purchaseAmount }),
         ...(mrp !== undefined && { mrp }),
         ...(purchaseDate !== undefined && { purchaseDate }),
       },
       { new: true, runValidators: true }
-    ).populate("product", "name itemCode company");
+    );
 
     res.status(200).json({
       success: true,

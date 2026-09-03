@@ -271,8 +271,8 @@ export function FormField({ label, children }: { label: string; children: React.
   );
 }
 
-export function TextInput({ placeholder, value, onChange, type = "text" }: {
-  placeholder?: string; value?: string; onChange?: (v: string) => void; type?: string;
+export function TextInput({ placeholder, value, onChange, type = "text", onFocus, onBlur }: {
+  placeholder?: string; value?: string; onChange?: (v: string) => void; type?: string; onFocus?: () => void; onBlur?: () => void;
 }) {
   return (
     <input
@@ -280,6 +280,8 @@ export function TextInput({ placeholder, value, onChange, type = "text" }: {
       placeholder={placeholder}
       value={value}
       onChange={(e) => onChange?.(e.target.value)}
+      onFocus={onFocus}
+      onBlur={onBlur}
       className="w-full border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm text-gray-800 outline-none focus:border-green-400 focus:ring-2 focus:ring-green-100 transition-all placeholder-gray-300 bg-white"
       style={{ fontFamily: "inherit" }}
     />
