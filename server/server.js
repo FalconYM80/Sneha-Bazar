@@ -53,7 +53,7 @@ app.use("/api/orders", orderRoutes);
 app.use("/api/auth", authRoutes);
 
 // Customer auth routes
-app.use("/api/customer-auth", customerAuthRoutes);
+app.use("/api/customers", customerAuthRoutes);
 
 // Cart routes
 app.use("/api/cart", cartRoutes);
