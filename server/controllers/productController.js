@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Category from "../models/Category.js";
+import { uploadToCloudinary, deleteFromCloudinary, isCloudinaryUrl, extractPublicIdFromUrl } from "../config/cloudinaryConfig.js";
 
 // Create a new product
 export const createProduct = async (req, res) => {
@@ -14,9 +15,25 @@ export const createProduct = async (req, res) => {
       mrp,
       stockQuantity,
       unit,
-      image,
       isAvailable,
     } = req.body;
+
+    // Handle image upload to Cloudinary
+    let imageUrl = undefined;
+    let imagePublicId = undefined;
+    
+    if (req.file) {
+      try {
+        const uploadResult = await uploadToCloudinary(req.file.buffer);
+        imageUrl = uploadResult.secure_url;
+        imagePublicId = uploadResult.public_id;
+      } catch (uploadError) {
+        return res.status(400).json({
+          success: false,
+          message: `Image upload failed: ${uploadError.message}`,
+        });
+      }
+    }
 
     // Validate required fields
     if (!name || name.trim() === "") {
@@ -47,6 +64,29 @@ export const createProduct = async (req, res) => {
       });
     }
 
+    if (sellingPrice === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Selling price must be greater than 0",
+      });
+    }
+
+    // Validate MRP if provided
+    if (mrp !== undefined && mrp < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "MRP cannot be negative",
+      });
+    }
+
+    // Validate that selling price is not greater than MRP when MRP is provided
+    if (mrp !== undefined && sellingPrice > mrp) {
+      return res.status(400).json({
+        success: false,
+        message: "Selling price cannot be greater than MRP",
+      });
+    }
+
     // Check if category exists and is active
     const categoryExists = await Category.findOne({
       _id: category,
@@ -72,6 +112,15 @@ export const createProduct = async (req, res) => {
       }
     }
 
+    // Validate unit if provided
+    const allowedUnits = ["pcs", "kg", "g", "litre", "ml", "pack", "packet", "box", "bottle", "dozen"];
+    if (unit && !allowedUnits.includes(unit)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid unit. Must be one of: pcs, kg, g, litre, ml, pack, packet, box, bottle, dozen",
+      });
+    }
+
     // Create new product
     const product = await Product.create({
       itemCode: itemCode?.trim(),
@@ -82,7 +131,8 @@ export const createProduct = async (req, res) => {
       mrp,
       stockQuantity: stockQuantity || 0,
       unit: unit?.trim(),
-      image,
+      image: imageUrl,
+      imagePublicId,
       isAvailable: isAvailable !== undefined ? isAvailable : true,
     });
 
@@ -202,10 +252,26 @@ export const updateProduct = async (req, res) => {
       mrp,
       stockQuantity,
       unit,
-      image,
       isAvailable,
       isActive,
     } = req.body;
+
+    // Handle image upload to Cloudinary
+    let imageUrl = undefined;
+    let imagePublicId = undefined;
+    
+    if (req.file) {
+      try {
+        const uploadResult = await uploadToCloudinary(req.file.buffer);
+        imageUrl = uploadResult.secure_url;
+        imagePublicId = uploadResult.public_id;
+      } catch (uploadError) {
+        return res.status(400).json({
+          success: false,
+          message: `Image upload failed: ${uploadError.message}`,
+        });
+      }
+    }
 
     // Check if ID is valid MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -270,11 +336,26 @@ export const updateProduct = async (req, res) => {
       });
     }
 
+    if (sellingPrice !== undefined && sellingPrice === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Selling price must be greater than 0",
+      });
+    }
+
     // Validate mrp if provided
     if (mrp !== undefined && mrp < 0) {
       return res.status(400).json({
         success: false,
         message: "MRP cannot be negative",
+      });
+    }
+
+    // Validate that selling price is not greater than MRP when both are provided
+    if (sellingPrice !== undefined && mrp !== undefined && sellingPrice > mrp) {
+      return res.status(400).json({
+        success: false,
+        message: "Selling price cannot be greater than MRP",
       });
     }
 
@@ -286,22 +367,44 @@ export const updateProduct = async (req, res) => {
       });
     }
 
+    // Validate unit if provided
+    const allowedUnits = ["pcs", "kg", "g", "litre", "ml", "pack", "packet", "box", "bottle", "dozen"];
+    if (unit !== undefined && unit && !allowedUnits.includes(unit)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid unit. Must be one of: pcs, kg, g, litre, ml, pack, packet, box, bottle, dozen",
+      });
+    }
+
+    // Handle image replacement
+    if (req.file && product.imagePublicId) {
+      // Delete old image from Cloudinary
+      await deleteFromCloudinary(product.imagePublicId);
+    }
+
     // Update product
+    const updateData = {
+      ...(itemCode !== undefined && { itemCode: itemCode.trim() }),
+      ...(name && { name: name.trim() }),
+      ...(company !== undefined && { company: company?.trim() }),
+      ...(category && { category }),
+      ...(sellingPrice !== undefined && { sellingPrice }),
+      ...(mrp !== undefined && { mrp }),
+      ...(stockQuantity !== undefined && { stockQuantity }),
+      ...(unit !== undefined && { unit: unit?.trim() }),
+      ...(isAvailable !== undefined && { isAvailable }),
+      ...(isActive !== undefined && { isActive }),
+    };
+
+    // Only update image fields if a new image was uploaded
+    if (req.file) {
+      updateData.image = imageUrl;
+      updateData.imagePublicId = imagePublicId;
+    }
+
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
-      {
-        ...(itemCode !== undefined && { itemCode: itemCode.trim() }),
-        ...(name && { name: name.trim() }),
-        ...(company !== undefined && { company: company?.trim() }),
-        ...(category && { category }),
-        ...(sellingPrice !== undefined && { sellingPrice }),
-        ...(mrp !== undefined && { mrp }),
-        ...(stockQuantity !== undefined && { stockQuantity }),
-        ...(unit !== undefined && { unit: unit?.trim() }),
-        ...(image !== undefined && { image }),
-        ...(isAvailable !== undefined && { isAvailable }),
-        ...(isActive !== undefined && { isActive }),
-      },
+      updateData,
       { new: true, runValidators: true }
     ).populate("category", "name description image");
 
@@ -338,6 +441,11 @@ export const deleteProduct = async (req, res) => {
         success: false,
         message: "Product not found",
       });
+    }
+
+    // Delete image from Cloudinary if it exists
+    if (product.imagePublicId) {
+      await deleteFromCloudinary(product.imagePublicId);
     }
 
     // Soft delete by setting isActive to false

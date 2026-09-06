@@ -1,16 +1,65 @@
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { WEEKLY_SALES, ORDERS, PRODUCTS } from "../data";
-import type { UIOrder } from "../types";
+import { api } from "../services/api";
+import type { Order, Product, Category, Page } from "../types";
+import { mapOrderStatus } from "../types";
 import { OrderStatusBadge, Avatar, IconTrendingUp, IconShoppingBag, IconBox, IconAlertTriangle } from "../components/ui";
+import { loadSettings } from "../settings";
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const INR = (n: number) => "₹" + n.toLocaleString("en-IN");
 
-const lowStock = PRODUCTS.filter((p) => p.status === "Low Stock" || p.status === "Out of Stock").slice(0, 5);
-const recent = ORDERS.slice(0, 5);
+/** Returns true if the ISO date string falls on today (local time) */
+function isToday(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  const now = new Date();
+  return (
+    d.getFullYear() === now.getFullYear() &&
+    d.getMonth() === now.getMonth() &&
+    d.getDate() === now.getDate()
+  );
+}
+
+/** Returns true if the ISO date string falls on yesterday (local time) */
+function isYesterday(dateStr: string): boolean {
+  const d = new Date(dateStr);
+  const yest = new Date();
+  yest.setDate(yest.getDate() - 1);
+  return (
+    d.getFullYear() === yest.getFullYear() &&
+    d.getMonth() === yest.getMonth() &&
+    d.getDate() === yest.getDate()
+  );
+}
+
+/** Format a Date to a short day label: Mon, Tue, … */
+function toDayLabel(date: Date): string {
+  return date.toLocaleDateString("en-US", { weekday: "short" });
+}
+
+/** Format a Date to a short month-day label: Sep 1, Sep 2, … */
+function toMonthDayLabel(date: Date): string {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+/** Format pickup time from ISO string */
+function formatTime(dateString: string): string {
+  try {
+    return new Date(dateString).toLocaleTimeString("en-US", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  } catch {
+    return dateString;
+  }
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 interface TooltipPayload {
   value: number;
@@ -26,49 +75,340 @@ function CustomTooltip({ active, payload, label }: { active?: boolean; payload?:
   );
 }
 
-const SUMMARY = [
-  {
-    label: "Today's Sales",
-    value: INR(12450),
-    sub: "+8.2% from yesterday",
-    subColor: "text-green-600",
-    icon: IconTrendingUp,
-    iconBg: "bg-green-50",
-    iconColor: "text-green-600",
-  },
-  {
-    label: "Today's Orders",
-    value: "24",
-    sub: "5 need attention",
-    subColor: "text-amber-600",
-    icon: IconShoppingBag,
-    iconBg: "bg-blue-50",
-    iconColor: "text-blue-600",
-  },
-  {
-    label: "Total Products",
-    value: "186",
-    sub: "Across 12 categories",
-    subColor: "text-gray-400",
-    icon: IconBox,
-    iconBg: "bg-purple-50",
-    iconColor: "text-purple-600",
-  },
-  {
-    label: "Low Stock Items",
-    value: "8",
-    sub: "Needs restocking",
-    subColor: "text-red-500",
-    icon: IconAlertTriangle,
-    iconBg: "bg-red-50",
-    iconColor: "text-red-500",
-  },
-];
+// ── Types ─────────────────────────────────────────────────────────────────────
 
-export default function Dashboard() {
+interface ChartItem {
+  day: string;
+  revenue: number;
+  orders: number;
+}
+
+interface LowStockItem {
+  id: string;
+  name: string;
+  stock: number;
+  stockUnit: string;
+  status: "Low Stock" | "Out of Stock";
+}
+
+// ── Dashboard ─────────────────────────────────────────────────────────────────
+
+interface DashboardProps {
+  onNavigate: (page: Page) => void;
+}
+
+export default function Dashboard({ onNavigate }: DashboardProps) {
   const [chartPeriod, setChartPeriod] = useState<"week" | "month">("week");
-  const weeklyTotal = WEEKLY_SALES.reduce((a, d) => a + d.revenue, 0);
 
+  // Read threshold from settings on mount — re-read when Dashboard remounts after Settings change
+  const [lowStockThreshold] = useState(() => loadSettings().lowStockThreshold);
+
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  const fetchDashboardData = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const [ordersRes, productsRes, categoriesRes] = await Promise.all([
+        api.get("/orders"),
+        api.get("/products"),
+        api.get("/categories"),
+      ]);
+
+      const ordersData: Order[] = Array.isArray(ordersRes)
+        ? ordersRes
+        : ordersRes.data ?? [];
+      const productsData: Product[] = Array.isArray(productsRes)
+        ? productsRes
+        : productsRes.data ?? [];
+      const categoriesData: Category[] = Array.isArray(categoriesRes)
+        ? categoriesRes
+        : categoriesRes.data ?? [];
+
+      setOrders(ordersData);
+      setProducts(productsData);
+      setCategories(categoriesData);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load dashboard data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  // ── KPI: Today's Sales ───────────────────────────────────────────────────────
+  const todaysSales = useMemo(() => {
+    return orders
+      .filter((o) => o.status !== "cancelled" && isToday(o.createdAt))
+      .reduce((sum, o) => sum + o.totalAmount, 0);
+  }, [orders]);
+
+  const yesterdaysSales = useMemo(() => {
+    return orders
+      .filter((o) => o.status !== "cancelled" && isYesterday(o.createdAt))
+      .reduce((sum, o) => sum + o.totalAmount, 0);
+  }, [orders]);
+
+  const salesComparisonText = useMemo(() => {
+    if (yesterdaysSales === 0) return "No comparison data yet";
+    const diff = todaysSales - yesterdaysSales;
+    const pct = ((diff / yesterdaysSales) * 100).toFixed(1);
+    const sign = diff >= 0 ? "+" : "";
+    return `${sign}${pct}% from yesterday`;
+  }, [todaysSales, yesterdaysSales]);
+
+  const salesComparisonColor = useMemo(() => {
+    if (yesterdaysSales === 0) return "text-gray-400";
+    return todaysSales >= yesterdaysSales ? "text-green-600" : "text-red-500";
+  }, [todaysSales, yesterdaysSales]);
+
+  // ── KPI: Today's Orders ──────────────────────────────────────────────────────
+  const todaysOrders = useMemo(() => {
+    return orders.filter((o) => isToday(o.createdAt));
+  }, [orders]);
+
+  const todaysOrderCount = todaysOrders.length;
+
+  const needsAttentionCount = useMemo(() => {
+    return todaysOrders.filter(
+      (o) => o.status === "pending" || o.status === "confirmed"
+    ).length;
+  }, [todaysOrders]);
+
+  // ── KPI: Total Products & Categories ────────────────────────────────────────
+  const totalProducts = products.length;
+  const totalCategories = categories.length;
+
+  // ── KPI: Low Stock Count ─────────────────────────────────────────────────────
+  const lowStockCount = useMemo(() => {
+    return products.filter((p) => p.stockQuantity <= lowStockThreshold).length;
+  }, [products, lowStockThreshold]);
+
+  // ── KPI SUMMARY array ────────────────────────────────────────────────────────
+  const SUMMARY = useMemo(() => [
+    {
+      label: "Today's Sales",
+      value: INR(todaysSales),
+      sub: salesComparisonText,
+      subColor: salesComparisonColor,
+      icon: IconTrendingUp,
+      iconBg: "bg-green-50",
+      iconColor: "text-green-600",
+    },
+    {
+      label: "Today's Orders",
+      value: String(todaysOrderCount),
+      sub: needsAttentionCount > 0 ? `${needsAttentionCount} need attention` : "All orders on track",
+      subColor: needsAttentionCount > 0 ? "text-amber-600" : "text-gray-400",
+      icon: IconShoppingBag,
+      iconBg: "bg-blue-50",
+      iconColor: "text-blue-600",
+    },
+    {
+      label: "Total Products",
+      value: String(totalProducts),
+      sub: `Across ${totalCategories} ${totalCategories === 1 ? "category" : "categories"}`,
+      subColor: "text-gray-400",
+      icon: IconBox,
+      iconBg: "bg-purple-50",
+      iconColor: "text-purple-600",
+    },
+    {
+      label: "Low Stock Items",
+      value: String(lowStockCount),
+      sub: lowStockCount > 0 ? "Needs restocking" : "Stock levels OK",
+      subColor: lowStockCount > 0 ? "text-red-500" : "text-gray-400",
+      icon: IconAlertTriangle,
+      iconBg: "bg-red-50",
+      iconColor: "text-red-500",
+    },
+  ], [todaysSales, salesComparisonText, salesComparisonColor, todaysOrderCount, needsAttentionCount, totalProducts, totalCategories, lowStockCount]);
+
+  // ── Chart data: Week ─────────────────────────────────────────────────────────
+  const weekChartData = useMemo((): ChartItem[] => {
+    const days: ChartItem[] = [];
+    const today = new Date();
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dayLabel = toDayLabel(d);
+      const dayRevenue = orders
+        .filter((o) => {
+          if (o.status === "cancelled") return false;
+          const od = new Date(o.createdAt);
+          return (
+            od.getFullYear() === d.getFullYear() &&
+            od.getMonth() === d.getMonth() &&
+            od.getDate() === d.getDate()
+          );
+        })
+        .reduce((sum, o) => sum + o.totalAmount, 0);
+      const dayOrders = orders.filter((o) => {
+        const od = new Date(o.createdAt);
+        return (
+          od.getFullYear() === d.getFullYear() &&
+          od.getMonth() === d.getMonth() &&
+          od.getDate() === d.getDate()
+        );
+      }).length;
+      days.push({ day: dayLabel, revenue: dayRevenue, orders: dayOrders });
+    }
+    return days;
+  }, [orders]);
+
+  // ── Chart data: Month (last 30 days) ─────────────────────────────────────────
+  const monthChartData = useMemo((): ChartItem[] => {
+    const days: ChartItem[] = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dayLabel = toMonthDayLabel(d);
+      const dayRevenue = orders
+        .filter((o) => {
+          if (o.status === "cancelled") return false;
+          const od = new Date(o.createdAt);
+          return (
+            od.getFullYear() === d.getFullYear() &&
+            od.getMonth() === d.getMonth() &&
+            od.getDate() === d.getDate()
+          );
+        })
+        .reduce((sum, o) => sum + o.totalAmount, 0);
+      const dayOrders = orders.filter((o) => {
+        const od = new Date(o.createdAt);
+        return (
+          od.getFullYear() === d.getFullYear() &&
+          od.getMonth() === d.getMonth() &&
+          od.getDate() === d.getDate()
+        );
+      }).length;
+      days.push({ day: dayLabel, revenue: dayRevenue, orders: dayOrders });
+    }
+    return days;
+  }, [orders]);
+
+  const chartData = chartPeriod === "week" ? weekChartData : monthChartData;
+
+  const chartTotalRevenue = useMemo(
+    () => chartData.reduce((a, d) => a + d.revenue, 0),
+    [chartData]
+  );
+  const chartTotalOrders = useMemo(
+    () => chartData.reduce((a, d) => a + d.orders, 0),
+    [chartData]
+  );
+
+  // ── Previous period comparison for chart ─────────────────────────────────────
+  const prevPeriodRevenue = useMemo((): number | null => {
+    const days = chartPeriod === "week" ? 7 : 30;
+    const today = new Date();
+    let total = 0;
+    let hasOrders = false;
+    for (let i = days * 2 - 1; i >= days; i--) {
+      const d = new Date(today);
+      d.setDate(today.getDate() - i);
+      const dayRevenue = orders
+        .filter((o) => {
+          if (o.status === "cancelled") return false;
+          const od = new Date(o.createdAt);
+          return (
+            od.getFullYear() === d.getFullYear() &&
+            od.getMonth() === d.getMonth() &&
+            od.getDate() === d.getDate()
+          );
+        })
+        .reduce((sum, o) => sum + o.totalAmount, 0);
+      if (dayRevenue > 0) hasOrders = true;
+      total += dayRevenue;
+    }
+    return hasOrders ? total : null;
+  }, [orders, chartPeriod]);
+
+  const chartComparisonText = useMemo(() => {
+    if (prevPeriodRevenue === null || prevPeriodRevenue === 0) return null;
+    const diff = chartTotalRevenue - prevPeriodRevenue;
+    const pct = ((diff / prevPeriodRevenue) * 100).toFixed(1);
+    const sign = diff >= 0 ? "↑" : "↓";
+    const label = chartPeriod === "week" ? "last week" : "last period";
+    return `${sign} ${Math.abs(Number(pct))}% from ${label}`;
+  }, [chartTotalRevenue, prevPeriodRevenue, chartPeriod]);
+
+  const chartComparisonColor = useMemo(() => {
+    if (prevPeriodRevenue === null || prevPeriodRevenue === 0) return "text-gray-400";
+    return chartTotalRevenue >= prevPeriodRevenue ? "text-green-600" : "text-red-500";
+  }, [chartTotalRevenue, prevPeriodRevenue]);
+
+  // ── Low Stock Alert ──────────────────────────────────────────────────────────
+  const lowStockItems = useMemo((): LowStockItem[] => {
+    return products
+      .filter((p) => p.stockQuantity <= lowStockThreshold)
+      .sort((a, b) => {
+        // Out-of-stock first, then ascending by stockQuantity
+        if (a.stockQuantity === 0 && b.stockQuantity !== 0) return -1;
+        if (b.stockQuantity === 0 && a.stockQuantity !== 0) return 1;
+        return a.stockQuantity - b.stockQuantity;
+      })
+      .slice(0, 5)
+      .map((p) => ({
+        id: p._id,
+        name: p.name,
+        stock: p.stockQuantity,
+        stockUnit: p.unit || "units",
+        status: p.stockQuantity === 0 ? "Out of Stock" : "Low Stock",
+      }));
+  }, [products, lowStockThreshold]);
+
+  // ── Recent Orders ─────────────────────────────────────────────────────────────
+  const recentOrders = useMemo(() => {
+    return [...orders]
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+      .slice(0, 5)
+      .map((o) => ({
+        id: o._id,
+        orderNumber: o.orderNumber,
+        customer: o.customerName,
+        itemCount: o.totalItemCount,
+        amount: o.totalAmount,
+        pickupTime: formatTime(o.estimatedPickupTime),
+        uiStatus: mapOrderStatus(o.status),
+      }));
+  }, [orders]);
+
+  // ── Loading ──────────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div className="flex-1 flex items-center justify-center" style={{ background: "#f4f6f4" }}>
+        <p className="text-sm text-gray-500">Loading dashboard...</p>
+      </div>
+    );
+  }
+
+  // ── Error ─────────────────────────────────────────────────────────────────────
+  if (error) {
+    return (
+      <div className="flex-1 flex items-center justify-center" style={{ background: "#f4f6f4" }}>
+        <div className="text-center">
+          <p className="text-sm text-red-600 mb-3">{error}</p>
+          <button
+            onClick={fetchDashboardData}
+            className="text-sm font-semibold text-green-700 hover:text-green-800"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "#f4f6f4" }}>
       <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-6">
@@ -103,7 +443,9 @@ export default function Dashboard() {
             <div className="flex items-start justify-between mb-6">
               <div>
                 <h3 className="text-sm font-bold text-gray-900">Sales Overview</h3>
-                <p className="text-xs text-gray-400 mt-0.5">Revenue performance this week</p>
+                <p className="text-xs text-gray-400 mt-0.5">
+                  {chartPeriod === "week" ? "Revenue performance this week" : "Revenue performance this month"}
+                </p>
               </div>
               <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
                 {(["week", "month"] as const).map((p) => (
@@ -122,18 +464,22 @@ export default function Dashboard() {
 
             <div className="flex items-center gap-6 mb-5">
               <div>
-                <p className="text-2xl font-bold text-gray-900 font-mono-data">{INR(weeklyTotal)}</p>
-                <p className="text-xs text-green-600 font-semibold mt-0.5">↑ 12.4% from last week</p>
+                <p className="text-2xl font-bold text-gray-900 font-mono-data">{INR(chartTotalRevenue)}</p>
+                {chartComparisonText ? (
+                  <p className={`text-xs font-semibold mt-0.5 ${chartComparisonColor}`}>{chartComparisonText}</p>
+                ) : (
+                  <p className="text-xs text-gray-400 font-medium mt-0.5">No prior period data</p>
+                )}
               </div>
               <div className="h-10 w-px bg-gray-100" />
               <div>
-                <p className="text-lg font-bold text-gray-700 font-mono-data">{WEEKLY_SALES.reduce((a, d) => a + d.orders, 0)}</p>
+                <p className="text-lg font-bold text-gray-700 font-mono-data">{chartTotalOrders}</p>
                 <p className="text-xs text-gray-400 font-medium mt-0.5">Total orders</p>
               </div>
             </div>
 
             <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={WEEKLY_SALES} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
+              <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
                 <defs>
                   <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15} />
@@ -157,24 +503,33 @@ export default function Dashboard() {
                 <p className="text-xs text-gray-400 mt-0.5">Items needing restock</p>
               </div>
               <span className="text-xs font-semibold bg-red-50 text-red-600 border border-red-100 px-2.5 py-1 rounded-full">
-                {lowStock.length} items
+                {lowStockItems.length} items
               </span>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
-              {lowStock.map((p) => (
-                <div key={p.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50/50 transition-colors group">
-                  <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-lg flex-shrink-0">{p.emoji}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800 truncate">{p.name}</p>
-                    <p className={`text-xs mt-0.5 font-mono-data font-medium ${p.status === "Out of Stock" ? "text-red-500" : "text-amber-600"}`}>
-                      {p.stock} {p.stockUnit}
-                    </p>
-                  </div>
-                  <button className="text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100">
-                    Restock
-                  </button>
+              {lowStockItems.length === 0 ? (
+                <div className="flex items-center justify-center py-10">
+                  <p className="text-sm text-gray-400">All stock levels are OK 🎉</p>
                 </div>
-              ))}
+              ) : (
+                lowStockItems.map((p) => (
+                  <div key={p.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50/50 transition-colors group">
+                    <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-lg flex-shrink-0">📦</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-semibold text-gray-800 truncate">{p.name}</p>
+                      <p className={`text-xs mt-0.5 font-mono-data font-medium ${p.status === "Out of Stock" ? "text-red-500" : "text-amber-600"}`}>
+                        {p.stock} {p.stockUnit}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => onNavigate("inventory")}
+                      className="text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                    >
+                      Restock
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         </div>
@@ -186,7 +541,10 @@ export default function Dashboard() {
               <h3 className="text-sm font-bold text-gray-900">Recent Orders</h3>
               <p className="text-xs text-gray-400 mt-0.5">Today&apos;s order activity</p>
             </div>
-            <button className="text-xs font-semibold text-green-600 hover:text-green-700 transition-colors">
+            <button
+              onClick={() => onNavigate("orders")}
+              className="text-xs font-semibold text-green-600 hover:text-green-700 transition-colors"
+            >
               View all orders →
             </button>
           </div>
@@ -202,9 +560,14 @@ export default function Dashboard() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {recent.map((o) => {
-                  const total = o.items.reduce((a, i) => a + i.price, 0);
-                  return (
+                {recentOrders.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-400">
+                      No orders yet today.
+                    </td>
+                  </tr>
+                ) : (
+                  recentOrders.map((o) => (
                     <tr key={o.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-6 py-4">
                         <span className="font-mono-data text-xs font-semibold text-gray-700">{o.orderNumber}</span>
@@ -216,20 +579,20 @@ export default function Dashboard() {
                         </div>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="text-xs text-gray-500">{o.items.length} items</span>
+                        <span className="text-xs text-gray-500">{o.itemCount} items</span>
                       </td>
                       <td className="px-6 py-4">
-                        <span className="font-mono-data text-sm font-semibold text-gray-800">{INR(total)}</span>
+                        <span className="font-mono-data text-sm font-semibold text-gray-800">{INR(o.amount)}</span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-xs font-medium text-gray-600">{o.pickupTime}</span>
                       </td>
                       <td className="px-6 py-4">
-                        <OrderStatusBadge status={o.status} />
+                        <OrderStatusBadge status={o.uiStatus} />
                       </td>
                     </tr>
-                  );
-                })}
+                  ))
+                )}
               </tbody>
             </table>
           </div>

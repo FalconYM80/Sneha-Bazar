@@ -30,6 +30,21 @@ export const api = {
     return data;
   },
 
+  postFormData: async (endpoint: string, formData: FormData) => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Something went wrong");
+    }
+
+    return data;
+  },
+
   put: async (endpoint: string, body: unknown) => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       method: "PUT",
@@ -37,6 +52,21 @@ export const api = {
         "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || "Something went wrong");
+    }
+
+    return data;
+  },
+
+  putFormData: async (endpoint: string, formData: FormData) => {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      method: "PUT",
+      body: formData,
     });
 
     const data = await response.json();

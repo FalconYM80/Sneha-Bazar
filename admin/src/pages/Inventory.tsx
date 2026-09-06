@@ -5,6 +5,7 @@ import {
   StockStatusBadge, ModalBackdrop, ModalCard, FormField, TextInput,
   Btn, SearchInput, IconPlus, IconMinus, IconX, IconTrash, IconEdit,
 } from "../components/ui";
+import { getStockStatus, loadSettings } from "../settings";
 
 const INR = (n: number) => "₹" + n.toLocaleString("en-IN");
 
@@ -28,27 +29,27 @@ interface BackendProduct {
   stockQuantity: number;
   unit?: string;
   image?: string;
+  imagePublicId?: string;
   isAvailable: boolean;
   isActive: boolean;
 }
 
-const getStockStatus = (stock: number): StockStatus => {
-  if (stock === 0) return "Out of Stock";
-  if (stock <= 8) return "Low Stock";
-  return "In Stock";
-};
-
-const mapProduct = (product: BackendProduct): UIProduct => ({
+const mapProduct = (product: BackendProduct, threshold: number): UIProduct => ({
   id: product._id,
   name: product.name,
   category: product.category?.name || "Uncategorized",
   categoryId: product.category?._id || "",
   price: product.sellingPrice,
+  mrp: product.mrp,
   unit: product.unit || "unit",
   stock: product.stockQuantity,
   stockUnit: product.unit || "units",
-  status: getStockStatus(product.stockQuantity),
+  status: getStockStatus(product.stockQuantity, threshold),
   emoji: "📦",
+  itemCode: product.itemCode,
+  company: product.company,
+  image: product.image,
+  imagePublicId: product.imagePublicId,
 });
 
 
@@ -167,19 +168,79 @@ function AddProductModal({
   categories: BackendCategory[];
   onSuccess: () => void;
 }) {
-  const [f, setF] = useState({ name: "", category: "", price: "", stock: "", unit: "" });
+  const [f, setF] = useState({ 
+    name: "", 
+    category: "", 
+    sellingPrice: "", 
+    mrp: "", 
+    stockQuantity: "", 
+    unit: "", 
+    itemCode: "", 
+    company: "" 
+  });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
+  const STOCK_UNITS = ["pcs", "kg", "g", "litre", "ml", "pack", "packet", "box", "bottle", "dozen"];
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+      if (!allowedTypes.includes(file.type)) {
+        setError("Only image files (jpeg, jpg, png, gif, webp) are allowed");
+        return;
+      }
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Image size must be less than 5MB");
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      setError("");
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview("");
+  };
+
   const handleSubmit = async () => {
-    if (!f.name.trim() || !f.category || f.price === "" || f.stock === "") {
+    if (!f.name.trim() || !f.category || f.sellingPrice === "" || f.stockQuantity === "" || !f.unit) {
       setError("Please fill in all required fields");
       return;
     }
 
-    if (Number(f.price) < 0 || Number(f.stock) < 0) {
+    const sellingPriceNum = parseFloat(f.sellingPrice);
+    const mrpNum = f.mrp ? parseFloat(f.mrp) : undefined;
+
+    if (sellingPriceNum < 0 || Number(f.stockQuantity) < 0) {
       setError("Price and stock cannot be negative");
+      return;
+    }
+
+    if (sellingPriceNum === 0) {
+      setError("Selling price must be greater than 0");
+      return;
+    }
+
+    if (mrpNum !== undefined && mrpNum < 0) {
+      setError("MRP cannot be negative");
+      return;
+    }
+
+    if (mrpNum !== undefined && sellingPriceNum > mrpNum) {
+      setError("Selling price cannot be greater than MRP");
       return;
     }
 
@@ -187,13 +248,19 @@ function AddProductModal({
     setError("");
 
     try {
-      await api.post("/products", {
-        name: f.name,
-        category: f.category,
-        sellingPrice: parseFloat(f.price),
-        stockQuantity: parseInt(f.stock),
-        unit: f.unit || undefined,
-      });
+      const formData = new FormData();
+      formData.append("name", f.name);
+      formData.append("category", f.category);
+      formData.append("sellingPrice", f.sellingPrice);
+      formData.append("stockQuantity", f.stockQuantity);
+      formData.append("unit", f.unit);
+      
+      if (f.mrp) formData.append("mrp", f.mrp);
+      if (f.itemCode) formData.append("itemCode", f.itemCode);
+      if (f.company) formData.append("company", f.company);
+      if (imageFile) formData.append("image", imageFile);
+
+      await api.postFormData("/products", formData);
       onSuccess();
       onClose();
     } catch (err) {
@@ -205,8 +272,8 @@ function AddProductModal({
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <ModalCard className="w-[480px]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <ModalCard className="w-[520px] max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h3 className="text-sm font-bold text-gray-900">Add New Product</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors">
             <IconX size={15} />
@@ -233,22 +300,82 @@ function AddProductModal({
               ))}
             </select>
           </FormField>
-          <FormField label="Price (₹) *">
-            <TextInput placeholder="0.00" type="number" value={f.price} onChange={set("price")} />
+          <FormField label="Selling Price (₹) *">
+            <TextInput placeholder="0.00" type="number" value={f.sellingPrice} onChange={set("sellingPrice")} />
+          </FormField>
+          <FormField label="MRP (₹)">
+            <TextInput placeholder="0.00" type="number" value={f.mrp} onChange={set("mrp")} />
           </FormField>
           <FormField label="Initial Stock *">
-            <TextInput placeholder="0" type="number" value={f.stock} onChange={set("stock")} />
+            <TextInput placeholder="0" type="number" value={f.stockQuantity} onChange={set("stockQuantity")} />
           </FormField>
-          <FormField label="Stock Unit">
-            <TextInput placeholder="kg, packs, bottles…" value={f.unit} onChange={set("unit")} />
+          <FormField label="Stock Unit *">
+            <select
+              value={f.unit}
+              onChange={(e) => set("unit")(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
+              style={{ fontFamily: "inherit" }}
+            >
+              <option value="">Select unit</option>
+              {STOCK_UNITS.map((unit) => (
+                <option key={unit} value={unit}>
+                  {unit}
+                </option>
+              ))}
+            </select>
           </FormField>
+          <FormField label="Item Code / SKU">
+            <TextInput placeholder="e.g. TATA-001" value={f.itemCode} onChange={set("itemCode")} />
+          </FormField>
+          <FormField label="Brand / Company">
+            <TextInput placeholder="e.g. Tata" value={f.company} onChange={set("company")} />
+          </FormField>
+          <div className="col-span-2">
+            <FormField label="Product Image">
+              <div className="space-y-3">
+                {!imagePreview ? (
+                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-green-400 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleImageChange}
+                      className="hidden"
+                      id="product-image-upload"
+                    />
+                    <label
+                      htmlFor="product-image-upload"
+                      className="cursor-pointer block"
+                    >
+                      <p className="text-xs text-gray-500 mb-1">Click to upload image</p>
+                      <p className="text-xs text-gray-400">JPEG, PNG, GIF, WebP (max 5MB)</p>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="Product preview"
+                      className="w-full h-32 object-cover rounded-xl border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 transition-colors"
+                    >
+                      <IconX size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </FormField>
+          </div>
         </div>
         {error && (
           <div className="px-6 pb-2">
             <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           </div>
         )}
-        <div className="px-6 pb-5 flex gap-3">
+        <div className="px-6 pb-5 flex gap-3 sticky bottom-0 bg-white pt-2">
           <Btn variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Btn>
           <Btn variant="primary" onClick={handleSubmit} className="flex-1" disabled={saving}>
             {saving ? "Adding..." : "Add Product"}
@@ -275,33 +402,90 @@ function EditProductModal({
   const [f, setF] = useState({ 
     name: product.name, 
     category: product.categoryId, 
-    price: product.price.toString(), 
-    stock: product.stock.toString(), 
-    unit: product.unit 
+    sellingPrice: product.price.toString(), 
+    mrp: "", 
+    stockQuantity: product.stock.toString(), 
+    unit: product.unit, 
+    itemCode: "", 
+    company: "" 
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
+
+  const STOCK_UNITS = ["pcs", "kg", "g", "litre", "ml", "pack", "packet", "box", "bottle", "dozen"];
 
   // Sync form when product changes
   useEffect(() => {
     setF({
       name: product.name,
       category: product.categoryId,
-      price: product.price.toString(),
-      stock: product.stock.toString(),
+      sellingPrice: product.price.toString(),
+      mrp: "",
+      stockQuantity: product.stock.toString(),
       unit: product.unit,
+      itemCode: "",
+      company: "",
     });
   }, [product]);
 
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Validate file type
+      const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
+      if (!allowedTypes.includes(file.type)) {
+        setError("Only image files (jpeg, jpg, png, gif, webp) are allowed");
+        return;
+      }
+      // Validate file size (5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError("Image size must be less than 5MB");
+        return;
+      }
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+      setError("");
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setImageFile(null);
+    setImagePreview("");
+  };
+
   const handleSubmit = async () => {
-    if (!f.name.trim() || !f.category || f.price === "" || f.stock === "") {
+    if (!f.name.trim() || !f.category || f.sellingPrice === "" || f.stockQuantity === "" || !f.unit) {
       setError("Please fill in all required fields");
       return;
     }
 
-    if (Number(f.price) < 0 || Number(f.stock) < 0) {
+    const sellingPriceNum = parseFloat(f.sellingPrice);
+    const mrpNum = f.mrp ? parseFloat(f.mrp) : undefined;
+
+    if (sellingPriceNum < 0 || Number(f.stockQuantity) < 0) {
       setError("Price and stock cannot be negative");
+      return;
+    }
+
+    if (sellingPriceNum === 0) {
+      setError("Selling price must be greater than 0");
+      return;
+    }
+
+    if (mrpNum !== undefined && mrpNum < 0) {
+      setError("MRP cannot be negative");
+      return;
+    }
+
+    if (mrpNum !== undefined && sellingPriceNum > mrpNum) {
+      setError("Selling price cannot be greater than MRP");
       return;
     }
 
@@ -309,13 +493,19 @@ function EditProductModal({
     setError("");
 
     try {
-      await api.put(`/products/${product.id}`, {
-        name: f.name,
-        category: f.category,
-        sellingPrice: parseFloat(f.price),
-        stockQuantity: parseInt(f.stock),
-        unit: f.unit || undefined,
-      });
+      const formData = new FormData();
+      formData.append("name", f.name);
+      formData.append("category", f.category);
+      formData.append("sellingPrice", f.sellingPrice);
+      formData.append("stockQuantity", f.stockQuantity);
+      formData.append("unit", f.unit);
+      
+      if (f.mrp) formData.append("mrp", f.mrp);
+      if (f.itemCode) formData.append("itemCode", f.itemCode);
+      if (f.company) formData.append("company", f.company);
+      if (imageFile) formData.append("image", imageFile);
+
+      await api.putFormData(`/products/${product.id}`, formData);
       onSuccess();
       onClose();
     } catch (err) {
@@ -327,8 +517,8 @@ function EditProductModal({
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <ModalCard className="w-[480px]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <ModalCard className="w-[520px] max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h3 className="text-sm font-bold text-gray-900">Edit Product</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors">
             <IconX size={15} />
@@ -355,22 +545,82 @@ function EditProductModal({
               ))}
             </select>
           </FormField>
-          <FormField label="Price (₹) *">
-            <TextInput placeholder="0.00" type="number" value={f.price} onChange={set("price")} />
+          <FormField label="Selling Price (₹) *">
+            <TextInput placeholder="0.00" type="number" value={f.sellingPrice} onChange={set("sellingPrice")} />
+          </FormField>
+          <FormField label="MRP (₹)">
+            <TextInput placeholder="0.00" type="number" value={f.mrp} onChange={set("mrp")} />
           </FormField>
           <FormField label="Stock *">
-            <TextInput placeholder="0" type="number" value={f.stock} onChange={set("stock")} />
+            <TextInput placeholder="0" type="number" value={f.stockQuantity} onChange={set("stockQuantity")} />
           </FormField>
-          <FormField label="Stock Unit">
-            <TextInput placeholder="kg, packs, bottles…" value={f.unit} onChange={set("unit")} />
+          <FormField label="Stock Unit *">
+            <select
+              value={f.unit}
+              onChange={(e) => set("unit")(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
+              style={{ fontFamily: "inherit" }}
+            >
+              <option value="">Select unit</option>
+              {STOCK_UNITS.map((unit) => (
+                <option key={unit} value={unit}>
+                  {unit}
+                </option>
+              ))}
+            </select>
           </FormField>
+          <FormField label="Item Code / SKU">
+            <TextInput placeholder="e.g. TATA-001" value={f.itemCode} onChange={set("itemCode")} />
+          </FormField>
+          <FormField label="Brand / Company">
+            <TextInput placeholder="e.g. Tata" value={f.company} onChange={set("company")} />
+          </FormField>
+          <div className="col-span-2">
+            <FormField label="Product Image">
+              <div className="space-y-3">
+                {!imagePreview ? (
+                  <div className="border-2 border-dashed border-gray-200 rounded-xl p-4 text-center hover:border-green-400 transition-colors">
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/jpg,image/png,image/gif,image/webp"
+                      onChange={handleImageChange}
+                      className="hidden"
+                      id="edit-product-image-upload"
+                    />
+                    <label
+                      htmlFor="edit-product-image-upload"
+                      className="cursor-pointer block"
+                    >
+                      <p className="text-xs text-gray-500 mb-1">Click to upload new image</p>
+                      <p className="text-xs text-gray-400">JPEG, PNG, GIF, WebP (max 5MB)</p>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="relative">
+                    <img
+                      src={imagePreview}
+                      alt="Product preview"
+                      className="w-full h-32 object-cover rounded-xl border border-gray-200"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-lg hover:bg-red-600 transition-colors"
+                    >
+                      <IconX size={14} />
+                    </button>
+                  </div>
+                )}
+              </div>
+            </FormField>
+          </div>
         </div>
         {error && (
           <div className="px-6 pb-2">
             <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           </div>
         )}
-        <div className="px-6 pb-5 flex gap-3">
+        <div className="px-6 pb-5 flex gap-3 sticky bottom-0 bg-white pt-2">
           <Btn variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Btn>
           <Btn variant="primary" onClick={handleSubmit} className="flex-1" disabled={saving}>
             {saving ? "Saving..." : "Save Changes"}
@@ -407,8 +657,10 @@ export default function Inventory() {
       // Handle API response structure - check if it's wrapped in ApiResponse or direct
       const productsData = Array.isArray(productsResponse) ? productsResponse : productsResponse.data || [];
       const categoriesData = Array.isArray(categoriesResponse) ? categoriesResponse : categoriesResponse.data || [];
-      
-      const mappedProducts = productsData.map(mapProduct);
+
+      // Read threshold fresh each fetch so Settings changes are picked up on next navigation
+      const { lowStockThreshold } = loadSettings();
+      const mappedProducts = productsData.map((p: BackendProduct) => mapProduct(p, lowStockThreshold));
       setProducts(mappedProducts);
       setCategories(categoriesData);
     } catch (err) {

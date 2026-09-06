@@ -15,11 +15,16 @@ export interface UIProduct {
   category: string;
   categoryId: string;
   price: number;
+  mrp?: number;
   unit: string;
   stock: number;
   stockUnit: string;
   status: StockStatus;
   emoji: string;
+  itemCode?: string;
+  company?: string;
+  image?: string;
+  imagePublicId?: string;
 }
 
 // ==================== API TYPES ====================
@@ -36,7 +41,7 @@ export interface Category {
 
 export interface Product {
   _id: string;
-  itemCode: string;
+  itemCode?: string;
   name: string;
   company?: string;
 
@@ -49,6 +54,7 @@ export interface Product {
   unit: string;
 
   image?: string;
+  imagePublicId?: string;
 
   isAvailable: boolean;
   isActive: boolean;

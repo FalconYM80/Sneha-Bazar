@@ -5,7 +5,14 @@
   "main": "server.js",
   "scripts": {
     "dev": "nodemon server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "import:dry-run": "node scripts/importProducts.js --dry-run",
+    "import:test": "node scripts/importProducts.js --test --dry-run",
+    "import:full": "node scripts/importProducts.js",
+    "prices:dry-run": "node scripts/updateProductPrices.js --dry-run",
+    "prices:update": "node scripts/updateProductPrices.js",
+    "prices:zero-rate:dry-run": "node scripts/updateProductPrices.js --zero-rate --dry-run",
+    "prices:zero-rate:update": "node scripts/updateProductPrices.js --zero-rate"
   },
   "keywords": [],
   "author": "",
@@ -13,11 +20,14 @@
   "type": "module",
   "dependencies": {
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.11.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
-    "mongoose": "^9.9.4"
+    "mongoose": "^9.9.4",
+    "multer": "^2.3.0",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

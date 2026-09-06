@@ -9,10 +9,14 @@ export const getCart = async (req, res) => {
     const customer = req.customer;
 
     // Find cart for the authenticated customer
-    let cart = await Cart.findOne({ customer: customer._id }).populate(
-      "items.product",
-      "name itemCode company sellingPrice mrp image unit isAvailable isActive"
-    );
+    let cart = await Cart.findOne({ customer: customer._id }).populate({
+      path: "items.product",
+      select: "name itemCode company sellingPrice mrp image unit stockQuantity isAvailable isActive category",
+      populate: {
+        path: "category",
+        select: "name description image"
+      }
+    });
 
     // If cart doesn't exist, return empty cart structure
     if (!cart) {
@@ -123,10 +127,14 @@ export const addToCart = async (req, res) => {
     }
 
     // Populate product details for response
-    const populatedCart = await Cart.findById(cart._id).populate(
-      "items.product",
-      "name itemCode company sellingPrice mrp image unit isAvailable isActive"
-    );
+    const populatedCart = await Cart.findById(cart._id).populate({
+      path: "items.product",
+      select: "name itemCode company sellingPrice mrp image unit stockQuantity isAvailable isActive category",
+      populate: {
+        path: "category",
+        select: "name description image"
+      }
+    });
 
     res.status(201).json({
       success: true,
@@ -195,10 +203,14 @@ export const updateCartItem = async (req, res) => {
     await cart.save();
 
     // Populate product details for response
-    const populatedCart = await Cart.findById(cart._id).populate(
-      "items.product",
-      "name itemCode company sellingPrice mrp image unit isAvailable isActive"
-    );
+    const populatedCart = await Cart.findById(cart._id).populate({
+      path: "items.product",
+      select: "name itemCode company sellingPrice mrp image unit stockQuantity isAvailable isActive category",
+      populate: {
+        path: "category",
+        select: "name description image"
+      }
+    });
 
     res.status(200).json({
       success: true,
@@ -258,10 +270,14 @@ export const removeFromCart = async (req, res) => {
     await cart.save();
 
     // Populate product details for response
-    const populatedCart = await Cart.findById(cart._id).populate(
-      "items.product",
-      "name itemCode company sellingPrice mrp image unit isAvailable isActive"
-    );
+    const populatedCart = await Cart.findById(cart._id).populate({
+      path: "items.product",
+      select: "name itemCode company sellingPrice mrp image unit stockQuantity isAvailable isActive category",
+      populate: {
+        path: "category",
+        select: "name description image"
+      }
+    });
 
     res.status(200).json({
       success: true,

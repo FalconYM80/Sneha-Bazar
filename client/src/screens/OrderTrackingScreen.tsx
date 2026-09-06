@@ -1,0 +1,172 @@
+import { useState, useEffect } from 'react'
+import type { PlacedOrder } from '../types/app'
+import type { BackendOrder } from '../types/order'
+import { IcChevLeft, IcMapPin } from '../components/icons'
+import { orderService } from '../services/orderService'
+import { formatPickupTime } from '../types/order'
+import { calculatePickupTime } from '../utils/helpers'
+
+interface OrderTrackingScreenProps {
+  placedOrder: PlacedOrder | null
+  isAuthenticated: boolean
+  navigate: (screen: string) => void
+}
+
+export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: OrderTrackingScreenProps) => {
+  const [orderDetails, setOrderDetails] = useState<BackendOrder | null>(null)
+  const [isLoadingOrder, setIsLoadingOrder] = useState(false)
+  const [orderError, setOrderError] = useState('')
+
+  useEffect(() => {
+    const fetchOrderDetails = async () => {
+      if (!placedOrder || !isAuthenticated) {
+        return
+      }
+
+      setIsLoadingOrder(true)
+      setOrderError('')
+      try {
+        const backendOrders = await orderService.getMyOrders()
+        const matchingOrder = backendOrders.find(o => o.orderNumber === placedOrder.orderNumber)
+        
+        if (matchingOrder) {
+          setOrderDetails(matchingOrder)
+        } else {
+          setOrderError('Order details not found')
+        }
+      } catch (error) {
+        console.error('Error fetching order details:', error)
+        setOrderError(error instanceof Error ? error.message : 'Failed to load order details')
+      } finally {
+        setIsLoadingOrder(false)
+      }
+    }
+
+    fetchOrderDetails()
+  }, [placedOrder, isAuthenticated])
+
+  const currentOrder = orderDetails
+  const totalQuantity = currentOrder?.totalItemCount || placedOrder?.items.reduce((sum, item) => sum + item.qty, 0) || 0
+  const pickupTime = currentOrder?.preparationMinutes 
+    ? formatPickupTime(currentOrder.preparationMinutes) 
+    : placedOrder?.preparationMinutes 
+      ? formatPickupTime(placedOrder.preparationMinutes)
+      : calculatePickupTime(totalQuantity)
+  
+  const status = currentOrder?.status || (placedOrder?.status as any) || 'pending'
+  
+  const steps = [
+    { label: 'Order Placed', sub: 'We received your order', done: ['pending', 'confirmed', 'preparing', 'ready', 'completed'].includes(status), active: status === 'pending', icon: '📋' },
+    { label: 'Confirmed', sub: 'Order confirmed by store', done: ['confirmed', 'preparing', 'ready', 'completed'].includes(status), active: status === 'confirmed', icon: '✅' },
+    { label: 'Preparing', sub: 'Items are being prepared', done: ['preparing', 'ready', 'completed'].includes(status), active: status === 'preparing', icon: '📦' },
+    { label: 'Ready for Pickup', sub: 'Order ready at store', done: ['ready', 'completed'].includes(status), active: status === 'ready', icon: '🏪' },
+  ]
+
+  if (!placedOrder) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+        <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center text-4xl mb-4">📦</div>
+        <h3 className="text-gray-800 font-extrabold text-lg mb-1">Order Not Found</h3>
+        <p className="text-sm text-gray-400 mb-6">Please check your orders page for recent orders</p>
+        <button onClick={() => navigate('orders')} className="bg-green-600 text-white px-8 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-green-200">
+          View Orders
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+      <div className="bg-white px-4 shadow-sm shrink-0">
+        <div className="flex items-center gap-3 pb-3">
+          <button onClick={() => navigate('orders')} className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 shrink-0">
+            <IcChevLeft />
+          </button>
+          <h1 className="font-extrabold text-gray-900 text-lg flex-1">Order Status</h1>
+          <span className="text-gray-400 text-xs font-semibold">#{placedOrder.orderNumber}</span>
+        </div>
+      </div>
+
+      {isLoadingOrder ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
+          <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4" />
+          <p className="text-sm font-semibold">Loading order details...</p>
+        </div>
+      ) : orderError ? (
+        <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
+          <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mb-5 text-4xl">⚠️</div>
+          <h3 className="text-gray-800 font-extrabold text-lg mb-1">Error Loading Order</h3>
+          <p className="text-sm text-gray-400 mb-6">{orderError}</p>
+          <button onClick={() => navigate('orders')} className="bg-green-600 text-white px-8 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-green-200">
+            Back to Orders
+          </button>
+        </div>
+      ) : (
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+        {/* Pickup Time Card */}
+        <div className="bg-green-600 rounded-2xl p-4 flex items-center gap-4">
+          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl shrink-0">⏱️</div>
+          <div className="flex-1">
+            <p className="text-green-100 text-xs font-medium">Estimated Pickup Time</p>
+            <p className="text-white font-extrabold text-xl">{pickupTime}</p>
+          </div>
+        </div>
+
+        {/* Progress Timeline */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <h3 className="font-extrabold text-gray-900 text-sm mb-4">Order Progress</h3>
+          {steps.map((step, i) => (
+            <div key={step.label} className="flex gap-4" style={{ paddingBottom: i < steps.length - 1 ? '20px' : '0' }}>
+              <div className="flex flex-col items-center">
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm shrink-0 font-bold ${
+                  step.done
+                    ? 'bg-green-600 text-white'
+                    : step.active
+                      ? 'bg-orange-500 text-white ring-4 ring-orange-100'
+                      : 'bg-gray-100 text-gray-400'
+                }`}>
+                  {step.done ? '✓' : step.icon}
+                </div>
+                {i < steps.length - 1 && (
+                  <div className={`w-0.5 flex-1 mt-1 min-h-[16px] ${step.done ? 'bg-green-500' : 'bg-gray-200'}`} />
+                )}
+              </div>
+              <div className="pt-1.5 flex-1">
+                <div className="flex items-center gap-2">
+                  <p className={`text-sm font-bold ${step.done || step.active ? 'text-gray-900' : 'text-gray-400'}`}>
+                    {step.label}
+                  </p>
+                  {step.active && (
+                    <span className="bg-orange-100 text-orange-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">Current</span>
+                  )}
+                </div>
+                <p className="text-xs text-gray-400 mt-0.5">{step.sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Pickup Location */}
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+          <h3 className="font-extrabold text-gray-900 text-sm mb-3">Pickup Location</h3>
+          <div className="flex gap-3">
+            <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center text-green-600 shrink-0">
+              <IcMapPin />
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-700">Store Address</p>
+              <p className="text-xs text-gray-500 mt-0.5">Sneha Bazar Main Store<br />Vamanjoor, Karnataka</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      )}
+
+      <div className="px-4 py-3 bg-white border-t border-gray-100 shrink-0">
+        <button onClick={() => navigate('orders')} className="w-full border-2 border-gray-200 text-gray-700 py-3.5 rounded-2xl font-bold text-sm active:scale-95 transition-transform">
+          View All Orders
+        </button>
+      </div>
+    </div>
+  )
+}

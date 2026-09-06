@@ -43,6 +43,10 @@ const productSchema = new mongoose.Schema(
     image: {
       type: String,
     },
+    imagePublicId: {
+      type: String,
+      trim: true,
+    },
     isAvailable: {
       type: Boolean,
       default: true,
