@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import Category from "../models/Category.js";
+import Product from "../models/Product.js";
 
 // Create a new category
 export const createCategory = async (req, res) => {
@@ -57,6 +58,59 @@ export const getCategories = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Error retrieving categories",
+    });
+  }
+};
+
+// Get categories with thumbnails derived from product images
+export const getCategoriesWithThumbnails = async (req, res) => {
+  try {
+    // Use aggregation to efficiently get one product image per category
+    const productImagesByCategory = await Product.aggregate([
+      {
+        $match: {
+          isActive: true,
+          isAvailable: true,
+          image: { $exists: true, $ne: null, $ne: "" }
+        }
+      },
+      {
+        $group: {
+          _id: "$category",
+          thumbnail: { $first: "$image" }
+        }
+      }
+    ]);
+
+    // Create a map for quick lookup
+    const thumbnailMap = new Map(
+      productImagesByCategory.map(item => [item._id.toString(), item.thumbnail])
+    );
+
+    // Get all active categories
+    const categories = await Category.find({ isActive: true }).sort({ name: 1 });
+
+    // Combine categories with their thumbnails
+    const categoriesWithThumbnails = categories.map(category => ({
+      _id: category._id,
+      name: category.name,
+      description: category.description,
+      image: category.image, // Manual category image if exists
+      thumbnail: thumbnailMap.get(category._id.toString()) || null, // Product image as thumbnail
+      isActive: category.isActive,
+      createdAt: category.createdAt,
+      updatedAt: category.updatedAt,
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: "Categories with thumbnails retrieved successfully",
+      data: categoriesWithThumbnails,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error retrieving categories with thumbnails",
     });
   }
 };

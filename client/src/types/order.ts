@@ -109,12 +109,12 @@ export const formatOrderStatus = (status: BackendOrder['status']): string => {
 // Helper function to get status color class
 export const getStatusColorClass = (status: BackendOrder['status']): string => {
   const colorMap: Record<BackendOrder['status'], string> = {
-    pending: 'bg-gray-100 text-gray-700',
-    confirmed: 'bg-blue-100 text-blue-700',
-    preparing: 'bg-yellow-100 text-yellow-700',
-    ready: 'bg-orange-100 text-orange-700',
-    completed: 'bg-green-100 text-green-700',
-    cancelled: 'bg-red-100 text-red-700',
+    pending: 'bg-amber-50 text-amber-700 border border-amber-200',
+    confirmed: 'bg-blue-50 text-blue-700 border border-blue-200',
+    preparing: 'bg-sky-50 text-sky-700 border border-sky-200',
+    ready: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    completed: 'bg-green-50 text-green-700 border border-green-200',
+    cancelled: 'bg-red-50 text-red-700 border border-red-200',
   }
-  return colorMap[status] || 'bg-gray-100 text-gray-700'
+  return colorMap[status] || 'bg-gray-50 text-gray-700 border border-gray-200'
 }

@@ -20,18 +20,24 @@ export const NavBottom = ({ activeBottomTab, cartCount, onNavigate, onOpenCatego
   ]
   
   return (
-    <div className="bg-white border-t border-gray-100 px-1 py-1.5 flex justify-around shrink-0">
+    <div className="bg-[#FAFAF8] border-t border-[rgba(30,41,59,0.06)] px-1 py-1.5 flex justify-around shrink-0">
       {tabs.map(tab => (
-        <button key={tab.id} onClick={tab.action} className="flex flex-col items-center gap-0.5 px-3 py-1 relative min-w-[52px]">
-          <span className={activeBottomTab === tab.id ? 'text-green-600' : 'text-gray-400'}>
+        <button 
+          key={tab.id} 
+          onClick={tab.action} 
+          className={`flex flex-col items-center gap-0.5 px-3 py-1 relative min-w-[52px] rounded-lg transition-all ${
+            activeBottomTab === tab.id ? 'bg-[#E7F0E9]' : 'hover:bg-[#F8F9FA]'
+          }`}
+        >
+          <span className={activeBottomTab === tab.id ? 'text-[#166534]' : 'text-[#64748B]'}>
             <tab.Icon />
           </span>
           {tab.badge && tab.badge > 0 ? (
-            <span className="absolute top-0.5 right-1.5 w-4 h-4 bg-orange-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
+            <span className="absolute top-0.5 right-1.5 w-4 h-4 bg-[#F59E0B] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
               {tab.badge > 9 ? '9+' : tab.badge}
             </span>
           ) : null}
-          <span className={`text-[10px] font-semibold ${activeBottomTab === tab.id ? 'text-green-600' : 'text-gray-400'}`}>
+          <span className={`text-[10px] font-semibold ${activeBottomTab === tab.id ? 'text-[#166534]' : 'text-[#64748B]'}`}>
             {tab.label}
           </span>
         </button>

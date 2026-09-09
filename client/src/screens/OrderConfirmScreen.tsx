@@ -21,7 +21,7 @@ export const OrderConfirmScreen = ({ placedOrder, navigate }: OrderConfirmScreen
         <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center text-4xl mb-4">📦</div>
         <h3 className="text-gray-800 font-extrabold text-lg mb-1">Order Not Found</h3>
         <p className="text-sm text-gray-400 mb-6">Please check your orders page for recent orders</p>
-        <button onClick={() => navigate('orders')} className="bg-green-600 text-white px-8 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-green-200">
+        <button onClick={() => navigate('orders')} className="bg-gray-900 text-white px-8 py-3.5 rounded-2xl font-bold text-sm shadow-sm hover:bg-gray-800 transition-colors">
           View Orders
         </button>
       </div>
@@ -35,7 +35,7 @@ export const OrderConfirmScreen = ({ placedOrder, navigate }: OrderConfirmScreen
         <div className="relative mb-8">
           <div className="w-28 h-28 bg-green-100 rounded-full flex items-center justify-center">
             <div className="w-20 h-20 bg-green-200 rounded-full flex items-center justify-center">
-              <div className="w-14 h-14 bg-green-600 rounded-full flex items-center justify-center text-white shadow-lg shadow-green-300">
+              <div className="w-14 h-14 bg-[#16A34A] rounded-full flex items-center justify-center text-white shadow-lg shadow-green-300">
                 <IcCheck />
               </div>
             </div>
@@ -59,7 +59,7 @@ export const OrderConfirmScreen = ({ placedOrder, navigate }: OrderConfirmScreen
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500 text-sm">Status</span>
-            <span className={`font-semibold text-sm px-2.5 py-1 rounded-full ${getStatusColorClass(placedOrder.status as any)}`}>
+            <span className={`font-semibold text-sm px-2.5 py-1 rounded-lg ${getStatusColorClass(placedOrder.status as any)}`}>
               {formatOrderStatus(placedOrder.status as any)}
             </span>
           </div>
@@ -69,10 +69,10 @@ export const OrderConfirmScreen = ({ placedOrder, navigate }: OrderConfirmScreen
           </div>
           <div className="flex justify-between">
             <span className="text-gray-500 text-sm">Total Amount</span>
-            <span className="font-extrabold text-green-700 text-sm">₹{placedOrder.total}</span>
+            <span className="font-extrabold text-gray-900 text-sm">₹{placedOrder.total}</span>
           </div>
           <div className="border-t border-gray-200 pt-3.5 flex items-center gap-3">
-            <div className="w-10 h-10 bg-orange-100 rounded-xl flex items-center justify-center text-xl shrink-0">⏱️</div>
+            <div className="w-10 h-10 bg-[#FEF3C7] rounded-xl flex items-center justify-center text-xl shrink-0">⏱️</div>
             <div>
               <p className="text-xs text-gray-500 font-medium">Estimated Pickup Time</p>
               <p className="font-extrabold text-gray-900 text-sm">{pickupTime}</p>
@@ -92,13 +92,13 @@ export const OrderConfirmScreen = ({ placedOrder, navigate }: OrderConfirmScreen
         <div className="w-full space-y-3">
           <button
             onClick={() => navigate('orders')}
-            className="w-full border-2 border-green-600 text-green-600 py-3.5 rounded-2xl font-bold text-sm active:scale-95 transition-transform"
+            className="w-full bg-white border-2 border-gray-300 text-gray-700 py-3.5 rounded-2xl font-bold text-sm hover:bg-gray-50 transition-colors"
           >
             View Order Status
           </button>
           <button
             onClick={() => navigate('home')}
-            className="w-full bg-green-600 text-white py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-green-200 active:scale-95 transition-transform"
+            className="w-full bg-gray-900 text-white py-3.5 rounded-2xl font-bold text-sm shadow-sm hover:bg-gray-800 transition-colors"
           >
             Continue Shopping
           </button>

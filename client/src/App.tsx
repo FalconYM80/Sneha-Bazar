@@ -30,6 +30,8 @@ import { ProfileScreen } from './screens/ProfileScreen'
 
 export default function App() {
   const { isAuthenticated, isLoading, logout, customer } = useAuth()
+  const [isMobile, setIsMobile] = useState(true)
+  
   const [screen, setScreen] = useState<Screen>(() => {
     try {
       const savedScreen = sessionStorage.getItem('customerCurrentScreen')
@@ -41,6 +43,17 @@ export default function App() {
     }
     return 'splash'
   })
+
+  // Detect mobile/desktop
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 1024)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
   const [cart, setCart] = useState<FrontendCartItem[]>([])
   const [isCartLoading, setIsCartLoading] = useState(false)
   const [cartError, setCartError] = useState('')
@@ -73,23 +86,44 @@ export default function App() {
   const [isLoadingCategories, setIsLoadingCategories] = useState(false)
   const [productsError, setProductsError] = useState('')
   const [categoriesError, setCategoriesError] = useState('')
+
+  // Pagination states
+  const [currentPage, setCurrentPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchSuggestions, setSearchSuggestions] = useState<Product[]>([])
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
-  
+
   // Refs to avoid dependency issues in callbacks
   const productsRef = useRef(products)
   const searchQueryRef = useRef(searchQuery)
+  const currentPageRef = useRef(currentPage)
+  const hasMoreRef = useRef(hasMore)
+  const isLoadingMoreRef = useRef(isLoadingMore)
+  const isFetchingRef = useRef(false) // Request lock to prevent simultaneous requests
   
   // Update refs when values change
   useEffect(() => {
     productsRef.current = products
   }, [products])
-  
+
   useEffect(() => {
     searchQueryRef.current = searchQuery
   }, [searchQuery])
+
+  useEffect(() => {
+    currentPageRef.current = currentPage
+  }, [currentPage])
+
+  useEffect(() => {
+    hasMoreRef.current = hasMore
+  }, [hasMore])
+
+  useEffect(() => {
+    isLoadingMoreRef.current = isLoadingMore
+  }, [isLoadingMore])
 
   // Stable search handler to prevent input remounting on every keystroke
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,10 +155,7 @@ export default function App() {
         try {
           // Search across all products using backend API
           const backendProducts = await productService.getProducts(undefined, searchQueryRef.current.trim())
-          const adaptedProducts = backendProducts
-            .filter(product => product.isActive && product.isAvailable)
-            .map(adaptProduct)
-            .slice(0, 8) // Limit to 8 suggestions
+          const adaptedProducts = backendProducts.map(adaptProduct).slice(0, 8) // Limit to 8 suggestions
           setSearchSuggestions(adaptedProducts)
         } catch (error) {
           console.error('Error fetching search suggestions:', error)
@@ -230,15 +261,16 @@ export default function App() {
       setIsLoadingCategories(true)
       setCategoriesError('')
       try {
-        const backendCategories = await categoryService.getCategories()
+        const backendCategories = await categoryService.getCategoriesWithThumbnails()
         const adaptedCategories = backendCategories
           .filter(cat => cat.isActive)
           .map(adaptCategory)
         setCategories(adaptedCategories)
-        
-        // Set default category if none selected
-        if (!selectedCategory && adaptedCategories.length > 0) {
-          setSelectedCategory(adaptedCategories[0].id)
+
+        // Don't auto-select a category - let user choose "All Products" by default
+        // Only restore from sessionStorage if explicitly saved
+        if (!selectedCategory) {
+          setSelectedCategory('') // Default to "All Products"
         }
       } catch (error) {
         setCategoriesError(error instanceof Error ? error.message : 'Failed to load categories')
@@ -254,14 +286,33 @@ export default function App() {
   // Fetch products on mount and when search/category changes
   useEffect(() => {
     const fetchProducts = async () => {
+      // Reset pagination state
+      setCurrentPage(1)
+      setHasMore(true)
+      isFetchingRef.current = false
+
       setIsLoadingProducts(true)
       setProductsError('')
       try {
-        const backendProducts = await productService.getProducts(selectedCategory || undefined, searchQuery || undefined)
-        const adaptedProducts = backendProducts
-          .filter(product => product.isActive && product.isAvailable)
-          .map(adaptProduct)
+        const response = await productService.getProductsPaginated(
+          selectedCategory || undefined,
+          searchQuery || undefined,
+          1,
+          12
+        )
+        const adaptedProducts = response.data.map(adaptProduct)
+
+        console.log('[PAGINATION]', {
+          category: selectedCategory || 'All Products',
+          page: response.pagination.page,
+          received: adaptedProducts.length,
+          total: response.pagination.total,
+          totalPages: response.pagination.totalPages,
+          hasMore: response.pagination.hasMore
+        })
+
         setProducts(adaptedProducts)
+        setHasMore(response.pagination.hasMore)
       } catch (error) {
         setProductsError(error instanceof Error ? error.message : 'Failed to load products')
         console.error('Error fetching products:', error)
@@ -272,6 +323,55 @@ export default function App() {
 
     fetchProducts()
   }, [selectedCategory, searchQuery])
+
+  // Load more products (pagination)
+  const loadMoreProducts = async () => {
+    if (isFetchingRef.current) {
+      return
+    }
+
+    if (isLoadingMoreRef.current || !hasMoreRef.current) {
+      return
+    }
+
+    isFetchingRef.current = true
+    setIsLoadingMore(true)
+
+    try {
+      const nextPage = currentPageRef.current + 1
+      const response = await productService.getProductsPaginated(
+        selectedCategory || undefined,
+        searchQuery || undefined,
+        nextPage,
+        12
+      )
+
+      const adaptedProducts = response.data.map(adaptProduct)
+
+      console.log('[PAGINATION]', {
+        category: selectedCategory || 'All Products',
+        page: response.pagination.page,
+        received: adaptedProducts.length,
+        total: response.pagination.total,
+        totalPages: response.pagination.totalPages,
+        hasMore: response.pagination.hasMore
+      })
+
+      setProducts(prev => {
+        const existingIds = new Set(prev.map(p => p.id))
+        const uniqueNewProducts = adaptedProducts.filter(p => !existingIds.has(p.id))
+        return [...prev, ...uniqueNewProducts]
+      })
+
+      setCurrentPage(nextPage)
+      setHasMore(response.pagination.hasMore)
+    } catch (error) {
+      console.error('Error loading more products:', error)
+    } finally {
+      setIsLoadingMore(false)
+      isFetchingRef.current = false
+    }
+  }
 
   // Fetch orders when orders screen is accessed
   useEffect(() => {
@@ -376,7 +476,7 @@ export default function App() {
 
   const navigate = useCallback((s: Screen) => {
     setScreen(s)
-    const tabMap: Partial<Record<Screen, BottomTab>> = { home: 'home', cart: 'cart', orders: 'orders', profile: 'profile' }
+    const tabMap: Partial<Record<Screen, BottomTab>> = { home: 'home', 'product-list': 'categories', cart: 'cart', orders: 'orders', profile: 'profile' }
     const tab = tabMap[s]
     if (tab) setActiveBottomTab(tab)
   }, [])
@@ -393,12 +493,24 @@ export default function App() {
   const openProduct = useCallback((product: Product) => {
     setSelectedProduct(product)
     setProductQty(1)
+    // Store product ID for refresh support
+    try {
+      sessionStorage.setItem('selectedProductId', product.id)
+    } catch (error) {
+      console.error('Error storing product ID:', error)
+    }
     navigate('product-detail')
   }, [navigate])
 
   const closeProduct = () => {
     setSelectedProduct(null)
     setProductQty(1)
+    // Clear stored product ID
+    try {
+      sessionStorage.removeItem('selectedProductId')
+    } catch (error) {
+      console.error('Error clearing product ID:', error)
+    }
   }
 
   const openCategory = useCallback((catId: string) => {
@@ -477,31 +589,15 @@ export default function App() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-0 md:p-6"
-      style={{ background: 'linear-gradient(135deg, #14532d 0%, #064e3b 50%, #1e1b4b 100%)' }}
-    >
-      {/* Phone frame - responsive: full width on mobile, fixed frame on desktop */}
+    <div className="min-h-screen bg-gray-100">
+      {/* Responsive container - full width on mobile, centered max-width on desktop */}
       <div
-        className="flex flex-col overflow-hidden relative w-full md:w-[390px] md:h-[844px] md:rounded-[44px] md:border-[11px] md:border-gray-900 bg-white md:shadow-2xl"
+        className="flex flex-col overflow-hidden relative w-full mx-auto bg-white"
         style={{
           height: '100dvh',
           maxHeight: '100dvh',
         }}
       >
-        {/* Dynamic island - only on desktop */}
-        <div
-          className="absolute z-50 hidden md:block"
-          style={{
-            top: '10px',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: '120px',
-            height: '34px',
-            background: '#0f172a',
-            borderRadius: '17px',
-          }}
-        />
 
         {screen === 'splash' && <SplashScreen onNavigate={handleNavigate} />}
         {screen === 'login' && <LoginScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
@@ -526,9 +622,15 @@ export default function App() {
             handleSuggestionClick={handleSuggestionClick}
             cart={cart}
             addToCart={addToCart}
+            updateQuantity={updateQty}
             openProduct={openProduct}
             activeBottomTab={activeBottomTab}
             onNavigate={handleNavigate}
+            onNavigateToAllProducts={() => {
+              setSelectedCategory('')
+              navigate('product-list')
+            }}
+            isMobile={isMobile}
           />
         )}
         {screen === 'product-list' && (
@@ -551,9 +653,14 @@ export default function App() {
             handleSuggestionClick={handleSuggestionClick}
             cart={cart}
             addToCart={addToCart}
+            updateQuantity={updateQty}
             openProduct={openProduct}
             activeBottomTab={activeBottomTab}
             onNavigate={handleNavigate}
+            isMobile={isMobile}
+            hasMore={hasMore}
+            isLoadingMore={isLoadingMore}
+            onLoadMore={loadMoreProducts}
           />
         )}
         {screen === 'product-detail' && (
@@ -567,6 +674,7 @@ export default function App() {
             addToCart={addToCart}
             navigate={handleNavigate}
             closeProduct={closeProduct}
+            onProductLoaded={setSelectedProduct}
           />
         )}
         {screen === 'cart' && (
@@ -579,12 +687,11 @@ export default function App() {
             cartTotal={cartTotal}
             updateQty={updateQty}
             navigate={handleNavigate}
-            setCart={setCart}
-            setCartError={setCartError}
             activeBottomTab={activeBottomTab}
             onNavigate={handleNavigate}
             onOpenCategory={openCategory}
             categories={categories}
+            isMobile={isMobile}
           />
         )}
         {screen === 'checkout' && (
@@ -628,6 +735,7 @@ export default function App() {
             onNavigate={handleNavigate}
             onOpenCategory={openCategory}
             categories={categories}
+            isMobile={isMobile}
           />
         )}
         {screen === 'profile' && (
@@ -641,17 +749,9 @@ export default function App() {
             onNavigate={handleNavigate}
             onOpenCategory={openCategory}
             categories={categories}
+            isMobile={isMobile}
           />
         )}
-      </div>
-
-      {/* Screen label - only on desktop */}
-      <div className="absolute bottom-6 left-1/2 -translate-x-1/2 hidden md:block">
-        <div className="bg-white/10 backdrop-blur-sm px-4 py-2 rounded-full">
-          <p className="text-white/60 text-xs font-medium capitalize">
-            {screen.replace(/-/g, ' ')} • Sneha Bazar
-          </p>
-        </div>
       </div>
     </div>
   )

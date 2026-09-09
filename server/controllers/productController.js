@@ -155,13 +155,21 @@ export const createProduct = async (req, res) => {
   }
 };
 
-// Get all active products with optional filters
+// Get all active products with optional filters and pagination
 export const getProducts = async (req, res) => {
   try {
-    const { category, search } = req.query;
+    const { category, search, page = 1, limit = 50, admin = false } = req.query;
 
-    // Build query filter
+    // Parse pagination parameters with validation
+    const pageNum = Math.max(parseInt(page, 10) || 1, 1);
+    const limitNum = Math.max(parseInt(limit, 10) || 12, 1);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build query filter - admin flag allows seeing all products regardless of availability
     const filter = { isActive: true };
+    if (admin !== 'true') {
+      filter.isAvailable = true;
+    }
 
     // Filter by category if provided
     if (category) {
@@ -183,16 +191,45 @@ export const getProducts = async (req, res) => {
       ];
     }
 
-    // Get products with category populated, sorted by name
+    // Get total count for pagination metadata
+    const total = await Product.countDocuments(filter);
+
+    // Get products with category populated, sorted by name, with pagination
     const products = await Product.find(filter)
       .populate("category", "name description image")
-      .sort({ name: 1 });
+      .sort({ name: 1 })
+      .skip(skip)
+      .limit(limitNum);
 
-    res.status(200).json({
-      success: true,
-      message: "Products retrieved successfully",
-      data: products,
-    });
+    // Calculate pagination metadata
+    const totalPages = Math.ceil(total / limitNum);
+    const hasMore = pageNum < totalPages;
+
+    // Check if this is a paginated request (page or limit explicitly provided)
+    const isPaginated = req.query.page !== undefined || req.query.limit !== undefined;
+
+    if (isPaginated) {
+      // Return paginated response with metadata
+      res.status(200).json({
+        success: true,
+        message: "Products retrieved successfully",
+        data: products,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages,
+          hasMore,
+        },
+      });
+    } else {
+      // Return legacy response for backward compatibility
+      res.status(200).json({
+        success: true,
+        message: "Products retrieved successfully",
+        data: products,
+      });
+    }
   } catch (error) {
     res.status(500).json({
       success: false,

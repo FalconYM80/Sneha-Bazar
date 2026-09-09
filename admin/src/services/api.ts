@@ -1,7 +1,7 @@
 const API_BASE_URL = "http://localhost:5000/api";
 
 export const api = {
-  get: async (endpoint: string) => {
+  get: async <T = unknown>(endpoint: string): Promise<T> => {
     const response = await fetch(`${API_BASE_URL}${endpoint}`);
     const data = await response.json();
 
@@ -9,7 +9,7 @@ export const api = {
       throw new Error(data.message || "Something went wrong");
     }
 
-    return data;
+    return data as T;
   },
 
   post: async (endpoint: string, body: unknown) => {

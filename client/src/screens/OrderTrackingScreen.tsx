@@ -68,7 +68,7 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
         <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center text-4xl mb-4">📦</div>
         <h3 className="text-gray-800 font-extrabold text-lg mb-1">Order Not Found</h3>
         <p className="text-sm text-gray-400 mb-6">Please check your orders page for recent orders</p>
-        <button onClick={() => navigate('orders')} className="bg-green-600 text-white px-8 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-green-200">
+        <button onClick={() => navigate('orders')} className="bg-gray-900 text-white px-8 py-3.5 rounded-2xl font-bold text-sm shadow-sm hover:bg-gray-800 transition-colors">
           View Orders
         </button>
       </div>
@@ -76,7 +76,7 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
   }
 
   return (
-    <div className="flex-1 flex flex-col bg-gray-50 overflow-hidden">
+    <div className="flex-1 flex flex-col bg-[#FCFCFA] overflow-hidden">
       <div className="bg-white px-4 shadow-sm shrink-0">
         <div className="flex items-center gap-3 pb-3">
           <button onClick={() => navigate('orders')} className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 shrink-0">
@@ -89,7 +89,7 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
 
       {isLoadingOrder ? (
         <div className="flex-1 flex flex-col items-center justify-center text-gray-400">
-          <div className="w-12 h-12 border-4 border-green-600 border-t-transparent rounded-full animate-spin mb-4" />
+          <div className="w-12 h-12 border-4 border-gray-300 border-t-transparent rounded-full animate-spin mb-4" />
           <p className="text-sm font-semibold">Loading order details...</p>
         </div>
       ) : orderError ? (
@@ -97,18 +97,18 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
           <div className="w-20 h-20 bg-red-50 rounded-3xl flex items-center justify-center mb-5 text-4xl">⚠️</div>
           <h3 className="text-gray-800 font-extrabold text-lg mb-1">Error Loading Order</h3>
           <p className="text-sm text-gray-400 mb-6">{orderError}</p>
-          <button onClick={() => navigate('orders')} className="bg-green-600 text-white px-8 py-3.5 rounded-2xl font-bold text-sm shadow-lg shadow-green-200">
+          <button onClick={() => navigate('orders')} className="bg-gray-900 text-white px-8 py-3.5 rounded-2xl font-bold text-sm shadow-sm hover:bg-gray-800 transition-colors">
             Back to Orders
           </button>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
         {/* Pickup Time Card */}
-        <div className="bg-green-600 rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center text-2xl shrink-0">⏱️</div>
+        <div className="bg-white rounded-2xl p-4 flex items-center gap-4 border border-gray-100 shadow-sm">
+          <div className="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-2xl shrink-0">⏱️</div>
           <div className="flex-1">
-            <p className="text-green-100 text-xs font-medium">Estimated Pickup Time</p>
-            <p className="text-white font-extrabold text-xl">{pickupTime}</p>
+            <p className="text-gray-500 text-xs font-medium">Estimated Pickup Time</p>
+            <p className="text-gray-900 font-extrabold text-xl">{pickupTime}</p>
           </div>
         </div>
 
@@ -120,15 +120,15 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
               <div className="flex flex-col items-center">
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm shrink-0 font-bold ${
                   step.done
-                    ? 'bg-green-600 text-white'
+                    ? 'bg-gray-900 text-white'
                     : step.active
-                      ? 'bg-orange-500 text-white ring-4 ring-orange-100'
+                      ? 'bg-amber-500 text-white ring-4 ring-amber-100'
                       : 'bg-gray-100 text-gray-400'
                 }`}>
                   {step.done ? '✓' : step.icon}
                 </div>
                 {i < steps.length - 1 && (
-                  <div className={`w-0.5 flex-1 mt-1 min-h-[16px] ${step.done ? 'bg-green-500' : 'bg-gray-200'}`} />
+                  <div className={`w-0.5 flex-1 mt-1 min-h-[16px] ${step.done ? 'bg-gray-900' : 'bg-gray-200'}`} />
                 )}
               </div>
               <div className="pt-1.5 flex-1">
@@ -137,7 +137,7 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
                     {step.label}
                   </p>
                   {step.active && (
-                    <span className="bg-orange-100 text-orange-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">Current</span>
+                    <span className="bg-amber-100 text-amber-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">Current</span>
                   )}
                 </div>
                 <p className="text-xs text-gray-400 mt-0.5">{step.sub}</p>
@@ -150,7 +150,7 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
           <h3 className="font-extrabold text-gray-900 text-sm mb-3">Pickup Location</h3>
           <div className="flex gap-3">
-            <div className="w-8 h-8 bg-green-100 rounded-xl flex items-center justify-center text-green-600 shrink-0">
+            <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
               <IcMapPin />
             </div>
             <div>
@@ -163,7 +163,7 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
       )}
 
       <div className="px-4 py-3 bg-white border-t border-gray-100 shrink-0">
-        <button onClick={() => navigate('orders')} className="w-full border-2 border-gray-200 text-gray-700 py-3.5 rounded-2xl font-bold text-sm active:scale-95 transition-transform">
+        <button onClick={() => navigate('orders')} className="w-full bg-white border-2 border-gray-300 text-gray-700 py-3.5 rounded-2xl font-bold text-sm hover:bg-[#F8F9FA] transition-colors">
           View All Orders
         </button>
       </div>

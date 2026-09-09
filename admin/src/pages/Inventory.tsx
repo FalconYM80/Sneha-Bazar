@@ -41,9 +41,9 @@ const mapProduct = (product: BackendProduct, threshold: number): UIProduct => ({
   categoryId: product.category?._id || "",
   price: product.sellingPrice,
   mrp: product.mrp,
-  unit: product.unit || "unit",
+  unit: product.unit || "pack",
   stock: product.stockQuantity,
-  stockUnit: product.unit || "units",
+  stockUnit: product.unit || "packs",
   status: getStockStatus(product.stockQuantity, threshold),
   emoji: "📦",
   itemCode: product.itemCode,
@@ -96,7 +96,13 @@ function UpdateStockModal({
         <div className="px-6 py-5 space-y-5">
           {/* Product preview */}
           <div className="flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl border border-gray-100">
-            <span className="text-3xl">{product.emoji}</span>
+            <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
+              {product.image ? (
+                <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+              ) : (
+                <span>{product.emoji}</span>
+              )}
+            </div>
             <div>
               <p className="text-sm font-semibold text-gray-800">{product.name}</p>
               <p className="text-xs text-gray-400 mt-0.5">{product.category}</p>
@@ -174,7 +180,7 @@ function AddProductModal({
     sellingPrice: "", 
     mrp: "", 
     stockQuantity: "", 
-    unit: "", 
+    unit: "pack", 
     itemCode: "", 
     company: "" 
   });
@@ -184,14 +190,17 @@ function AddProductModal({
   const [error, setError] = useState("");
   const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
-  const STOCK_UNITS = ["pcs", "kg", "g", "litre", "ml", "pack", "packet", "box", "bottle", "dozen"];
+  const STOCK_UNITS = ["pack", "pcs", "kg", "g", "litre", "ml", "packet", "box", "bottle", "dozen"];
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       // Validate file type
       const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
-      if (!allowedTypes.includes(file.type)) {
+      const allowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      
+      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
         setError("Only image files (jpeg, jpg, png, gif, webp) are allowed");
         return;
       }
@@ -410,12 +419,12 @@ function EditProductModal({
     company: "" 
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string>("");
+  const [imagePreview, setImagePreview] = useState<string>(product.image || "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
-  const STOCK_UNITS = ["pcs", "kg", "g", "litre", "ml", "pack", "packet", "box", "bottle", "dozen"];
+  const STOCK_UNITS = ["pack", "pcs", "kg", "g", "litre", "ml", "packet", "box", "bottle", "dozen"];
 
   // Sync form when product changes
   useEffect(() => {
@@ -425,10 +434,12 @@ function EditProductModal({
       sellingPrice: product.price.toString(),
       mrp: "",
       stockQuantity: product.stock.toString(),
-      unit: product.unit,
+      unit: product.unit || "pack",
       itemCode: "",
       company: "",
     });
+    setImagePreview(product.image || "");
+    setImageFile(null);
   }, [product]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -436,7 +447,10 @@ function EditProductModal({
     if (file) {
       // Validate file type
       const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
-      if (!allowedTypes.includes(file.type)) {
+      const allowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
+      const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+      
+      if (!allowedTypes.includes(file.type) && !allowedExtensions.includes(fileExtension)) {
         setError("Only image files (jpeg, jpg, png, gif, webp) are allowed");
         return;
       }
@@ -638,31 +652,60 @@ export default function Inventory() {
   const [categories, setCategories] = useState<BackendCategory[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [searchInput, setSearchInput] = useState("");
   const [search, setSearch] = useState("");
   const [cat, setCat] = useState<string>("All");
   const [filter, setFilter] = useState<"All Status" | StockStatus>("All Status");
   const [updating, setUpdating] = useState<UIProduct | null>(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<UIProduct | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(25);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    totalPages: 0,
+    hasMore: false,
+  });
 
   const fetchInventoryData = async () => {
     setLoading(true);
     setError("");
     try {
+      const params = new URLSearchParams();
+      params.append('page', page.toString());
+      params.append('limit', limit.toString());
+      params.append('admin', 'true');
+      
+      if (search) params.append('search', search);
+      if (cat !== "All") params.append('category', cat);
+
       const [productsResponse, categoriesResponse] = await Promise.all([
-        api.get("/products"),
+        api.get(`/products?${params.toString()}`),
         api.get("/categories")
       ]);
       
       // Handle API response structure - check if it's wrapped in ApiResponse or direct
-      const productsData = Array.isArray(productsResponse) ? productsResponse : productsResponse.data || [];
-      const categoriesData = Array.isArray(categoriesResponse) ? categoriesResponse : categoriesResponse.data || [];
+      const response = productsResponse as any;
+      const productsData = Array.isArray(response) ? response : response.data || [];
+      const categoriesData = Array.isArray(categoriesResponse) ? categoriesResponse : (categoriesResponse as any).data || [];
 
       // Read threshold fresh each fetch so Settings changes are picked up on next navigation
       const { lowStockThreshold } = loadSettings();
       const mappedProducts = productsData.map((p: BackendProduct) => mapProduct(p, lowStockThreshold));
       setProducts(mappedProducts);
       setCategories(categoriesData);
+
+      // Extract pagination metadata if available
+      if (!Array.isArray(response) && response.pagination) {
+        setPagination(response.pagination);
+      } else {
+        // Fallback if pagination metadata not present
+        setPagination({
+          total: productsData.length,
+          totalPages: 1,
+          hasMore: false,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load inventory");
     } finally {
@@ -670,9 +713,19 @@ export default function Inventory() {
     }
   };
 
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 400);
+
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   useEffect(() => {
     fetchInventoryData();
-  }, []);
+  }, [page, limit, search, cat]);
 
   const handleSaveStock = async (id: string, newStock: number) => {
     await api.put(`/products/${id}`, { stockQuantity: newStock });
@@ -692,37 +745,36 @@ export default function Inventory() {
     }
   };
 
+  const handleSearchChange = (value: string) => {
+    setSearchInput(value);
+  };
+
+  const handleCategoryChange = (value: string) => {
+    setCat(value);
+    setPage(1);
+  };
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage);
+  };
+
+  const handleLimitChange = (newLimit: number) => {
+    setLimit(newLimit);
+    setPage(1);
+  };
+
   const visible = products.filter((p) => {
-    const ms = p.name.toLowerCase().includes(search.toLowerCase());
-    const mc = cat === "All" || p.categoryId === cat;
     const mf = filter === "All Status" || p.status === filter;
-    return ms && mc && mf;
+    return mf;
   });
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "#f4f6f4" }}>
-      {loading && (
-        <div className="flex items-center justify-center h-full">
-          <p className="text-sm text-gray-500">Loading inventory...</p>
-        </div>
-      )}
-      {error && !loading && (
-        <div className="flex items-center justify-center h-full">
-          <div className="text-center">
-            <p className="text-sm text-red-600 mb-3">{error}</p>
-            <button onClick={fetchInventoryData} className="text-sm font-semibold text-green-700 hover:text-green-800">
-              Retry
-            </button>
-          </div>
-        </div>
-      )}
-      {!loading && !error && (
-        <>
-          {updating && <UpdateStockModal product={updating} onClose={() => setUpdating(null)} onSave={handleSaveStock} />}
-          {adding && <AddProductModal onClose={() => setAdding(false)} categories={categories} onSuccess={fetchInventoryData} />}
-          {editing && <EditProductModal onClose={() => setEditing(null)} product={editing} categories={categories} onSuccess={fetchInventoryData} />}
+      {updating && <UpdateStockModal product={updating} onClose={() => setUpdating(null)} onSave={handleSaveStock} />}
+      {adding && <AddProductModal onClose={() => setAdding(false)} categories={categories} onSuccess={fetchInventoryData} />}
+      {editing && <EditProductModal onClose={() => setEditing(null)} product={editing} categories={categories} onSuccess={fetchInventoryData} />}
 
-          <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-5">
+      <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-5">
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -738,7 +790,7 @@ export default function Inventory() {
         {/* Stats bar */}
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: "Total Products", value: products.length, color: "text-gray-900" },
+            { label: "Total Products", value: pagination.total, color: "text-gray-900" },
             { label: "Low Stock", value: products.filter((p) => p.status === "Low Stock").length, color: "text-amber-600" },
             { label: "Out of Stock", value: products.filter((p) => p.status === "Out of Stock").length, color: "text-red-600" },
           ].map(({ label, value, color }) => (
@@ -753,13 +805,13 @@ export default function Inventory() {
         <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-4">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="w-64">
-              <SearchInput placeholder="Search products…" value={search} onChange={setSearch} />
+              <SearchInput placeholder="Search products…" value={searchInput} onChange={handleSearchChange} />
             </div>
 
             {/* Category pills */}
             <div className="flex gap-1 flex-wrap">
               <button
-                onClick={() => setCat("All")}
+                onClick={() => handleCategoryChange("All")}
                 className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
                   cat === "All" ? "bg-green-600 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                 }`}
@@ -769,7 +821,7 @@ export default function Inventory() {
               {categories.map((c) => (
                 <button
                   key={c._id}
-                  onClick={() => setCat(c._id)}
+                  onClick={() => handleCategoryChange(c._id)}
                   className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
                     cat === c._id ? "bg-green-600 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                   }`}
@@ -806,7 +858,20 @@ export default function Inventory() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {visible.length === 0 ? (
+                {loading ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-16 text-center text-sm text-gray-400">Loading...</td>
+                  </tr>
+                ) : error ? (
+                  <tr>
+                    <td colSpan={6} className="px-6 py-16 text-center">
+                      <p className="text-sm text-red-600 mb-3">{error}</p>
+                      <button onClick={fetchInventoryData} className="text-sm font-semibold text-green-700 hover:text-green-800">
+                        Retry
+                      </button>
+                    </td>
+                  </tr>
+                ) : visible.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-16 text-center text-sm text-gray-400">No products match your filters.</td>
                   </tr>
@@ -815,8 +880,12 @@ export default function Inventory() {
                     <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-xl flex-shrink-0">
-                            {p.emoji}
+                          <div className="w-10 h-10 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-xl flex-shrink-0 overflow-hidden">
+                            {p.image ? (
+                              <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{p.emoji}</span>
+                            )}
                           </div>
                           <div>
                             <p className="text-sm font-semibold text-gray-800">{p.name}</p>
@@ -881,25 +950,65 @@ export default function Inventory() {
           </div>
           <div className="px-6 py-3.5 border-t border-gray-50 flex items-center justify-between">
             <p className="text-xs text-gray-400 font-medium">
-              Showing <span className="text-gray-700 font-semibold">{visible.length}</span> of {products.length} products
+              Showing <span className="text-gray-700 font-semibold">{Math.min((page - 1) * limit + 1, pagination.total)}</span>–<span className="text-gray-700 font-semibold">{Math.min(page * limit, pagination.total)}</span> of <span className="text-gray-700 font-semibold">{pagination.total.toLocaleString()}</span> products
             </p>
-            <div className="flex gap-1">
-              {[1, 2, 3].map((n) => (
+            <div className="flex items-center gap-2">
+              <select
+                value={limit}
+                onChange={(e) => handleLimitChange(Number(e.target.value))}
+                className="text-xs font-medium border border-gray-200 rounded-lg px-2 py-1.5 text-gray-600 outline-none bg-white cursor-pointer focus:border-green-400"
+                style={{ fontFamily: "inherit" }}
+              >
+                <option value={25}>25 rows</option>
+                <option value={50}>50 rows</option>
+                <option value={100}>100 rows</option>
+              </select>
+              <div className="flex gap-1">
                 <button
-                  key={n}
+                  onClick={() => handlePageChange(page - 1)}
+                  disabled={page === 1}
                   className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
-                    n === 1 ? "bg-green-600 text-white" : "text-gray-500 hover:bg-gray-100"
+                    page === 1 ? "text-gray-300 cursor-not-allowed" : "text-gray-500 hover:bg-gray-100"
                   }`}
                 >
-                  {n}
+                  ←
                 </button>
-              ))}
+                <button
+                  onClick={() => handlePageChange(page)}
+                  className="w-7 h-7 rounded-lg text-xs font-semibold bg-green-600 text-white"
+                >
+                  {page}
+                </button>
+                {pagination.totalPages > 1 && page < pagination.totalPages && (
+                  <button
+                    onClick={() => handlePageChange(page + 1)}
+                    className="w-7 h-7 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+                  >
+                    {page + 1}
+                  </button>
+                )}
+                {pagination.totalPages > 2 && page < pagination.totalPages - 1 && (
+                  <button
+                    onClick={() => handlePageChange(page + 2)}
+                    className="w-7 h-7 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+                  >
+                    {page + 2}
+                  </button>
+                )}
+                <button
+                  onClick={() => handlePageChange(page + 1)}
+                  disabled={!pagination.hasMore}
+                  className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                    !pagination.hasMore ? "text-gray-300 cursor-not-allowed" : "text-gray-500 hover:bg-gray-100"
+                  }`}
+                >
+                  →
+                </button>
+              </div>
             </div>
           </div>
         </div>
       </div>
-        </>
-      )}
     </div>
   );
 }

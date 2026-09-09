@@ -2,6 +2,7 @@ import express from "express";
 import {
   createCategory,
   getCategories,
+  getCategoriesWithThumbnails,
   getCategoryById,
   updateCategory,
   deleteCategory,
@@ -11,6 +12,9 @@ const router = express.Router();
 
 // Create a new category
 router.post("/", createCategory);
+
+// Get categories with thumbnails derived from product images (must come before /:id)
+router.get("/with-thumbnails", getCategoriesWithThumbnails);
 
 // Get all active categories
 router.get("/", getCategories);

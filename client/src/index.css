@@ -1,18 +1,103 @@
-@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 
 html,
 body,
 #root {
   height: 100%;
-  font-family: 'Poppins', sans-serif;
+  font-family: 'Inter', sans-serif;
+  background-color: #FAFAF9;
+  color: #1C1917;
 }
 
 * {
   -webkit-tap-highlight-color: transparent;
-  scrollbar-width: none;
 }
 
-*::-webkit-scrollbar {
-  display: none;
+/* Custom scrollbar for desktop */
+@media (min-width: 1024px) {
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #D6D3D1 #F5F5F4;
+  }
+  
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  *::-webkit-scrollbar-track {
+    background: #F5F5F4;
+    border-radius: 4px;
+  }
+  
+  *::-webkit-scrollbar-thumb {
+    background: #D6D3D1;
+    border-radius: 4px;
+  }
+  
+  *::-webkit-scrollbar-thumb:hover {
+    background: #A8A29E;
+  }
+}
+
+@media (max-width: 1023px) {
+  * {
+    scrollbar-width: none;
+  }
+  
+  *::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Custom scrollbar for category sidebar on mobile */
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: #D6D3D1 #F5F5F4;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+    display: block;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: #F5F5F4;
+    border-radius: 2px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: #D6D3D1;
+    border-radius: 2px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: #A8A29E;
+  }
+}
+
+/* Smooth animations */
+* {
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 150ms;
+}
+
+/* Disable transitions for performance during rapid interactions */
+.no-transition * {
+  transition: none !important;
+}
+
+/* Line clamp utility for multi-line text truncation */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Border styles for animation */
+.border-3 {
+  border-width: 3px;
 }
