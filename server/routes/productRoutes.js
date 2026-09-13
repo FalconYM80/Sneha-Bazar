@@ -6,12 +6,16 @@ import {
   getProductById,
   updateProduct,
   deleteProduct,
+  getLowStockProducts,
 } from "../controllers/productController.js";
 
 const router = express.Router();
 
 // Create a new product with image upload
 router.post("/", upload.single("image"), createProduct);
+
+// Get low stock products for dashboard (must come before /:id)
+router.get("/low-stock", getLowStockProducts);
 
 // Get all active products with optional filters
 router.get("/", getProducts);

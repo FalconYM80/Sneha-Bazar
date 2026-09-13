@@ -6,7 +6,7 @@ import {
 import { api } from "../services/api";
 import type { Order, Product, Category, Page } from "../types";
 import { mapOrderStatus } from "../types";
-import { OrderStatusBadge, Avatar, IconTrendingUp, IconShoppingBag, IconBox, IconAlertTriangle } from "../components/ui";
+import { OrderStatusBadge, Avatar, IconTrendingUp, IconShoppingBag, IconBox, IconAlertTriangle, IconShield } from "../components/ui";
 import { loadSettings } from "../settings";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -108,30 +108,60 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [productPagination, setProductPagination] = useState({
+    total: 0,
+    totalPages: 0,
+    hasMore: false,
+  });
+  const [lowStockProducts, setLowStockProducts] = useState<Product[]>([]);
+  const [lowStockTotal, setLowStockTotal] = useState(0);
 
   const fetchDashboardData = async () => {
     setLoading(true);
     setError("");
     try {
-      const [ordersRes, productsRes, categoriesRes] = await Promise.all([
+      const [ordersRes, productsRes, categoriesRes, lowStockRes] = await Promise.all([
         api.get("/orders"),
-        api.get("/products"),
+        api.get("/products?page=1&limit=50&admin=true"),
         api.get("/categories"),
+        api.get(`/products/low-stock?lowStockThreshold=${lowStockThreshold}&limit=5`),
       ]);
 
-      const ordersData: Order[] = Array.isArray(ordersRes)
-        ? ordersRes
-        : ordersRes.data ?? [];
-      const productsData: Product[] = Array.isArray(productsRes)
-        ? productsRes
-        : productsRes.data ?? [];
-      const categoriesData: Category[] = Array.isArray(categoriesRes)
-        ? categoriesRes
-        : categoriesRes.data ?? [];
+      const ordersResponse = ordersRes as any;
+      const ordersData: Order[] = Array.isArray(ordersResponse)
+        ? ordersResponse
+        : ordersResponse.data ?? [];
+      const productsResponse = productsRes as any;
+      const productsData: Product[] = Array.isArray(productsResponse)
+        ? productsResponse
+        : productsResponse.data ?? [];
+      const categoriesResponse = categoriesRes as any;
+      const categoriesData: Category[] = Array.isArray(categoriesResponse)
+        ? categoriesResponse
+        : categoriesResponse.data ?? [];
+      const lowStockResponse = lowStockRes as any;
+      const lowStockData: Product[] = Array.isArray(lowStockResponse)
+        ? lowStockResponse
+        : lowStockResponse.data ?? [];
+      const lowStockCount = lowStockResponse.total ?? lowStockData.length;
 
       setOrders(ordersData);
       setProducts(productsData);
       setCategories(categoriesData);
+      setLowStockProducts(lowStockData);
+      setLowStockTotal(lowStockCount);
+
+      // Extract pagination metadata if available
+      if (!Array.isArray(productsResponse) && productsResponse.pagination) {
+        setProductPagination(productsResponse.pagination);
+      } else {
+        // Fallback if pagination metadata not present
+        setProductPagination({
+          total: productsData.length,
+          totalPages: 1,
+          hasMore: false,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load dashboard data");
     } finally {
@@ -183,13 +213,11 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   }, [todaysOrders]);
 
   // ── KPI: Total Products & Categories ────────────────────────────────────────
-  const totalProducts = products.length;
+  const totalProducts = productPagination.total || products.length;
   const totalCategories = categories.length;
 
   // ── KPI: Low Stock Count ─────────────────────────────────────────────────────
-  const lowStockCount = useMemo(() => {
-    return products.filter((p) => p.stockQuantity <= lowStockThreshold).length;
-  }, [products, lowStockThreshold]);
+  const lowStockCount = lowStockTotal;
 
   // ── KPI SUMMARY array ────────────────────────────────────────────────────────
   const SUMMARY = useMemo(() => [
@@ -229,7 +257,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
       iconBg: "bg-red-50",
       iconColor: "text-red-500",
     },
-  ], [todaysSales, salesComparisonText, salesComparisonColor, todaysOrderCount, needsAttentionCount, totalProducts, totalCategories, lowStockCount]);
+  ], [todaysSales, salesComparisonText, salesComparisonColor, todaysOrderCount, needsAttentionCount, totalProducts, totalCategories, lowStockTotal]);
 
   // ── Chart data: Week ─────────────────────────────────────────────────────────
   const weekChartData = useMemo((): ChartItem[] => {
@@ -348,15 +376,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
   // ── Low Stock Alert ──────────────────────────────────────────────────────────
   const lowStockItems = useMemo((): LowStockItem[] => {
-    return products
-      .filter((p) => p.stockQuantity <= lowStockThreshold)
-      .sort((a, b) => {
-        // Out-of-stock first, then ascending by stockQuantity
-        if (a.stockQuantity === 0 && b.stockQuantity !== 0) return -1;
-        if (b.stockQuantity === 0 && a.stockQuantity !== 0) return 1;
-        return a.stockQuantity - b.stockQuantity;
-      })
-      .slice(0, 5)
+    return lowStockProducts
       .map((p) => ({
         id: p._id,
         name: p.name,
@@ -364,7 +384,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         stockUnit: p.unit || "units",
         status: p.stockQuantity === 0 ? "Out of Stock" : "Low Stock",
       }));
-  }, [products, lowStockThreshold]);
+  }, [lowStockProducts]);
 
   // ── Recent Orders ─────────────────────────────────────────────────────────────
   const recentOrders = useMemo(() => {
@@ -415,7 +435,12 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
         {/* Greeting */}
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Good Morning, Admin 👋</h2>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center text-green-600">
+              <IconShield size={18} />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900">Welcome back, Admin</h2>
+          </div>
           <p className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening with your store today.</p>
         </div>
 

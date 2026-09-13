@@ -5,6 +5,7 @@ import { NavBottom } from '../components/NavBottom'
 import { Header } from '../components/Header'
 import { Navigation } from '../components/Navigation'
 import { MainContent } from '../components/PageContainer'
+import { IcEmptyCart } from '../components/icons'
 
 interface CartScreenProps {
   cart: FrontendCartItem[]
@@ -38,7 +39,7 @@ export const CartScreen = ({
   isMobile = true
 }: CartScreenProps) => {
   return (
-    <div className="flex-1 flex flex-col bg-[#FCFCFA] overflow-hidden">
+    <div className="flex-1 flex flex-col bg-[#F7F6F2] overflow-hidden">
       {/* Header */}
       <Header
         searchQuery=""
@@ -74,8 +75,8 @@ export const CartScreen = ({
         </MainContent>
       ) : cart.length === 0 ? (
         <MainContent className="flex-1">
-          <EmptyState 
-            icon="🛒"
+          <EmptyState
+            icon={<IcEmptyCart />}
             title="Your cart is waiting"
             subtitle="Add some products and they'll appear here."
             actionLabel="Continue Shopping"

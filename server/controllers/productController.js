@@ -158,12 +158,15 @@ export const createProduct = async (req, res) => {
 // Get all active products with optional filters and pagination
 export const getProducts = async (req, res) => {
   try {
-    const { category, search, page = 1, limit = 50, admin = false } = req.query;
+    const { category, search, page = 1, limit = 50, admin = false, stockStatus, lowStockThreshold = 10 } = req.query;
 
     // Parse pagination parameters with validation
     const pageNum = Math.max(parseInt(page, 10) || 1, 1);
     const limitNum = Math.max(parseInt(limit, 10) || 12, 1);
     const skip = (pageNum - 1) * limitNum;
+
+    // Parse low stock threshold
+    const threshold = parseInt(lowStockThreshold, 10) || 10;
 
     // Build query filter - admin flag allows seeing all products regardless of availability
     const filter = { isActive: true };
@@ -191,6 +194,22 @@ export const getProducts = async (req, res) => {
       ];
     }
 
+    // Filter by stock status if provided
+    if (stockStatus && admin === 'true') {
+      switch (stockStatus) {
+        case 'In Stock':
+          filter.stockQuantity = { $gt: threshold };
+          break;
+        case 'Low Stock':
+          filter.stockQuantity = { $gt: 0, $lte: threshold };
+          break;
+        case 'Out of Stock':
+          filter.stockQuantity = 0;
+          break;
+        // 'All Status' doesn't add any filter
+      }
+    }
+
     // Get total count for pagination metadata
     const total = await Product.countDocuments(filter);
 
@@ -205,10 +224,9 @@ export const getProducts = async (req, res) => {
     const totalPages = Math.ceil(total / limitNum);
     const hasMore = pageNum < totalPages;
 
-    // Check if this is a paginated request (page or limit explicitly provided)
-    const isPaginated = req.query.page !== undefined || req.query.limit !== undefined;
-
-    if (isPaginated) {
+    // Always return pagination metadata for admin requests
+    // For customer requests without pagination params, return legacy format for backward compatibility
+    if (admin === 'true' || req.query.page !== undefined || req.query.limit !== undefined) {
       // Return paginated response with metadata
       res.status(200).json({
         success: true,
@@ -223,7 +241,7 @@ export const getProducts = async (req, res) => {
         },
       });
     } else {
-      // Return legacy response for backward compatibility
+      // Return legacy response for backward compatibility (customer browse without pagination)
       res.status(200).json({
         success: true,
         message: "Products retrieved successfully",
@@ -234,6 +252,42 @@ export const getProducts = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Error retrieving products",
+    });
+  }
+};
+
+// Get low stock products for dashboard
+export const getLowStockProducts = async (req, res) => {
+  try {
+    const { lowStockThreshold = 10, limit = 5 } = req.query;
+    const threshold = parseInt(lowStockThreshold, 10) || 10;
+    const limitNum = Math.min(parseInt(limit, 10) || 5, 20);
+
+    // Get total count of low stock products
+    const totalLowStock = await Product.countDocuments({
+      isActive: true,
+      stockQuantity: { $lte: threshold }
+    });
+
+    // Get low stock products sorted by stock quantity (ascending)
+    const lowStockProducts = await Product.find({
+      isActive: true,
+      stockQuantity: { $lte: threshold }
+    })
+      .populate("category", "name description image")
+      .sort({ stockQuantity: 1, name: 1 })
+      .limit(limitNum);
+
+    res.status(200).json({
+      success: true,
+      message: "Low stock products retrieved successfully",
+      data: lowStockProducts,
+      total: totalLowStock,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error retrieving low stock products",
     });
   }
 };

@@ -56,11 +56,11 @@ export const ProductCard = ({ product, cart, onAddToCart, onUpdateQuantity, onPr
 
     return (
       <div
-        className="w-full h-full flex items-center justify-center"
+        className="w-full h-full flex flex-col items-center justify-center"
         style={{ backgroundColor: bgColor }}
       >
         <svg
-          className="w-12 h-12 text-gray-400"
+          className="w-8 h-8 text-gray-300"
           fill="none"
           stroke="currentColor"
           viewBox="0 0 24 24"
@@ -72,6 +72,7 @@ export const ProductCard = ({ product, cart, onAddToCart, onUpdateQuantity, onPr
             d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"
           />
         </svg>
+        <span className="text-xs text-gray-400 mt-1">Image unavailable</span>
       </div>
     )
   }
@@ -81,14 +82,14 @@ export const ProductCard = ({ product, cart, onAddToCart, onUpdateQuantity, onPr
       className={`bg-white rounded-xl overflow-hidden border border-gray-100 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${isOutOfStock ? 'opacity-60' : ''}`}
       onClick={() => !isOutOfStock && onProductClick(product)}
     >
-      <div className="relative h-40 overflow-hidden bg-gray-50">
+      <div className="relative h-40 overflow-hidden bg-white">
         {imageError || !product.image ? (
           getFallbackImage()
         ) : (
           <img 
             src={product.image} 
             alt={product.name} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain p-2"
             loading="lazy"
             onError={() => setImageError(true)}
           />
@@ -102,47 +103,47 @@ export const ProductCard = ({ product, cart, onAddToCart, onUpdateQuantity, onPr
 
         {isOutOfStock && (
           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-            <span className="text-white text-sm font-semibold px-3 py-1.5 bg-black/70 rounded-lg">
+            <span className="text-white text-xs font-semibold px-2 py-1 bg-black/70 rounded-lg">
               Out of Stock
             </span>
           </div>
         )}
       </div>
 
-      <div className="p-3">
-        <h3 className="text-gray-900 text-sm font-medium leading-snug line-clamp-2 min-h-[36px] mb-1">
+      <div className="p-2.5">
+        <h3 className="text-gray-900 text-xs font-medium leading-snug line-clamp-2 min-h-[28px] mb-1">
           {product.name}
         </h3>
         
         {product.unit && (
-          <p className="text-gray-500 text-xs mb-2">{product.unit}</p>
+          <p className="text-gray-400 text-[10px] mb-1.5">{product.unit}</p>
         )}
 
-        <div className="flex items-center justify-between mt-2">
+        <div className="flex items-center justify-between mt-1">
           <div className="flex flex-col">
-            <span className="text-gray-900 font-bold text-base">₹{product.price}</span>
+            <span className="text-gray-900 font-bold text-sm">₹{product.price}</span>
             {product.originalPrice && (
-              <span className="text-gray-400 text-xs line-through">₹{product.originalPrice}</span>
+              <span className="text-gray-400 text-[10px] line-through">₹{product.originalPrice}</span>
             )}
           </div>
 
           {quantity > 0 ? (
             <div
-              className="flex items-center gap-1 bg-emerald-600 rounded-lg px-1.5 py-1"
+              className="flex items-center gap-0.5 bg-emerald-600 rounded-lg px-1 py-1"
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 onClick={(e) => handleQuantityChange(e, -1)}
-                className="w-6 h-6 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
+                className="w-5 h-5 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
               >
                 −
               </button>
-              <span className="text-white font-semibold text-sm w-4 text-center">
+              <span className="text-white font-semibold text-xs w-3 text-center">
                 {quantity}
               </span>
               <button
                 onClick={(e) => handleQuantityChange(e, 1)}
-                className="w-6 h-6 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
+                className="w-5 h-5 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
                 disabled={quantity >= product.stockQuantity}
               >
                 +
@@ -152,7 +153,7 @@ export const ProductCard = ({ product, cart, onAddToCart, onUpdateQuantity, onPr
             <button
               onClick={handleAddToCart}
               disabled={isOutOfStock}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 isOutOfStock
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
                   : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'

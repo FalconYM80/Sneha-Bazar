@@ -20,7 +20,7 @@ export const NavBottom = ({ activeBottomTab, cartCount, onNavigate, onOpenCatego
   ]
   
   return (
-    <div className="bg-[#FAFAF8] border-t border-[rgba(30,41,59,0.06)] px-1 py-1.5 flex justify-around shrink-0">
+    <div className="bg-white border-t border-[#E5E7EB] px-1 py-1.5 flex justify-around shrink-0">
       {tabs.map(tab => (
         <button 
           key={tab.id} 

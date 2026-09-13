@@ -1,21 +1,29 @@
+import type { ReactNode } from 'react'
+
 interface EmptyStateProps {
-  icon?: string
+  icon?: string | ReactNode
   title: string
   subtitle?: string
   actionLabel?: string
   onAction?: () => void
 }
 
-export const EmptyState = ({ 
-  icon = '🛒', 
-  title, 
-  subtitle, 
-  actionLabel, 
-  onAction 
+export const EmptyState = ({
+  icon = '🛒',
+  title,
+  subtitle,
+  actionLabel,
+  onAction
 }: EmptyStateProps) => {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-gray-400">
-      <span className="text-5xl mb-3">{icon}</span>
+      <div className="mb-4 text-gray-300">
+        {typeof icon === 'string' ? (
+          <span className="text-5xl">{icon}</span>
+        ) : (
+          icon
+        )}
+      </div>
       <p className="text-sm font-semibold text-gray-500">{title}</p>
       {subtitle && (
         <p className="text-xs text-gray-400 mt-1 text-center max-w-xs">{subtitle}</p>

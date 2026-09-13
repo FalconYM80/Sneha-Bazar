@@ -1,24 +1,26 @@
+import React from 'react'
 import { IcHome, IcGrid, IcCart, IcPackage, IcUser } from './icons'
+import type { BottomTab } from '../types/app'
 
 interface NavigationProps {
-  activeTab: 'home' | 'categories' | 'cart' | 'orders' | 'profile'
+  activeTab: BottomTab
   onNavigate: (screen: string) => void
   isMobile?: boolean
 }
 
 export const Navigation = ({ activeTab, onNavigate, isMobile = false }: NavigationProps) => {
-  const navItems = [
-    { id: 'home' as const, label: 'Home', icon: IcHome, screen: 'home' },
-    { id: 'categories' as const, label: 'Browse', icon: IcGrid, screen: 'product-list' },
-    { id: 'cart' as const, label: 'Cart', icon: IcCart, screen: 'cart' },
-    { id: 'orders' as const, label: 'Orders', icon: IcPackage, screen: 'orders' },
-    { id: 'profile' as const, label: 'Profile', icon: IcUser, screen: 'profile' },
+  const navItems: Array<{ id: BottomTab; label: string; icon: () => React.ReactNode; screen: string }> = [
+    { id: 'home', label: 'Home', icon: IcHome, screen: 'home' },
+    { id: 'categories', label: 'Browse', icon: IcGrid, screen: 'product-list' },
+    { id: 'cart', label: 'Cart', icon: IcCart, screen: 'cart' },
+    { id: 'orders', label: 'Orders', icon: IcPackage, screen: 'orders' },
+    { id: 'profile', label: 'Profile', icon: IcUser, screen: 'profile' },
   ]
 
   // Desktop navigation
   if (!isMobile) {
     return (
-      <div className="bg-[#FAFAF8] border-b border-[rgba(30,41,59,0.06)] shrink-0">
+      <div className="bg-white border-b border-[#E5E7EB] shrink-0">
         <div className="max-w-[1400px] mx-auto px-6">
           <div className="flex gap-1 py-3">
             {navItems.map((item) => {

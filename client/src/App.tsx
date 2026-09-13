@@ -12,7 +12,7 @@ import type { FrontendOrder } from './types/order'
 import { adaptOrder } from './types/order'
 import type { Screen, BottomTab, Product, PlacedOrder } from './types/app'
 import type { FrontendCartItem } from './types/cart'
-import { isValidScreen } from './utils/helpers'
+import { isValidScreen, shuffleWithImagePriority } from './utils/helpers'
 
 // ─── Imported Screens ──────────────────────────────────────────────────────────
 import { SplashScreen } from './screens/SplashScreen'
@@ -72,7 +72,6 @@ export default function App() {
   const [productQty, setProductQty] = useState(1)
   const [activeOrderTab, setActiveOrderTab] = useState<'active' | 'past'>('active')
   const [placedOrder, setPlacedOrder] = useState<PlacedOrder | null>(null)
-  const [activeBottomTab, setActiveBottomTab] = useState<BottomTab>('home')
   const [isCheckingOut, setIsCheckingOut] = useState(false)
   const [checkoutError, setCheckoutError] = useState('')
   const [orders, setOrders] = useState<FrontendOrder[]>([])
@@ -311,7 +310,10 @@ export default function App() {
           hasMore: response.pagination.hasMore
         })
 
-        setProducts(adaptedProducts)
+        // Shuffle products with image priority for the current page
+        const shuffledProducts = shuffleWithImagePriority(adaptedProducts, (p) => p.image)
+
+        setProducts(shuffledProducts)
         setHasMore(response.pagination.hasMore)
       } catch (error) {
         setProductsError(error instanceof Error ? error.message : 'Failed to load products')
@@ -357,9 +359,12 @@ export default function App() {
         hasMore: response.pagination.hasMore
       })
 
+      // Shuffle new products with image priority
+      const shuffledNewProducts = shuffleWithImagePriority(adaptedProducts, (p) => p.image)
+
       setProducts(prev => {
         const existingIds = new Set(prev.map(p => p.id))
-        const uniqueNewProducts = adaptedProducts.filter(p => !existingIds.has(p.id))
+        const uniqueNewProducts = shuffledNewProducts.filter(p => !existingIds.has(p.id))
         return [...prev, ...uniqueNewProducts]
       })
 
@@ -400,6 +405,18 @@ export default function App() {
   const cartCount = cart.reduce((s, i) => s + i.qty, 0)
   const cartSubtotal = cart.reduce((s, i) => s + i.product.price * i.qty, 0)
   const cartTotal = cartSubtotal
+
+  // Derive active tab from current screen
+  const activeBottomTab: BottomTab = React.useMemo(() => {
+    const tabMap: Partial<Record<Screen, BottomTab>> = { 
+      home: 'home', 
+      'product-list': 'categories', 
+      cart: 'cart', 
+      orders: 'orders', 
+      profile: 'profile' 
+    }
+    return tabMap[screen] || 'home'
+  }, [screen])
 
   const addToCart = async (product: Product, qty = 1) => {
     // Check stock availability
@@ -476,9 +493,6 @@ export default function App() {
 
   const navigate = useCallback((s: Screen) => {
     setScreen(s)
-    const tabMap: Partial<Record<Screen, BottomTab>> = { home: 'home', 'product-list': 'categories', cart: 'cart', orders: 'orders', profile: 'profile' }
-    const tab = tabMap[s]
-    if (tab) setActiveBottomTab(tab)
   }, [])
 
   const clearNavigationState = () => {
@@ -516,7 +530,6 @@ export default function App() {
   const openCategory = useCallback((catId: string) => {
     setSelectedCategory(catId)
     setSearchQuery('') // Clear search when switching categories
-    setActiveBottomTab('categories')
     navigate('product-list')
   }, [navigate])
 

@@ -678,6 +678,11 @@ export default function Inventory() {
       
       if (search) params.append('search', search);
       if (cat !== "All") params.append('category', cat);
+      if (filter !== "All Status") params.append('stockStatus', filter);
+      
+      // Send low stock threshold to backend for server-side filtering
+      const { lowStockThreshold } = loadSettings();
+      params.append('lowStockThreshold', lowStockThreshold.toString());
 
       const [productsResponse, categoriesResponse] = await Promise.all([
         api.get(`/products?${params.toString()}`),
@@ -689,8 +694,7 @@ export default function Inventory() {
       const productsData = Array.isArray(response) ? response : response.data || [];
       const categoriesData = Array.isArray(categoriesResponse) ? categoriesResponse : (categoriesResponse as any).data || [];
 
-      // Read threshold fresh each fetch so Settings changes are picked up on next navigation
-      const { lowStockThreshold } = loadSettings();
+      // Map products with threshold for UI display
       const mappedProducts = productsData.map((p: BackendProduct) => mapProduct(p, lowStockThreshold));
       setProducts(mappedProducts);
       setCategories(categoriesData);
@@ -725,7 +729,7 @@ export default function Inventory() {
 
   useEffect(() => {
     fetchInventoryData();
-  }, [page, limit, search, cat]);
+  }, [page, limit, search, cat, filter]);
 
   const handleSaveStock = async (id: string, newStock: number) => {
     await api.put(`/products/${id}`, { stockQuantity: newStock });
@@ -762,11 +766,6 @@ export default function Inventory() {
     setLimit(newLimit);
     setPage(1);
   };
-
-  const visible = products.filter((p) => {
-    const mf = filter === "All Status" || p.status === filter;
-    return mf;
-  });
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "#f4f6f4" }}>
@@ -871,12 +870,12 @@ export default function Inventory() {
                       </button>
                     </td>
                   </tr>
-                ) : visible.length === 0 ? (
+                ) : products.length === 0 ? (
                   <tr>
                     <td colSpan={6} className="px-6 py-16 text-center text-sm text-gray-400">No products match your filters.</td>
                   </tr>
                 ) : (
-                  visible.map((p) => (
+                  products.map((p) => (
                     <tr key={p.id} className="hover:bg-gray-50/50 transition-colors group">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">

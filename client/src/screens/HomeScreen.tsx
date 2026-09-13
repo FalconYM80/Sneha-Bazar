@@ -247,7 +247,7 @@ export const HomeScreen = ({
     fallbackColor: cat.fallbackColor || getCategoryFallbackColor(cat.name),
   }))
 
-  // Show only first 8 categories on home page
+  // Show only first 8 categories on home page (keep fixed order)
   const homeCategories = categoriesWithColors.slice(0, 8)
 
   // Carousel functionality
@@ -373,7 +373,7 @@ export const HomeScreen = ({
   const currentBanner = banners[currentSlide]
 
   return (
-    <div className="flex-1 flex flex-col bg-[#FCFCFA] overflow-hidden relative">
+    <div className="flex-1 flex flex-col bg-[#F7F6F2] overflow-hidden relative">
       {/* Subtle background pattern for texture */}
       <div className="absolute inset-0 opacity-30 pointer-events-none">
         <div className="absolute top-20 left-10 w-96 h-96 bg-gradient-to-br from-blue-50/40 to-transparent rounded-full blur-3xl" />
@@ -465,7 +465,7 @@ export const HomeScreen = ({
             <div className="absolute inset-0 bg-gradient-to-r from-black/30 via-transparent to-transparent pointer-events-none" />
 
             {/* Content */}
-            <div className="absolute inset-0 flex flex-col justify-center px-4 sm:px-6 md:px-8 lg:px-10 z-10">
+            <div className="absolute inset-0 flex flex-col justify-center pl-12 sm:pl-16 md:pl-20 lg:pl-24 pr-4 sm:pr-6 md:pr-8 lg:pr-10 z-10">
               <div className="max-w-md md:max-w-lg">
                 <h3 
                   className={`font-extrabold leading-tight text-xl sm:text-2xl md:text-3xl lg:text-4xl mb-2`}
@@ -644,8 +644,8 @@ export const HomeScreen = ({
             <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
                 <div className="inline-block bg-[#F59E0B] text-white text-xs font-bold px-2 py-1 rounded-md mb-2">NEW</div>
-                <h3 className="font-extrabold text-lg md:text-xl lg:text-2xl mb-1">Free Delivery on First Order</h3>
-                <p className="text-gray-300 text-sm md:text-base">Use code WELCOME at checkout</p>
+                <h3 className="font-extrabold text-lg md:text-xl lg:text-2xl mb-1">Order Online. Pick Up at Sneha Bazar.</h3>
+                <p className="text-gray-300 text-sm md:text-base">Shop your everyday essentials and collect your order at the shop.</p>
               </div>
               <button
                 onClick={() => {
@@ -657,7 +657,7 @@ export const HomeScreen = ({
                 }}
                 className="bg-white text-[#1E293B] text-sm md:text-base font-bold px-5 py-2.5 rounded-xl hover:bg-[#F8F9FA] transition-colors shrink-0"
               >
-                Shop Now
+                Start Shopping
               </button>
             </div>
           </div>

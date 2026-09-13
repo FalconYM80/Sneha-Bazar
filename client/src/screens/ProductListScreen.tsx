@@ -11,7 +11,9 @@ import { NavBottom } from '../components/NavBottom'
 import { Header } from '../components/Header'
 import { Navigation } from '../components/Navigation'
 import { MainContent } from '../components/PageContainer'
-import { useEffect, useRef, useCallback } from 'react'
+import { CategoryBottomSheet } from '../components/CategoryBottomSheet'
+import { IcCategory, IcChevDown } from '../components/icons'
+import { useEffect, useRef, useCallback, useState } from 'react'
 
 interface ProductListScreenProps {
   products: Product[]
@@ -82,6 +84,9 @@ export const ProductListScreen = ({
 
   const cartCount = cart.reduce((s, i) => s + (i.qty || 0), 0)
 
+  // Mobile category bottom sheet state
+  const [isCategorySheetOpen, setIsCategorySheetOpen] = useState(false)
+
   // Scroll-based infinite loading
   const scrollContainerRef = useRef<HTMLDivElement>(null)
 
@@ -145,40 +150,40 @@ export const ProductListScreen = ({
   }, [products, hasMore, isLoadingMore])
 
   const CategorySidebar = () => (
-    <div className="w-20 md:w-64 shrink-0 bg-white border-r border-gray-100 overflow-y-auto custom-scrollbar">
-      <div className="p-2 md:p-4">
-        <h3 className="hidden md:block text-sm font-semibold text-gray-900 mb-3">Categories</h3>
+    <div className="hidden md:block w-64 shrink-0 bg-white border-r border-gray-100 overflow-y-auto custom-scrollbar">
+      <div className="p-4">
+        <h3 className="text-base font-semibold text-gray-900 mb-3">Categories</h3>
         <div className="space-y-1">
           <button
             onClick={() => setSelectedCategory('')}
-            className={`w-full flex flex-col md:flex-row items-center gap-1 md:gap-2 px-2 py-2 md:px-3 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors ${
+            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
               selectedCategory === ''
-                ? 'bg-gray-100 text-gray-900 border-l-2 border-gray-900'
+                ? 'bg-emerald-50/50 text-emerald-900 border-l-2 border-emerald-600'
                 : 'text-gray-600 hover:bg-[#F8F9FA]'
             }`}
           >
-            <div className="w-10 h-10 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 bg-gray-200">
+            <div className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0 bg-gray-200">
               <span className="text-sm font-bold text-gray-600">A</span>
             </div>
-            <span className="text-center md:text-left line-clamp-2">{isMobile ? 'All' : 'All Products'}</span>
+            <span className="text-left line-clamp-2">All Products</span>
           </button>
           {categoriesWithColors.map(c => (
             <button
               key={c.id}
               onClick={() => setSelectedCategory(c.id)}
-              className={`w-full flex flex-col md:flex-row items-center gap-1 md:gap-2 px-2 py-2 md:px-3 md:py-2 rounded-lg text-xs md:text-sm font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors ${
                 c.id === selectedCategory
-                  ? 'bg-gray-100 text-gray-900 border-l-2 border-gray-900'
+                  ? 'bg-emerald-50/50 text-emerald-900 border-l-2 border-emerald-600'
                   : 'text-gray-600 hover:bg-[#F8F9FA]'
               }`}
             >
-              <div 
-                className="w-10 h-10 md:w-8 md:h-8 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
+              <div
+                className="w-11 h-11 rounded-lg flex items-center justify-center shrink-0 overflow-hidden"
                 style={{ backgroundColor: c.accentColor || c.fallbackColor || '#F5F5F5' }}
               >
                 {c.thumbnail ? (
-                  <img 
-                    src={c.thumbnail} 
+                  <img
+                    src={c.thumbnail}
                     alt={c.name}
                     className="w-full h-full object-cover"
                     onError={(e) => {
@@ -191,7 +196,7 @@ export const ProductListScreen = ({
                   </span>
                 )}
               </div>
-              <span className="text-center md:text-left line-clamp-2">{c.name}</span>
+              <span className="text-left line-clamp-2">{c.name}</span>
             </button>
           ))}
         </div>
@@ -200,7 +205,7 @@ export const ProductListScreen = ({
   )
 
   return (
-    <div className="flex-1 flex flex-col bg-[#FCFCFA] overflow-hidden">
+    <div className="flex-1 flex flex-col bg-[#F7F6F2] overflow-hidden">
       {/* Header */}
       <Header
         searchQuery={searchQuery}
@@ -239,22 +244,34 @@ export const ProductListScreen = ({
         <MainContent className="flex-1 overflow-y-auto" ref={scrollContainerRef}>
           {isMobile ? (
             <>
+              {/* Category control row */}
+              <div className="flex items-center justify-between px-4 py-3 bg-white border-b border-gray-100">
+                <button
+                  onClick={() => setIsCategorySheetOpen(true)}
+                  className="flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                >
+                  <IcCategory />
+                  <span>Categories</span>
+                  <IcChevDown />
+                </button>
+                <span className="text-xs text-gray-500 font-medium">{filtered.length} products</span>
+              </div>
+
               {isLoadingProducts ? (
-                <div className="grid gap-3 grid-cols-2 px-3 py-3">
+                <div className="grid gap-3.5 grid-cols-2 px-4 py-4">
                   {[...Array(6)].map((_, i) => (
                     <ProductSkeleton key={i} />
                   ))}
                 </div>
               ) : productsError ? (
-                <div className="px-3 py-3">
+                <div className="px-4 py-4">
                   <ErrorState message={productsError} />
                 </div>
               ) : (
                 <>
-                  <p className="text-xs text-gray-400 mb-2 font-semibold px-3">{filtered.length} products</p>
                   {filtered.length > 0 ? (
                     <>
-                      <div className="grid gap-2.5 grid-cols-2 px-3 pb-3">
+                      <div className="grid gap-3.5 grid-cols-2 px-4 py-4 pb-24">
                         {filtered.map(product => (
                           <ProductCard
                             key={product.id}
@@ -281,8 +298,8 @@ export const ProductListScreen = ({
                       )}
                     </>
                   ) : (
-                    <div className="px-3 py-3">
-                      <EmptyState 
+                    <div className="px-4 py-4">
+                      <EmptyState
                         icon="🛒"
                         title="No products found"
                         subtitle="Try selecting a different category"
@@ -365,10 +382,22 @@ export const ProductListScreen = ({
           activeBottomTab={activeBottomTab}
           cartCount={cartCount}
           onNavigate={onNavigate}
-          onOpenCategory={(catId) => setSelectedCategory(catId)}
+          onOpenCategory={(catId) => {
+            setSelectedCategory(catId)
+            setIsCategorySheetOpen(false)
+          }}
           categories={categories}
         />
       )}
+
+      {/* Mobile Category Bottom Sheet */}
+      <CategoryBottomSheet
+        isOpen={isCategorySheetOpen}
+        onClose={() => setIsCategorySheetOpen(false)}
+        categories={categoriesWithColors}
+        selectedCategory={selectedCategory}
+        onSelectCategory={setSelectedCategory}
+      />
     </div>
   )
 }
