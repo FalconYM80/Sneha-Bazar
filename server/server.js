@@ -14,6 +14,9 @@ dotenv.config();
 
 const app = express();
 
+// Trust reverse proxy (Railway uses a single reverse proxy hop)
+app.set("trust proxy", 1);
+
 // Connect to MongoDB
 connectDB();
 

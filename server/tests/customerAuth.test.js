@@ -838,6 +838,7 @@ describe("Customer Authentication System (Mobile & Email Login)", () => {
       const transporter = getTransporter();
       assert.ok(transporter);
       assert.equal(typeof transporter.sendMail, "function");
+      assert.equal(transporter.options.family, 4);
     });
 
     it("2. getTransporter returns null without crashing when SMTP env variables are absent", () => {

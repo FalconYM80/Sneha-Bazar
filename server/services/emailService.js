@@ -23,6 +23,7 @@ export function getTransporter() {
       port,
       secure: port === 465, // true for port 465, false for port 587 (STARTTLS)
       auth: { user, pass },
+      family: 4, // Force IPv4 resolution to prevent ENETUNREACH on environments without IPv6 routing (e.g. Railway)
     });
     lastTransporterConfig = configKey;
     return cachedTransporter;
