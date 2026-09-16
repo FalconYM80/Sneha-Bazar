@@ -20,12 +20,27 @@ connectDB();
 // Middleware
 app.use(express.json());
 
+// CORS configuration
+const defaultAllowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "https://sneha-bazar.vercel.app",
+];
+
+const envOrigins = [
+  process.env.CLIENT_URL,
+  process.env.ADMIN_URL,
+  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : []),
+]
+  .filter(Boolean)
+  .map((origin) => origin.trim().replace(/\/+$/, ""));
+
+const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envOrigins]));
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:5173",
-      "http://localhost:5174",
-    ],
+    origin: allowedOrigins,
+    credentials: true,
   })
 );
 

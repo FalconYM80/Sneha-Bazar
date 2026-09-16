@@ -1,4 +1,8 @@
-const API_BASE_URL = 'http://localhost:5000/api'
+// Base API URL configuration for Vite
+// Reads from VITE_API_URL in production, falls back to http://localhost:5000/api in development
+const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || 'http://localhost:5000/api'
+const cleanBaseUrl = rawApiUrl.replace(/\/+$/, '')
+const API_BASE_URL = cleanBaseUrl.endsWith('/api') ? cleanBaseUrl : `${cleanBaseUrl}/api`
 
 interface ApiResponse<T> {
   success: boolean
@@ -28,7 +32,8 @@ class ApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+    const url = `${API_BASE_URL}${cleanEndpoint}`
     const config: RequestInit = {
       ...options,
       headers: {
@@ -68,7 +73,8 @@ class ApiService {
     endpoint: string,
     options: RequestInit = {}
   ): Promise<{ data: T; pagination: { page: number; limit: number; total: number; totalPages: number; hasMore: boolean } }> {
-    const url = `${API_BASE_URL}${endpoint}`
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`
+    const url = `${API_BASE_URL}${cleanEndpoint}`
     const config: RequestInit = {
       ...options,
       headers: {
