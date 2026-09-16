@@ -17,14 +17,12 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-// Middleware
-app.use(express.json());
-
 // CORS configuration
 const defaultAllowedOrigins = [
   "http://localhost:5173",
   "http://localhost:5174",
   "https://sneha-bazar.vercel.app",
+  "https://sneha-bazar-admin.vercel.app",
 ];
 
 const envOrigins = [
@@ -37,12 +35,29 @@ const envOrigins = [
 
 const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envOrigins]));
 
-app.use(
-  cors({
-    origin: allowedOrigins,
-    credentials: true,
-  })
-);
+const corsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    if (!origin) {
+      return callback(null, true);
+    }
+    const normalizedOrigin = origin.trim().replace(/\/+$/, "");
+    if (allowedOrigins.includes(normalizedOrigin)) {
+      return callback(null, true);
+    }
+    return callback(new Error(`CORS error: Origin ${origin} not allowed`));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  optionsSuccessStatus: 200,
+};
+
+app.use(cors(corsOptions));
+app.options("*", cors(corsOptions));
+
+// Body parser
+app.use(express.json());
 
 // Health check
 app.get("/api/health", (req, res) => {
