@@ -6,6 +6,7 @@ import { ProductCard } from '../components/ProductCard'
 import { productService } from '../services/productService'
 import { adaptProduct } from '../types/product'
 import { shopConfig } from '../config/shopConfig'
+import { Footer } from '../components/Footer'
 
 interface ProductDetailScreenProps {
   selectedProduct: Product | null
@@ -474,6 +475,8 @@ export const ProductDetailScreen = ({
             </div>
           </section>
         )}
+
+        <Footer onNavigate={navigate} className="mt-12" />
       </main>
 
       {/* Compact Fixed Bottom Action Bar for Mobile */}

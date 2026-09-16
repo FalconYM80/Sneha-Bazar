@@ -12,6 +12,7 @@ import { NavBottom } from '../components/NavBottom'
 import { Header } from '../components/Header'
 import { Navigation } from '../components/Navigation'
 import { MainContent } from '../components/PageContainer'
+import { Footer } from '../components/Footer'
 import { useState, useEffect, useMemo } from 'react'
 
 interface HomeScreenProps {
@@ -771,6 +772,9 @@ export const HomeScreen = ({
             </div>
           )}
         </MainContent>
+
+        {/* Footer */}
+        <Footer onNavigate={onNavigate} isMobile={isMobile} />
       </div>
 
       {/* Bottom Navigation - only on mobile */}
