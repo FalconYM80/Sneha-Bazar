@@ -1,8 +1,17 @@
-const API_BASE_URL = "http://localhost:5000/api";
+// Base API URL configuration for Vite
+// Reads from VITE_API_URL in production, falls back to http://localhost:5000/api in development
+const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || "http://localhost:5000/api";
+const cleanBaseUrl = rawApiUrl.replace(/\/+$/, "");
+const API_BASE_URL = cleanBaseUrl.endsWith("/api") ? cleanBaseUrl : `${cleanBaseUrl}/api`;
+
+const getUrl = (endpoint: string) => {
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+  return `${API_BASE_URL}${cleanEndpoint}`;
+};
 
 export const api = {
   get: async <T = unknown>(endpoint: string): Promise<T> => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`);
+    const response = await fetch(getUrl(endpoint));
     const data = await response.json();
 
     if (!response.ok) {
@@ -13,7 +22,7 @@ export const api = {
   },
 
   post: async (endpoint: string, body: unknown) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(getUrl(endpoint), {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -31,7 +40,7 @@ export const api = {
   },
 
   postFormData: async (endpoint: string, formData: FormData) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(getUrl(endpoint), {
       method: "POST",
       body: formData,
     });
@@ -46,7 +55,7 @@ export const api = {
   },
 
   put: async (endpoint: string, body: unknown) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(getUrl(endpoint), {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -64,7 +73,7 @@ export const api = {
   },
 
   putFormData: async (endpoint: string, formData: FormData) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(getUrl(endpoint), {
       method: "PUT",
       body: formData,
     });
@@ -79,7 +88,7 @@ export const api = {
   },
 
   delete: async (endpoint: string) => {
-    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+    const response = await fetch(getUrl(endpoint), {
       method: "DELETE",
     });
 
