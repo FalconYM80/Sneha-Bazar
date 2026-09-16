@@ -34,7 +34,11 @@ export default function App() {
   const { isAuthenticated, isLoading, logout, customer } = useAuth()
   const [isMobile, setIsMobile] = useState(true)
   
+  // Temporary feature flag: Password reset is disabled until transactional email provider is ready
+  const IS_FORGOT_PASSWORD_ENABLED = false
+
   const [resetToken, setResetToken] = useState<string>(() => {
+    if (!IS_FORGOT_PASSWORD_ENABLED) return ''
     try {
       const path = window.location.pathname
       if (path.startsWith('/reset-password/')) {
@@ -50,11 +54,16 @@ export default function App() {
   const [screen, setScreen] = useState<Screen>(() => {
     try {
       const path = window.location.pathname
-      if (path.startsWith('/reset-password/') || (path === '/reset-password' && window.location.search.includes('token='))) {
-        return 'reset-password'
-      }
-      if (path === '/forgot-password') {
-        return 'forgot-password'
+      if (IS_FORGOT_PASSWORD_ENABLED) {
+        if (path.startsWith('/reset-password/') || (path === '/reset-password' && window.location.search.includes('token='))) {
+          return 'reset-password'
+        }
+        if (path === '/forgot-password') {
+          return 'forgot-password'
+        }
+      } else if (path.startsWith('/reset-password') || path === '/forgot-password') {
+        // Cleanly redirect disabled routes to base URL
+        window.history.replaceState({}, '', '/')
       }
       const savedScreen = sessionStorage.getItem('customerCurrentScreen')
       if (savedScreen && isValidScreen(savedScreen)) {
@@ -71,12 +80,17 @@ export default function App() {
     const handlePopState = () => {
       try {
         const path = window.location.pathname
-        if (path.startsWith('/reset-password/')) {
-          const token = path.replace('/reset-password/', '').split('/')[0] || ''
-          setResetToken(token)
-          setScreen('reset-password')
-        } else if (path === '/forgot-password') {
-          setScreen('forgot-password')
+        if (IS_FORGOT_PASSWORD_ENABLED) {
+          if (path.startsWith('/reset-password/')) {
+            const token = path.replace('/reset-password/', '').split('/')[0] || ''
+            setResetToken(token)
+            setScreen('reset-password')
+          } else if (path === '/forgot-password') {
+            setScreen('forgot-password')
+          }
+        } else if (path.startsWith('/reset-password') || path === '/forgot-password') {
+          window.history.replaceState({}, '', '/')
+          setScreen('login')
         } else if (path === '/register') {
           setScreen('register')
         } else if (path === '/login') {
@@ -306,15 +320,17 @@ export default function App() {
         if (isLoading) return
         
         const path = window.location.pathname
-        if (path.startsWith('/reset-password/') || (path === '/reset-password' && window.location.search.includes('token='))) {
-          const token = path.replace('/reset-password/', '').split('/')[0] || new URLSearchParams(window.location.search).get('token') || ''
-          setResetToken(token)
-          setScreen('reset-password')
-          return
-        }
-        if (path === '/forgot-password') {
-          setScreen('forgot-password')
-          return
+        if (IS_FORGOT_PASSWORD_ENABLED) {
+          if (path.startsWith('/reset-password/') || (path === '/reset-password' && window.location.search.includes('token='))) {
+            const token = path.replace('/reset-password/', '').split('/')[0] || new URLSearchParams(window.location.search).get('token') || ''
+            setResetToken(token)
+            setScreen('reset-password')
+            return
+          }
+          if (path === '/forgot-password') {
+            setScreen('forgot-password')
+            return
+          }
         }
         if (path === '/register') {
           setScreen('register')
@@ -781,15 +797,21 @@ export default function App() {
           {screen === 'splash' && <SplashScreen onNavigate={handleNavigate} />}
           {screen === 'login' && <LoginScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
           {screen === 'register' && <RegisterScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
-          {screen === 'forgot-password' && <ForgotPasswordScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
+          {screen === 'forgot-password' && (
+            IS_FORGOT_PASSWORD_ENABLED 
+              ? <ForgotPasswordScreen onNavigate={handleNavigate} onSetScreen={setScreen} />
+              : <LoginScreen onNavigate={handleNavigate} onSetScreen={setScreen} />
+          )}
           {screen === 'reset-password' && (
-            <ResetPasswordScreen
-              token={resetToken}
-              onSetScreen={setScreen}
-              onPasswordResetSuccess={() => {
-                setScreen('login')
-              }}
-            />
+            IS_FORGOT_PASSWORD_ENABLED
+              ? <ResetPasswordScreen
+                  token={resetToken}
+                  onSetScreen={setScreen}
+                  onPasswordResetSuccess={() => {
+                    setScreen('login')
+                  }}
+                />
+              : <LoginScreen onNavigate={handleNavigate} onSetScreen={setScreen} />
           )}
           {screen === 'home' && (
             <HomeScreen

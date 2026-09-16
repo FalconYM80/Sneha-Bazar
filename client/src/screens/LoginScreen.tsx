@@ -150,15 +150,6 @@ export const LoginScreen = ({ onNavigate, onSetScreen, successMessage }: LoginSc
               />
             </div>
           </div>
-          <div className="flex justify-end">
-            <button 
-              type="button" 
-              onClick={() => onSetScreen('forgot-password')}
-              className="text-gray-600 text-sm font-semibold hover:text-gray-900 transition-colors"
-            >
-              Forgot Password?
-            </button>
-          </div>
         </div>
 
         {successMessage && (
