@@ -1,7 +1,16 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
+import crypto from "crypto";
 import bcryptjs from "bcryptjs";
-import { registerCustomer, loginCustomer, getCustomerProfile, updateCustomerProfile } from "../controllers/customerAuthController.js";
+import {
+  registerCustomer,
+  loginCustomer,
+  getCustomerProfile,
+  updateCustomerProfile,
+  forgotPassword,
+  resetPassword,
+} from "../controllers/customerAuthController.js";
+import { sendPasswordResetEmail, getTransporter } from "../services/emailService.js";
 import Customer from "../models/Customer.js";
 
 // Mock Response Helper
@@ -31,7 +40,7 @@ describe("Customer Authentication System (Mobile & Email Login)", () => {
   });
 
   describe("Registration", () => {
-    it("successfully creates an account with valid Indian mobile number and normalizes to E.164", async () => {
+    it("successfully creates an account with valid Indian mobile number and normalized email", async () => {
       const origFindOne = Customer.findOne;
       const origCreate = Customer.create;
 
@@ -49,7 +58,7 @@ describe("Customer Authentication System (Mobile & Email Login)", () => {
           body: {
             name: "Sneha Patel",
             phone: validPhone,
-            email: validEmail,
+            email: "  Customer@Example.COM  ",
             password: validPassword,
           },
         };
@@ -60,6 +69,7 @@ describe("Customer Authentication System (Mobile & Email Login)", () => {
         assert.equal(res.statusCode, 201);
         assert.equal(res.body.success, true);
         assert.equal(res.body.data.customer.phone, formattedE164);
+        assert.equal(res.body.data.customer.email, "customer@example.com");
         assert.equal(res.body.data.customer.name, "Sneha Patel");
         assert.ok(res.body.data.token);
       } finally {
@@ -68,11 +78,77 @@ describe("Customer Authentication System (Mobile & Email Login)", () => {
       }
     });
 
+    it("rejects registration when email is missing", async () => {
+      const req = {
+        body: {
+          name: "Sneha Patel",
+          phone: validPhone,
+          password: validPassword,
+        },
+      };
+      const res = createMockRes();
+
+      await registerCustomer(req, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.equal(res.body.success, false);
+      assert.match(res.body.message, /Email is required/);
+    });
+
+    it("rejects registration with invalid email format", async () => {
+      const req = {
+        body: {
+          name: "Sneha Patel",
+          phone: validPhone,
+          email: "invalid-email-format",
+          password: validPassword,
+        },
+      };
+      const res = createMockRes();
+
+      await registerCustomer(req, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.equal(res.body.success, false);
+      assert.match(res.body.message, /Invalid email format/);
+    });
+
+    it("rejects registration with duplicate email", async () => {
+      const origFindOne = Customer.findOne;
+      Customer.findOne = async (query) => {
+        if (query.email) {
+          return { _id: "existing_cust", email: validEmail };
+        }
+        return null;
+      };
+
+      try {
+        const req = {
+          body: {
+            name: "Sneha Patel",
+            phone: validPhone,
+            email: validEmail,
+            password: validPassword,
+          },
+        };
+        const res = createMockRes();
+
+        await registerCustomer(req, res);
+
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.success, false);
+        assert.match(res.body.message, /An account with this email already exists/);
+      } finally {
+        Customer.findOne = origFindOne;
+      }
+    });
+
     it("rejects registration with invalid Indian phone", async () => {
       const req = {
         body: {
           name: "Invalid User",
           phone: "1234567890",
+          email: validEmail,
           password: validPassword,
         },
       };
@@ -87,16 +163,22 @@ describe("Customer Authentication System (Mobile & Email Login)", () => {
 
     it("rejects registration with duplicate phone", async () => {
       const origFindOne = Customer.findOne;
-      Customer.findOne = async () => ({
-        _id: "existing_cust_id",
-        phone: formattedE164,
-      });
+      Customer.findOne = async (query) => {
+        if (query.$or) {
+          return {
+            _id: "existing_cust_id",
+            phone: formattedE164,
+          };
+        }
+        return null;
+      };
 
       try {
         const req = {
           body: {
             name: "Duplicate User",
             phone: validPhone,
+            email: validEmail,
             password: validPassword,
           },
         };
@@ -534,6 +616,256 @@ describe("Customer Authentication System (Mobile & Email Login)", () => {
 
       assert.equal(res.statusCode, 401);
       assert.equal(res.body.success, false);
+    });
+  });
+
+  describe("Password Reset (Forgot & Reset Password)", () => {
+    it("1. Forgot password with valid email generates hashed token and returns generic response", async () => {
+      const origFindOne = Customer.findOne;
+      let savedDoc = null;
+
+      Customer.findOne = async () => ({
+        _id: "cust_12345",
+        name: "Sneha Patel",
+        email: validEmail,
+        isActive: true,
+        passwordResetTokenHash: null,
+        passwordResetExpires: null,
+        save: async function () {
+          savedDoc = this;
+          return this;
+        },
+      });
+
+      try {
+        const req = {
+          body: {
+            email: "  Customer@Example.COM  ",
+          },
+        };
+        const res = createMockRes();
+
+        await forgotPassword(req, res);
+
+        assert.equal(res.statusCode, 200);
+        assert.equal(res.body.success, true);
+        assert.match(res.body.message, /If an account exists with that email/);
+        assert.ok(savedDoc);
+        assert.ok(savedDoc.passwordResetTokenHash);
+        assert.equal(typeof savedDoc.passwordResetTokenHash, "string");
+        assert.equal(savedDoc.passwordResetTokenHash.length, 64); // SHA-256 hex length
+        assert.ok(savedDoc.passwordResetExpires > Date.now());
+      } finally {
+        Customer.findOne = origFindOne;
+      }
+    });
+
+    it("2. Forgot password with unknown email returns identical generic response without leaking account state", async () => {
+      const origFindOne = Customer.findOne;
+      Customer.findOne = async () => null;
+
+      try {
+        const req = {
+          body: {
+            email: "nonexistent@example.com",
+          },
+        };
+        const res = createMockRes();
+
+        await forgotPassword(req, res);
+
+        assert.equal(res.statusCode, 200);
+        assert.equal(res.body.success, true);
+        assert.match(res.body.message, /If an account exists with that email/);
+      } finally {
+        Customer.findOne = origFindOne;
+      }
+    });
+
+    it("3. Forgot password rejects missing or empty email", async () => {
+      const req = {
+        body: {
+          email: "   ",
+        },
+      };
+      const res = createMockRes();
+
+      await forgotPassword(req, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.equal(res.body.success, false);
+      assert.match(res.body.message, /Email is required/);
+    });
+
+    it("4. Forgot password rejects invalid email format", async () => {
+      const req = {
+        body: {
+          email: "invalid-email-string",
+        },
+      };
+      const res = createMockRes();
+
+      await forgotPassword(req, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.equal(res.body.success, false);
+      assert.match(res.body.message, /Invalid email format/);
+    });
+
+    it("5. Reset password with valid token hashes new password, invalidates token and returns 200", async () => {
+      const rawToken = "test_raw_reset_token_32_bytes_value_123";
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+      const origFindOne = Customer.findOne;
+      let savedDoc = null;
+
+      Customer.findOne = (query) => ({
+        select: () => {
+          if (query.passwordResetTokenHash === tokenHash) {
+            return {
+              _id: "cust_12345",
+              name: "Sneha Patel",
+              password: "old_hashed_password",
+              passwordResetTokenHash: tokenHash,
+              passwordResetExpires: new Date(Date.now() + 15 * 60 * 1000),
+              save: async function () {
+                savedDoc = this;
+                return this;
+              },
+            };
+          }
+          return null;
+        },
+      });
+
+      try {
+        const req = {
+          params: { token: rawToken },
+          body: { password: "newStrongPassword123" },
+        };
+        const res = createMockRes();
+
+        await resetPassword(req, res);
+
+        assert.equal(res.statusCode, 200);
+        assert.equal(res.body.success, true);
+        assert.match(res.body.message, /Password has been reset successfully/);
+        assert.ok(savedDoc);
+        assert.equal(savedDoc.password, "newStrongPassword123");
+        assert.equal(savedDoc.passwordResetTokenHash, null);
+        assert.equal(savedDoc.passwordResetExpires, null);
+      } finally {
+        Customer.findOne = origFindOne;
+      }
+    });
+
+    it("6. Reset password rejects invalid / mismatched token", async () => {
+      const origFindOne = Customer.findOne;
+      Customer.findOne = () => ({
+        select: () => null,
+      });
+
+      try {
+        const req = {
+          params: { token: "invalid_or_wrong_token" },
+          body: { password: "newPassword123" },
+        };
+        const res = createMockRes();
+
+        await resetPassword(req, res);
+
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.success, false);
+        assert.match(res.body.message, /invalid or has expired/);
+      } finally {
+        Customer.findOne = origFindOne;
+      }
+    });
+
+    it("7. Reset password rejects password shorter than 6 characters", async () => {
+      const req = {
+        params: { token: "some_token" },
+        body: { password: "123" },
+      };
+      const res = createMockRes();
+
+      await resetPassword(req, res);
+
+      assert.equal(res.statusCode, 400);
+      assert.equal(res.body.success, false);
+      assert.match(res.body.message, /at least 6 characters/);
+    });
+
+    it("8. Reset token cannot be reused once cleared", async () => {
+      const rawToken = "reused_token_sample_123";
+      const origFindOne = Customer.findOne;
+
+      // When token is queried the second time, document has token cleared so findOne returns null
+      Customer.findOne = () => ({
+        select: () => null,
+      });
+
+      try {
+        const req = {
+          params: { token: rawToken },
+          body: { password: "secondPassword123" },
+        };
+        const res = createMockRes();
+
+        await resetPassword(req, res);
+
+        assert.equal(res.statusCode, 400);
+        assert.equal(res.body.success, false);
+        assert.match(res.body.message, /invalid or has expired/);
+      } finally {
+        Customer.findOne = origFindOne;
+      }
+    });
+  });
+
+  describe("Email Service & Gmail SMTP Configuration", () => {
+    const origEnv = { ...process.env };
+
+    beforeEach(() => {
+      process.env = { ...origEnv };
+    });
+
+    it("1. getTransporter initializes Nodemailer transport with Gmail SMTP configuration", () => {
+      process.env.EMAIL_HOST = "smtp.gmail.com";
+      process.env.EMAIL_PORT = "587";
+      process.env.EMAIL_USER = "testshop@gmail.com";
+      process.env.EMAIL_PASSWORD = "abcd efgh ijkl mnop";
+
+      const transporter = getTransporter();
+      assert.ok(transporter);
+      assert.equal(typeof transporter.sendMail, "function");
+    });
+
+    it("2. getTransporter returns null without crashing when SMTP env variables are absent", () => {
+      delete process.env.EMAIL_HOST;
+      delete process.env.SMTP_HOST;
+      delete process.env.EMAIL_USER;
+      delete process.env.SMTP_USER;
+      delete process.env.EMAIL_PASSWORD;
+      delete process.env.EMAIL_PASS;
+      delete process.env.SMTP_PASS;
+
+      const transporter = getTransporter();
+      assert.equal(transporter, null);
+    });
+
+    it("3. sendPasswordResetEmail resolves safely in dev/test environment without credentials", async () => {
+      delete process.env.EMAIL_HOST;
+      delete process.env.SMTP_HOST;
+      delete process.env.RESEND_API_KEY;
+
+      const result = await sendPasswordResetEmail(
+        "customer@example.com",
+        "https://sneha-bazar.vercel.app/reset-password/sample_token_123",
+        "Sneha Patel"
+      );
+
+      assert.equal(result.success, true);
+      assert.equal(result.simulated, true);
     });
   });
 });

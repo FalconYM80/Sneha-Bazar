@@ -17,9 +17,9 @@ export const calculatePickupTime = (totalQuantity: number): string => {
 
 export const isValidScreen = (value: string): value is string => {
   const validScreens = [
-    'splash', 'login', 'register', 'home', 'product-list',
-    'product-detail', 'cart', 'checkout', 'order-confirm',
-    'order-tracking', 'orders', 'profile'
+    'splash', 'login', 'register', 'forgot-password', 'reset-password',
+    'home', 'product-list', 'product-detail', 'cart', 'checkout',
+    'order-confirm', 'order-tracking', 'orders', 'profile'
   ]
   return validScreens.includes(value)
 }

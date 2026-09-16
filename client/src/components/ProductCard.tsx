@@ -79,7 +79,7 @@ export const ProductCard = ({ product, cart, onAddToCart, onUpdateQuantity, onPr
 
   return (
     <div
-      className={`bg-white rounded-xl overflow-hidden border border-gray-100 cursor-pointer transition-all duration-200 hover:shadow-lg hover:-translate-y-1 ${isOutOfStock ? 'opacity-60' : ''}`}
+      className={`group bg-white rounded-xl overflow-hidden border border-gray-100 cursor-pointer transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-gray-200 ${isOutOfStock ? 'opacity-60' : 'active:scale-[0.99]'}`}
       onClick={() => !isOutOfStock && onProductClick(product)}
     >
       <div className="relative h-40 overflow-hidden bg-white">
@@ -89,20 +89,20 @@ export const ProductCard = ({ product, cart, onAddToCart, onUpdateQuantity, onPr
           <img 
             src={product.image} 
             alt={product.name} 
-            className="w-full h-full object-contain p-2"
+            className="w-full h-full object-contain p-2 transition-transform duration-300 ease-out group-hover:scale-[1.04]"
             loading="lazy"
             onError={() => setImageError(true)}
           />
         )}
 
         {discount > 0 && (
-          <div className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-semibold px-2 py-1 rounded-md">
+          <div className="absolute top-2 left-2 bg-orange-500 text-white text-xs font-semibold px-2 py-1 rounded-md shadow-xs">
             {discount}% OFF
           </div>
         )}
 
         {isOutOfStock && (
-          <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/50 flex items-center justify-center backdrop-blur-[1px]">
             <span className="text-white text-xs font-semibold px-2 py-1 bg-black/70 rounded-lg">
               Out of Stock
             </span>
@@ -129,21 +129,21 @@ export const ProductCard = ({ product, cart, onAddToCart, onUpdateQuantity, onPr
 
           {quantity > 0 ? (
             <div
-              className="flex items-center gap-0.5 bg-emerald-600 rounded-lg px-1 py-1"
+              className="flex items-center gap-0.5 bg-emerald-600 rounded-lg px-1 py-1 shadow-xs"
               onClick={(e) => e.stopPropagation()}
             >
               <button
                 onClick={(e) => handleQuantityChange(e, -1)}
-                className="w-5 h-5 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
+                className="w-5 h-5 flex items-center justify-center text-white font-semibold hover:bg-white/20 active:scale-90 rounded transition-all"
               >
                 −
               </button>
-              <span className="text-white font-semibold text-xs w-3 text-center">
+              <span className="text-white font-semibold text-xs w-3 text-center transition-transform">
                 {quantity}
               </span>
               <button
                 onClick={(e) => handleQuantityChange(e, 1)}
-                className="w-5 h-5 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
+                className="w-5 h-5 flex items-center justify-center text-white font-semibold hover:bg-white/20 active:scale-90 rounded transition-all disabled:opacity-40 disabled:hover:bg-transparent"
                 disabled={quantity >= product.stockQuantity}
               >
                 +
@@ -156,7 +156,7 @@ export const ProductCard = ({ product, cart, onAddToCart, onUpdateQuantity, onPr
               className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
                 isOutOfStock
                   ? 'bg-gray-200 text-gray-400 cursor-not-allowed'
-                  : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95'
+                  : 'bg-emerald-600 text-white hover:bg-emerald-700 active:scale-95 shadow-xs'
               }`}
             >
               ADD

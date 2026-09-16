@@ -8,9 +8,10 @@ import type { Screen } from '../types/app'
 interface LoginScreenProps {
   onNavigate: (screen: string) => void
   onSetScreen: (screen: Screen) => void
+  successMessage?: string
 }
 
-export const LoginScreen = ({ onNavigate, onSetScreen }: LoginScreenProps) => {
+export const LoginScreen = ({ onNavigate, onSetScreen, successMessage }: LoginScreenProps) => {
   const { login } = useAuth()
   const [loginTab, setLoginTab] = useState<'phone' | 'email'>('phone')
   const [phone, setPhone] = useState('')
@@ -74,9 +75,9 @@ export const LoginScreen = ({ onNavigate, onSetScreen }: LoginScreenProps) => {
 
   return (
     <div className="flex-1 flex flex-col bg-white overflow-y-auto">
-      <div className="px-6 py-4 flex flex-col flex-1">
+      <div className="px-6 py-4 flex flex-col flex-1 max-w-md mx-auto w-full animate-card-in">
         <div className="flex items-center gap-2.5 mb-7">
-          <Logo className="w-10 h-10 rounded-xl" />
+          <Logo className="w-10 h-10 rounded-xl transition-transform hover:scale-105" />
           <span className="text-xl font-extrabold text-gray-900">Sneha Bazar</span>
         </div>
 
@@ -94,7 +95,7 @@ export const LoginScreen = ({ onNavigate, onSetScreen }: LoginScreenProps) => {
                 setLoginError('')
               }}
               className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all ${
-                loginTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500'
+                loginTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {tab === 'phone' ? 'Phone Number' : 'Email'}
@@ -107,7 +108,7 @@ export const LoginScreen = ({ onNavigate, onSetScreen }: LoginScreenProps) => {
             <label className="text-[10px] font-bold text-gray-500 mb-1.5 block uppercase tracking-widest">
               {loginTab === 'phone' ? 'Mobile Number' : 'Email Address'}
             </label>
-            <div className="flex items-center border-2 border-gray-200 rounded-xl px-3.5 py-3.5 gap-2 focus-within:border-gray-400 transition-colors bg-[#F8F9FA]">
+            <div className="flex items-center border-2 border-gray-200 rounded-xl px-3.5 py-3.5 gap-2 focus-within:border-gray-400 focus-within:shadow-xs transition-all bg-[#F8F9FA]">
               {loginTab === 'phone' ? (
                 <>
                   <span className="text-gray-700 text-xs font-bold tracking-wider px-1.5 py-0.5 rounded bg-gray-200 shrink-0">
@@ -139,7 +140,7 @@ export const LoginScreen = ({ onNavigate, onSetScreen }: LoginScreenProps) => {
             <label className="text-[10px] font-bold text-gray-500 mb-1.5 block uppercase tracking-widest">
               Password
             </label>
-            <div className="flex items-center border-2 border-gray-200 rounded-xl px-3.5 py-3.5 gap-2 focus-within:border-gray-400 transition-colors bg-[#F8F9FA]">
+            <div className="flex items-center border-2 border-gray-200 rounded-xl px-3.5 py-3.5 gap-2 focus-within:border-gray-400 focus-within:shadow-xs transition-all bg-[#F8F9FA]">
               <input
                 className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder-gray-400 font-medium"
                 placeholder="Enter your password"
@@ -150,14 +151,24 @@ export const LoginScreen = ({ onNavigate, onSetScreen }: LoginScreenProps) => {
             </div>
           </div>
           <div className="flex justify-end">
-            <button type="button" className="text-gray-600 text-sm font-semibold hover:text-gray-900">
+            <button 
+              type="button" 
+              onClick={() => onSetScreen('forgot-password')}
+              className="text-gray-600 text-sm font-semibold hover:text-gray-900 transition-colors"
+            >
               Forgot Password?
             </button>
           </div>
         </div>
 
+        {successMessage && (
+          <div className="mb-4 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl text-sm font-semibold animate-card-in">
+            {successMessage}
+          </div>
+        )}
+
         {loginError && (
-          <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-semibold">
+          <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-semibold animate-error-shake">
             {loginError}
           </div>
         )}
@@ -166,9 +177,16 @@ export const LoginScreen = ({ onNavigate, onSetScreen }: LoginScreenProps) => {
           type="button"
           onClick={handleLogin}
           disabled={isLoggingIn}
-          className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-base shadow-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-base shadow-sm hover:bg-gray-800 active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {isLoggingIn ? 'Logging in...' : 'Login'}
+          {isLoggingIn ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Logging in...</span>
+            </>
+          ) : (
+            'Login'
+          )}
         </button>
 
         <p className="text-center text-gray-400 text-sm mt-6">

@@ -1,6 +1,8 @@
 import Customer from "../models/Customer.js";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { normalizeIndianPhone, e164ToDigits } from "../utils/phoneUtils.js";
+import { sendPasswordResetEmail } from "../services/emailService.js";
 
 // Generate JWT Token for customer
 const generateCustomerToken = (id) => {
@@ -15,7 +17,7 @@ export const registerCustomer = async (req, res) => {
     const { name, phone, email, password } = req.body;
 
     // Validate required fields
-    if (!name || name.trim() === "") {
+    if (!name || typeof name !== "string" || name.trim() === "") {
       return res.status(400).json({
         success: false,
         message: "Name is required",
@@ -29,7 +31,14 @@ export const registerCustomer = async (req, res) => {
       });
     }
 
-    if (!password || password.trim() === "") {
+    if (!email || typeof email !== "string" || email.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    if (!password || typeof password !== "string" || password.trim() === "") {
       return res.status(400).json({
         success: false,
         message: "Password is required",
@@ -55,17 +64,16 @@ export const registerCustomer = async (req, res) => {
       });
     }
 
-    // Validate email format only if provided
-    if (email && email.trim() !== "") {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email.trim())) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid email format",
-        });
-      }
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+      });
     }
 
+    const normalizedEmail = email.toLowerCase().trim();
     const bare10 = e164ToDigits(normalizedPhone);
 
     // Check if account with phone already exists (checks normalized E.164 and legacy 10-digit)
@@ -80,24 +88,22 @@ export const registerCustomer = async (req, res) => {
       });
     }
 
-    // Check if email already exists (only if email is provided)
-    if (email && email.trim() !== "") {
-      const existingEmail = await Customer.findOne({
-        email: email.toLowerCase().trim(),
+    // Check if email already exists
+    const existingEmail = await Customer.findOne({
+      email: normalizedEmail,
+    });
+    if (existingEmail) {
+      return res.status(400).json({
+        success: false,
+        message: "An account with this email already exists",
       });
-      if (existingEmail) {
-        return res.status(400).json({
-          success: false,
-          message: "An account with this email already exists",
-        });
-      }
     }
 
-    // Create customer with normalized E.164 phone
+    // Create customer with normalized E.164 phone and normalized email
     const customer = await Customer.create({
       name: name.trim(),
       phone: normalizedPhone,
-      email: email ? email.toLowerCase().trim() : undefined,
+      email: normalizedEmail,
       password: password.trim(),
       phoneVerified: true,
     });
@@ -344,6 +350,133 @@ export const updateCustomerProfile = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: error.message || "Error updating customer profile",
+    });
+  }
+};
+
+// Request password reset link (Email)
+export const forgotPassword = async (req, res) => {
+  try {
+    const { email } = req.body;
+
+    // Validate email presence
+    if (!email || typeof email !== "string" || email.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Email is required",
+      });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid email format",
+      });
+    }
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    // Look up customer by normalized email
+    const customer = await Customer.findOne({ email: normalizedEmail });
+
+    if (customer && customer.isActive) {
+      // Generate cryptographically secure random token
+      const rawToken = crypto.randomBytes(32).toString("hex");
+
+      // Hash token for secure storage (SHA-256)
+      const tokenHash = crypto.createHash("sha256").update(rawToken).digest("hex");
+
+      // Set expiration to 30 minutes from now
+      const expires = new Date(Date.now() + 30 * 60 * 1000);
+
+      customer.passwordResetTokenHash = tokenHash;
+      customer.passwordResetExpires = expires;
+      await customer.save({ validateBeforeSave: false });
+
+      // Build frontend reset URL
+      const clientUrl = process.env.CLIENT_URL || "https://sneha-bazar.vercel.app";
+      const resetUrl = `${clientUrl.replace(/\/+$/, "")}/reset-password/${rawToken}`;
+
+      try {
+        await sendPasswordResetEmail(customer.email, resetUrl, customer.name);
+      } catch (emailErr) {
+        console.error("Failed to send password reset email:", emailErr.message);
+      }
+    }
+
+    // Return generic response to prevent account/email enumeration
+    return res.status(200).json({
+      success: true,
+      message: "If an account exists with that email, a password reset link has been sent.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "An error occurred while processing your request. Please try again later.",
+    });
+  }
+};
+
+// Reset customer password with secure token
+export const resetPassword = async (req, res) => {
+  try {
+    const { token } = req.params;
+    const { password } = req.body;
+
+    if (!token || typeof token !== "string" || token.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Reset token is required",
+      });
+    }
+
+    if (!password || typeof password !== "string" || password.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Password is required",
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: "Password must be at least 6 characters",
+      });
+    }
+
+    // Hash the token from URL parameter
+    const tokenHash = crypto.createHash("sha256").update(token.trim()).digest("hex");
+
+    // Find customer with matching active token
+    const customer = await Customer.findOne({
+      passwordResetTokenHash: tokenHash,
+      passwordResetExpires: { $gt: Date.now() },
+    }).select("+passwordResetTokenHash +password");
+
+    if (!customer) {
+      return res.status(400).json({
+        success: false,
+        message: "This password reset link is invalid or has expired.",
+      });
+    }
+
+    // Update password and invalidate reset token
+    customer.password = password.trim();
+    customer.passwordResetTokenHash = null;
+    customer.passwordResetExpires = null;
+
+    await customer.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Password has been reset successfully. Please log in with your new password.",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Error resetting password. Please try again.",
     });
   }
 };

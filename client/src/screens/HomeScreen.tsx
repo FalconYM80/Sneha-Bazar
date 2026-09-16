@@ -580,11 +580,11 @@ export const HomeScreen = ({
             />
           ) : (
             <div className="flex gap-3 overflow-x-auto pb-2 -mx-4 px-4 md:mx-0 md:px-0" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              {homeCategories.map((cat) => (
+              {homeCategories.map((cat, index) => (
                 <button
                   key={cat.id}
                   onClick={() => openCategory(cat.id)}
-                  className="flex-shrink-0 w-28 md:w-36 lg:w-40 rounded-2xl overflow-hidden hover:scale-105 transition-all duration-300 bg-white border border-gray-200 shadow-sm hover:shadow-xl hover:border-gray-300 group"
+                  className={`flex-shrink-0 w-28 md:w-36 lg:w-40 rounded-2xl overflow-hidden hover:-translate-y-1 active:scale-95 transition-all duration-200 bg-white border border-gray-200 shadow-xs hover:shadow-md hover:border-gray-300 group animate-card-in stagger-${Math.min(index + 1, 8)}`}
                 >
                   {/* Category Image Area */}
                   <div 
@@ -596,7 +596,7 @@ export const HomeScreen = ({
                       <img
                         src={cat.thumbnail}
                         alt={cat.name}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
                         onError={(e) => {
                           e.currentTarget.style.display = 'none'
                         }}
@@ -638,16 +638,16 @@ export const HomeScreen = ({
 
         {/* Promotional Highlight */}
         <MainContent className="mt-4 md:mt-6">
-          <div className="bg-gradient-to-r from-[#1E293B] to-[#334155] rounded-2xl p-4 md:p-6 lg:p-8 text-white relative overflow-hidden">
+          <div className="bg-gradient-to-r from-[#1E293B] to-[#334155] rounded-2xl p-4 md:p-6 lg:p-8 text-white relative overflow-hidden shadow-sm hover:shadow-md transition-shadow animate-card-in stagger-2">
             {/* Subtle decorative pattern */}
-            <div className="absolute inset-0 opacity-10">
+            <div className="absolute inset-0 opacity-10 pointer-events-none">
               <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full blur-3xl" />
               <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full blur-2xl" />
             </div>
             
             <div className="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
               <div>
-                <div className="inline-block bg-[#F59E0B] text-white text-xs font-bold px-2 py-1 rounded-md mb-2">NEW</div>
+                <div className="inline-block bg-[#F59E0B] text-white text-xs font-bold px-2 py-1 rounded-md mb-2 shadow-xs">NEW</div>
                 <h3 className="font-extrabold text-lg md:text-xl lg:text-2xl mb-1">Order Online. Pick Up at Sneha Bazar.</h3>
                 <p className="text-gray-300 text-sm md:text-base">Shop your everyday essentials and collect your order at the shop.</p>
               </div>
@@ -659,7 +659,7 @@ export const HomeScreen = ({
                     onNavigate('product-list')
                   }
                 }}
-                className="bg-white text-[#1E293B] text-sm md:text-base font-bold px-5 py-2.5 rounded-xl hover:bg-[#F8F9FA] transition-colors shrink-0"
+                className="bg-white text-[#1E293B] text-sm md:text-base font-bold px-5 py-2.5 rounded-xl hover:bg-[#F8F9FA] active:scale-95 transition-all shadow-xs shrink-0"
               >
                 Start Shopping
               </button>
@@ -700,15 +700,16 @@ export const HomeScreen = ({
             />
           ) : (
             <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {featured.map(product => (
-                <ProductCard 
-                  key={product.id} 
-                  product={product} 
-                  cart={cart}
-                  onAddToCart={addToCart}
-                  onUpdateQuantity={updateQuantity}
-                  onProductClick={openProduct}
-                />
+              {featured.map((product, index) => (
+                <div key={product.id} className={`animate-card-in stagger-${Math.min(index + 1, 8)}`}>
+                  <ProductCard 
+                    product={product} 
+                    cart={cart}
+                    onAddToCart={addToCart}
+                    onUpdateQuantity={updateQuantity}
+                    onProductClick={openProduct}
+                  />
+                </div>
               ))}
             </div>
           )}

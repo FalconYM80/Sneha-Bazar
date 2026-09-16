@@ -27,7 +27,7 @@ export const CheckoutScreen = ({
   <div className="flex-1 flex flex-col bg-[#FCFCFA] overflow-hidden">
     <div className="bg-white px-4 shadow-sm shrink-0 md:px-6">
       <div className="max-w-[1050px] mx-auto w-full flex items-center gap-3 pb-2">
-        <button onClick={() => navigate('cart')} className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 shrink-0">
+        <button onClick={() => navigate('cart')} className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 shrink-0 hover:bg-gray-200 active:scale-95 transition-all">
           <IcChevLeft />
         </button>
         <h1 className="font-extrabold text-gray-900 text-lg">Checkout</h1>
@@ -35,7 +35,7 @@ export const CheckoutScreen = ({
     </div>
 
     {checkoutError && (
-      <div className="mx-4 mt-3 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-sm font-semibold md:mx-6">
+      <div className="mx-4 mt-3 bg-red-50 border border-red-200 text-red-600 px-3 py-2 rounded-xl text-sm font-semibold md:mx-6 animate-error-shake">
         <div className="max-w-[1050px] mx-auto">{checkoutError}</div>
       </div>
     )}
@@ -43,7 +43,7 @@ export const CheckoutScreen = ({
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 pb-20 md:px-6 md:py-4 md:space-y-3">
       <div className="max-w-[1050px] mx-auto w-full space-y-2 md:space-y-3">
         {/* Pickup Location */}
-        <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-2xl p-3 shadow-xs border border-gray-100 animate-card-in stagger-1">
           <div className="flex items-center justify-between mb-2">
             <h3 className="font-extrabold text-gray-900 text-sm">Pickup Location</h3>
             <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full">Pickup Only</span>
@@ -68,7 +68,7 @@ export const CheckoutScreen = ({
         </div>
 
         {/* Estimated Pickup Time */}
-        <div className="bg-white rounded-2xl p-3 flex items-center gap-3 border border-gray-100 shadow-sm">
+        <div className="bg-white rounded-2xl p-3 flex items-center gap-3 border border-gray-100 shadow-xs animate-card-in stagger-2">
           <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center shrink-0 text-amber-600">
             <IcClock />
           </div>
@@ -79,7 +79,7 @@ export const CheckoutScreen = ({
         </div>
 
         {/* Order Summary */}
-        <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
+        <div className="bg-white rounded-2xl p-3 shadow-xs border border-gray-100 animate-card-in stagger-3">
           <h3 className="font-extrabold text-gray-900 text-sm mb-2">Order Summary</h3>
           {cart.slice(0, 3).map(item => (
             <div key={item.product.id} className="flex items-center gap-2.5 mb-2">
@@ -109,9 +109,16 @@ export const CheckoutScreen = ({
         <button
           onClick={placeOrder}
           disabled={isCheckingOut}
-          className="w-full bg-gray-900 text-white py-3 rounded-2xl font-bold text-base shadow-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full bg-gray-900 text-white py-3 rounded-2xl font-bold text-base shadow-sm hover:bg-gray-800 active:scale-[0.99] transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
         >
-          {isCheckingOut ? 'Placing Order...' : `Place Pickup Order • ₹${cartTotal}`}
+          {isCheckingOut ? (
+            <>
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              <span>Placing Order...</span>
+            </>
+          ) : (
+            `Place Pickup Order • ₹${cartTotal}`
+          )}
         </button>
         <p className="text-center text-gray-400 text-[10px] mt-1.5">Pay at store when you pick up your order</p>
       </div>

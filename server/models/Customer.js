@@ -34,6 +34,15 @@ const customerSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    passwordResetTokenHash: {
+      type: String,
+      default: null,
+      select: false,
+    },
+    passwordResetExpires: {
+      type: Date,
+      default: null,
+    },
   },
   {
     timestamps: true,

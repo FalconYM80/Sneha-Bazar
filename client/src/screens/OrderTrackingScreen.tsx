@@ -165,7 +165,7 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3 md:px-6">
           <div className="max-w-[1050px] mx-auto w-full space-y-3">
             {/* Pickup Time Card */}
-            <div className="bg-white rounded-2xl p-4 flex items-center gap-4 border border-gray-100 shadow-sm">
+            <div className="bg-white rounded-2xl p-4 flex items-center gap-4 border border-gray-100 shadow-xs animate-card-in stagger-1">
               <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center shrink-0 text-amber-600">
                 <IcClock />
               </div>
@@ -176,32 +176,32 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
             </div>
 
             {/* Progress Timeline */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-2xl p-4 shadow-xs border border-gray-100 animate-card-in stagger-2">
               <h3 className="font-extrabold text-gray-900 text-sm mb-4">Order Progress</h3>
               <div className="max-w-[650px] mx-auto">
                 {steps.map((step, i) => (
                   <div key={step.label} className="flex gap-4" style={{ paddingBottom: i < steps.length - 1 ? '20px' : '0' }}>
                     <div className="flex flex-col items-center">
-                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 ${
+                      <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all ${
                         step.done
                           ? 'bg-gray-900 text-white'
                           : step.active
-                            ? 'bg-amber-500 text-white ring-4 ring-amber-100'
+                            ? 'bg-amber-500 text-white ring-4 ring-amber-100 animate-pulse'
                             : 'bg-gray-100 text-gray-400'
                       }`}>
                         {step.done ? <IcCheckTiny /> : step.icon}
                       </div>
                       {i < steps.length - 1 && (
-                        <div className={`w-0.5 flex-1 mt-1 min-h-[16px] ${step.done ? 'bg-gray-900' : 'bg-gray-200'}`} />
+                        <div className={`w-0.5 flex-1 mt-1 min-h-[16px] transition-colors ${step.done ? 'bg-gray-900' : 'bg-gray-200'}`} />
                       )}
                     </div>
                     <div className="pt-1.5 flex-1">
                       <div className="flex items-center gap-2">
-                        <p className={`text-sm font-bold ${step.done || step.active ? 'text-gray-900' : 'text-gray-400'}`}>
+                        <p className={`text-sm font-bold transition-colors ${step.done || step.active ? 'text-gray-900' : 'text-gray-400'}`}>
                           {step.label}
                         </p>
                         {step.active && (
-                          <span className="bg-amber-100 text-amber-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">Current</span>
+                          <span className="bg-amber-100 text-amber-600 text-[9px] font-bold px-2 py-0.5 rounded-full uppercase animate-success-pop">Current</span>
                         )}
                       </div>
                       <p className="text-xs text-gray-400 mt-0.5">{step.sub}</p>
@@ -212,7 +212,7 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
             </div>
 
             {/* Pickup Location */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-2xl p-4 shadow-xs border border-gray-100 animate-card-in stagger-3">
               <h3 className="font-extrabold text-gray-900 text-sm mb-2">Pickup Location</h3>
               <div className="flex items-start gap-3">
                 <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 shrink-0 mt-0.5">
@@ -235,7 +235,7 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
 
             {/* Ordered Items Card */}
             {displayItems.length > 0 && (
-              <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+              <div className="bg-white rounded-2xl p-4 shadow-xs border border-gray-100 animate-card-in stagger-4">
                 <h3 className="font-extrabold text-gray-900 text-sm mb-3">Ordered Items</h3>
                 <div className="divide-y divide-gray-100">
                   {displayItems.map((item) => (

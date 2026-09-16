@@ -4,6 +4,8 @@ import {
   loginCustomer,
   getCustomerProfile,
   updateCustomerProfile,
+  forgotPassword,
+  resetPassword,
 } from "../controllers/customerAuthController.js";
 import {
   sendOtp,
@@ -14,6 +16,8 @@ import { protectCustomer } from "../middleware/customerAuthMiddleware.js";
 import {
   otpSendLimiter,
   otpVerifyLimiter,
+  forgotPasswordLimiter,
+  resetPasswordLimiter,
 } from "../middleware/rateLimiter.js";
 
 const router = express.Router();
@@ -26,6 +30,10 @@ router.post("/resend-otp", otpSendLimiter, resendOtp);
 // Registration & Login
 router.post("/register", registerCustomer);
 router.post("/login", loginCustomer);
+
+// Password Reset (Email-based)
+router.post("/forgot-password", forgotPasswordLimiter, forgotPassword);
+router.post("/reset-password/:token", resetPasswordLimiter, resetPassword);
 
 // Current customer profile (protected)
 router.get("/me", protectCustomer, getCustomerProfile);

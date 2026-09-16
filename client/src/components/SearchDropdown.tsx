@@ -18,10 +18,10 @@ export const SearchDropdown = ({
   if (!showSearchDropdown) return null
 
   return (
-    <div className="absolute top-full left-0 right-0 bg-white rounded-xl shadow-lg border border-gray-100 mt-2 z-50 max-h-96 overflow-y-auto">
+    <div className="absolute top-full left-0 right-0 bg-white rounded-xl shadow-xl border border-gray-100 mt-2 z-50 max-h-96 overflow-y-auto animate-modal-in">
       {isSearching ? (
-        <div className="p-6 text-center">
-          <div className="w-6 h-6 border-3 border-[#0B8F3C] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+        <div className="p-6 text-center animate-page-in">
+          <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <p className="text-sm text-gray-500">Searching...</p>
         </div>
       ) : searchSuggestions.length > 0 ? (

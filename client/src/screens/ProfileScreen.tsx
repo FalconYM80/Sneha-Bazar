@@ -134,7 +134,7 @@ export const ProfileScreen = ({
     <div className="flex-1 flex flex-col bg-[#F7F6F2] overflow-hidden relative">
       {/* Success Toast Notification */}
       {successToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#16A34A] text-white px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 text-sm font-semibold transition-all">
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-[#16A34A] text-white px-4 py-2.5 rounded-xl shadow-lg flex items-center gap-2 text-sm font-semibold animate-modal-in">
           <IcCheckTiny />
           <span>{successToast}</span>
         </div>
@@ -172,101 +172,112 @@ export const ProfileScreen = ({
 
       <MainContent className="flex-1 overflow-y-auto lg:max-w-[1100px]">
         {/* Profile Card */}
-        <div className="bg-white rounded-2xl p-6 shadow-sm border border-[#E5E7EB] mb-4">
+        <div className="bg-white rounded-2xl p-6 shadow-xs border border-[#E5E7EB] mb-4 animate-card-in stagger-1">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl flex items-center justify-center font-extrabold text-gray-600 text-2xl md:text-3xl shadow-sm border border-gray-200 shrink-0">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl flex items-center justify-center font-extrabold text-gray-600 text-2xl md:text-3xl shadow-xs border border-gray-200 shrink-0">
               {customer?.name?.charAt(0).toUpperCase() || 'U'}
             </div>
             <div className="flex-1 min-w-0">
-              <h2 className="text-gray-900 font-extrabold text-lg md:text-xl lg:text-2xl truncate">
-                {customer?.name || 'Guest'}
+              <h2 className="font-extrabold text-gray-900 text-xl md:text-2xl truncate">
+                {customer?.name || 'Customer'}
               </h2>
-              <p className="text-gray-500 text-sm md:text-base">
-                {formatDisplayPhone(customer?.phone)}
-              </p>
+              {customer?.phone && (
+                <p className="text-gray-500 text-sm mt-0.5 font-medium">
+                  {formatDisplayPhone(customer.phone)}
+                </p>
+              )}
               {customer?.email && (
-                <p className="text-gray-400 text-xs mt-0.5 truncate">{customer.email}</p>
+                <p className="text-gray-400 text-xs mt-0.5 truncate">
+                  {customer.email}
+                </p>
               )}
             </div>
             <button
               onClick={handleOpenEdit}
-              className="bg-white text-gray-700 text-xs font-bold px-3 py-1.5 rounded-xl border border-gray-300 hover:bg-[#F8F9FA] transition-colors shrink-0"
+              className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3.5 py-2 rounded-xl text-xs font-bold active:scale-95 transition-all shrink-0"
             >
               Edit
             </button>
           </div>
         </div>
 
-        {/* Account Section */}
-        <div className="bg-white rounded-2xl overflow-hidden shadow-sm border border-[#E5E7EB] mb-4">
-          <p className="text-[10px] font-extrabold text-gray-400 uppercase tracking-widest px-4 pt-3.5 pb-2 md:px-6 md:pt-4 md:pb-3">
-            Account
-          </p>
-          
-          {/* Personal Information */}
-          <button
-            onClick={handleOpenEdit}
-            className="w-full flex items-center gap-3 px-4 py-3.5 md:px-6 md:py-4 text-left hover:bg-[#F8F9FA] transition-colors"
-          >
-            <span className="w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-gray-600 shrink-0 bg-gray-50">
-              <IcUser />
+        {/* Store Info Card */}
+        <div className="bg-white rounded-2xl p-5 shadow-xs border border-[#E5E7EB] mb-4 animate-card-in stagger-2">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-extrabold text-gray-900 text-sm md:text-base">Store Information</h3>
+            <span className="bg-green-50 text-green-700 text-[10px] font-bold px-2.5 py-1 rounded-full">
+              Pickup Point
             </span>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm md:text-base font-semibold text-gray-900">Personal Information</p>
-              <p className="text-xs md:text-sm text-gray-400 mt-0.5 truncate">
-                {customer?.name ? `${customer.name}${customer.email ? ` • ${customer.email}` : ''}` : 'Name, email, mobile number'}
-              </p>
+          </div>
+          
+          <div className="flex items-start gap-3">
+            <div className="w-9 h-9 bg-green-50 rounded-xl flex items-center justify-center text-green-600 shrink-0 mt-0.5">
+              <IcLocation />
             </div>
-            <span className="text-gray-300 font-bold text-lg">›</span>
-          </button>
-
-          {/* Pickup Location */}
-          <div className="border-t border-[#E5E7EB]">
-            <div className="px-4 py-3 md:px-6 md:py-3">
-              <div className="flex items-start gap-3">
-                <span className="w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-gray-600 shrink-0 bg-gray-50 mt-0.5">
-                  <IcLocation />
-                </span>
-                <div className="flex-1">
-                  <p className="text-sm md:text-base font-semibold text-gray-900 mb-1">Pickup Location</p>
-                  <p className="text-sm text-gray-600 font-medium">{shopConfig.shopName}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">{shopConfig.address.line1}</p>
-                  <p className="text-xs text-gray-500">{shopConfig.address.line2}</p>
-                  <p className="text-xs text-gray-500">{shopConfig.address.area}, {shopConfig.address.city} – {shopConfig.address.pincode}</p>
-                  <a 
-                    href={shopConfig.googleMapsUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1 text-xs text-[#2563EB] font-semibold mt-1.5 hover:underline"
-                  >
-                    View on Google Maps <IcExternalLink />
-                  </a>
-                </div>
-              </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-gray-900 text-sm">{shopConfig.shopName}</p>
+              <p className="text-gray-500 text-xs mt-0.5 leading-relaxed">{shopConfig.address.fullAddress}</p>
+              <a
+                href={shopConfig.googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-green-700 font-semibold mt-1.5 hover:underline"
+              >
+                View on Google Maps <IcExternalLink />
+              </a>
             </div>
           </div>
-
-          {/* Need Help */}
-          <button className="w-full flex items-center gap-3 px-4 py-3.5 md:px-6 md:py-4 text-left hover:bg-[#F8F9FA] transition-colors border-t border-[#E5E7EB]">
-            <span className="w-9 h-9 md:w-11 md:h-11 rounded-xl flex items-center justify-center text-gray-600 shrink-0 bg-gray-50">
-              <IcHelp />
-            </span>
-            <div className="flex-1">
-              <p className="text-sm md:text-base font-semibold text-gray-900">Need Help</p>
-              <p className="text-xs md:text-sm text-gray-400 mt-0.5">We're here to help</p>
-            </div>
-            <span className="text-gray-300 font-bold text-lg">›</span>
-          </button>
         </div>
 
-        <div className="flex justify-center mt-4 mb-4">
+        {/* Quick Links */}
+        <div className="bg-white rounded-2xl shadow-xs border border-[#E5E7EB] mb-4 overflow-hidden divide-y divide-gray-100 animate-card-in stagger-3">
           <button
-            onClick={() => { logout(); setCart([]); clearNavigationState(); navigate('login') }}
-            className="w-[120px] h-[44px] bg-[#DC2626] text-white font-semibold rounded-lg hover:bg-[#B91C1C] transition-colors"
+            onClick={() => navigate('orders')}
+            className="w-full flex items-center justify-between p-4 hover:bg-[#F8F9FA] active:scale-[0.99] transition-all text-left"
           >
-            Logout
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600">
+                <IcUser />
+              </div>
+              <div>
+                <p className="font-bold text-gray-900 text-sm">My Orders</p>
+                <p className="text-gray-400 text-xs">View order history and track pickup</p>
+              </div>
+            </div>
+            <span className="text-gray-400 text-sm">→</span>
           </button>
+
+          <a
+            href={shopConfig.googleMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="w-full flex items-center justify-between p-4 hover:bg-[#F8F9FA] active:scale-[0.99] transition-all text-left"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600">
+                <IcHelp />
+              </div>
+              <div>
+                <p className="font-bold text-gray-900 text-sm">Store Directions & Help</p>
+                <p className="text-gray-400 text-xs">Locate our store or find assistance</p>
+              </div>
+            </div>
+            <span className="text-gray-400 text-sm">→</span>
+          </a>
         </div>
+
+        {/* Logout Button */}
+        <button
+          onClick={() => {
+            logout()
+            clearNavigationState()
+            setCart([])
+            navigate('login')
+          }}
+          className="w-full bg-red-50 hover:bg-red-100 text-red-600 py-3.5 rounded-2xl font-bold text-sm transition-all active:scale-[0.99] mb-4 border border-red-100"
+        >
+          Sign Out
+        </button>
 
         <p className="text-center text-gray-300 text-[10px] md:text-xs pb-4 font-medium">Sneha Bazar v2.4.1</p>
       </MainContent>
@@ -274,11 +285,11 @@ export const ProfileScreen = ({
       {/* Edit Profile Modal */}
       {isEditOpen && (
         <div 
-          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto"
+          className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto animate-backdrop-in"
           onClick={handleCloseEdit}
         >
           <div
-            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 relative my-8"
+            className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-gray-100 relative my-8 animate-modal-in"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Modal Header */}
@@ -291,7 +302,7 @@ export const ProfileScreen = ({
                 type="button"
                 onClick={handleCloseEdit}
                 disabled={isSaving}
-                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors"
+                className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-700 hover:bg-gray-100 active:scale-90 transition-all"
               >
                 <IcClose />
               </button>
@@ -299,7 +310,7 @@ export const ProfileScreen = ({
 
             {/* Error Message */}
             {errorMessage && (
-              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium">
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-600 font-medium animate-error-shake">
                 {errorMessage}
               </div>
             )}

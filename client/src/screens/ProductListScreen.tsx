@@ -314,33 +314,34 @@ export const ProductListScreen = ({
                   {filtered.length > 0 ? (
                     <>
                       <div className="grid gap-3.5 grid-cols-2 px-4 py-4 pb-24">
-                        {filtered.map(product => (
-                          <ProductCard
-                            key={product.id}
-                            product={product}
-                            cart={cart}
-                            onAddToCart={addToCart}
-                            onUpdateQuantity={updateQuantity}
-                            onProductClick={openProduct}
-                          />
+                        {filtered.map((product, index) => (
+                          <div key={product.id} className={`animate-card-in stagger-${Math.min((index % 6) + 1, 6)}`}>
+                            <ProductCard
+                              product={product}
+                              cart={cart}
+                              onAddToCart={addToCart}
+                              onUpdateQuantity={updateQuantity}
+                              onProductClick={openProduct}
+                            />
+                          </div>
                         ))}
                       </div>
 
                       {isLoadingMore && (
-                        <div className="flex flex-col items-center justify-center py-4 gap-2">
-                          <div className="w-5 h-5 border-3 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                        <div className="flex flex-col items-center justify-center py-4 gap-2 animate-page-in">
+                          <div className="w-5 h-5 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                           <span className="text-xs text-gray-500">Loading more...</span>
                         </div>
                       )}
 
                       {!hasMore && filtered.length > 0 && (
-                        <div className="text-center py-3 text-gray-400 text-xs">
+                        <div className="text-center py-3 text-gray-400 text-xs animate-page-in">
                           You're all caught up 🎉
                         </div>
                       )}
                     </>
                   ) : (
-                    <div className="px-4 py-4">
+                    <div className="px-4 py-4 animate-page-in">
                       <EmptyState
                         icon={isSearchActive ? "🔍" : "🛒"}
                         title="No products found"
@@ -353,7 +354,7 @@ export const ProductListScreen = ({
             </>
           ) : (
             <div className="p-6">
-              <div className="mb-6">
+              <div className="mb-6 animate-page-in">
                 <h1 className="text-2xl font-bold text-gray-900 mb-1">
                   {isSearchActive
                     ? `Search results for "${searchQuery.trim()}"`
@@ -375,44 +376,47 @@ export const ProductListScreen = ({
                 <ErrorState message={productsError} />
               ) : (
                 <>
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-4 animate-page-in">
                     <p className="text-sm text-gray-500">{totalCount} products</p>
                   </div>
                   
                   {filtered.length > 0 ? (
                     <>
                       <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                        {filtered.map(product => (
-                          <ProductCard
-                            key={product.id}
-                            product={product}
-                            cart={cart}
-                            onAddToCart={addToCart}
-                            onUpdateQuantity={updateQuantity}
-                            onProductClick={openProduct}
-                          />
+                        {filtered.map((product, index) => (
+                          <div key={product.id} className={`animate-card-in stagger-${Math.min((index % 8) + 1, 8)}`}>
+                            <ProductCard
+                              product={product}
+                              cart={cart}
+                              onAddToCart={addToCart}
+                              onUpdateQuantity={updateQuantity}
+                              onProductClick={openProduct}
+                            />
+                          </div>
                         ))}
                       </div>
 
                       {isLoadingMore && (
-                        <div className="flex flex-col items-center justify-center py-8 gap-2">
-                          <div className="w-6 h-6 border-3 border-gray-300 border-t-transparent rounded-full animate-spin" />
+                        <div className="flex flex-col items-center justify-center py-8 gap-2 animate-page-in">
+                          <div className="w-6 h-6 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                           <span className="text-sm text-gray-500">Loading more products...</span>
                         </div>
                       )}
 
                       {!hasMore && filtered.length > 0 && (
-                        <div className="text-center py-6 text-gray-400 text-sm">
+                        <div className="text-center py-6 text-gray-400 text-sm animate-page-in">
                           You're all caught up 🎉
                         </div>
                       )}
                     </>
                   ) : (
-                    <EmptyState 
-                      icon={isSearchActive ? "🔍" : "🛒"}
-                      title="No products found"
-                      subtitle={isSearchActive ? `No products found matching "${searchQuery.trim()}".` : "Try selecting a different category"}
-                    />
+                    <div className="animate-page-in">
+                      <EmptyState 
+                        icon={isSearchActive ? "🔍" : "🛒"}
+                        title="No products found"
+                        subtitle={isSearchActive ? `No products found matching "${searchQuery.trim()}".` : "Try selecting a different category"}
+                      />
+                    </div>
                   )}
                 </>
               )}

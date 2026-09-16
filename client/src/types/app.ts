@@ -27,8 +27,8 @@ export interface PlacedOrder {
 }
 
 export type Screen =
-  | 'splash' | 'login' | 'register' | 'home' | 'product-list'
-  | 'product-detail' | 'cart' | 'checkout'
+  | 'splash' | 'login' | 'register' | 'forgot-password' | 'reset-password'
+  | 'home' | 'product-list' | 'product-detail' | 'cart' | 'checkout'
   | 'order-confirm' | 'order-tracking' | 'orders' | 'profile'
 
 export type BottomTab = 'home' | 'categories' | 'cart' | 'orders' | 'profile'

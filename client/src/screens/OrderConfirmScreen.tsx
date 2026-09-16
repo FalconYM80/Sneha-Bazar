@@ -39,7 +39,7 @@ export const OrderConfirmScreen = ({ placedOrder, navigate }: OrderConfirmScreen
         <div className="max-w-[1050px] mx-auto w-full">
           {/* Success animation */}
           <div className="flex justify-center mb-6">
-            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center">
+            <div className="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center animate-success-pop">
               <div className="w-16 h-16 bg-green-200 rounded-full flex items-center justify-center">
                 <div className="w-12 h-12 bg-[#16A34A] rounded-full flex items-center justify-center text-white shadow-lg shadow-green-300">
                   <IcCheck />
@@ -48,12 +48,12 @@ export const OrderConfirmScreen = ({ placedOrder, navigate }: OrderConfirmScreen
             </div>
           </div>
 
-          <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Order Placed!</h1>
-          <p className="text-gray-500 text-sm mb-5 leading-relaxed">
+          <h1 className="text-2xl font-extrabold text-gray-900 mb-2 animate-page-in">Order Placed!</h1>
+          <p className="text-gray-500 text-sm mb-5 leading-relaxed animate-page-in">
             Your order has been successfully placed.<br />We will start preparing it right away!
           </p>
 
-          <div className="bg-white rounded-2xl p-4 mb-4 text-left space-y-3 shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-4 mb-4 text-left space-y-3 shadow-xs border border-gray-100 animate-card-in stagger-1">
             <div className="flex justify-between">
               <span className="text-gray-500 text-sm">Order Number</span>
               <span className="font-extrabold text-gray-900 text-sm">{placedOrder.orderNumber}</span>
@@ -87,7 +87,7 @@ export const OrderConfirmScreen = ({ placedOrder, navigate }: OrderConfirmScreen
             </div>
           </div>
 
-          <div className="bg-white rounded-2xl p-4 mb-4 text-left shadow-sm border border-gray-100">
+          <div className="bg-white rounded-2xl p-4 mb-4 text-left shadow-xs border border-gray-100 animate-card-in stagger-2">
             <h3 className="font-extrabold text-gray-900 text-sm mb-2">Pickup Location</h3>
             <div className="flex items-start gap-3">
               <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center shrink-0 text-blue-600 mt-0.5">
@@ -108,16 +108,16 @@ export const OrderConfirmScreen = ({ placedOrder, navigate }: OrderConfirmScreen
             </div>
           </div>
 
-          <div className="space-y-3">
+          <div className="space-y-3 animate-card-in stagger-3">
             <button
               onClick={() => navigate('orders')}
-              className="w-full bg-white border-2 border-gray-300 text-gray-700 py-3 rounded-2xl font-bold text-sm hover:bg-gray-50 transition-colors"
+              className="w-full bg-white border-2 border-gray-300 text-gray-700 py-3 rounded-2xl font-bold text-sm hover:bg-gray-50 active:scale-95 transition-all"
             >
               View Order Status
             </button>
             <button
               onClick={() => navigate('home')}
-              className="w-full bg-gray-900 text-white py-3 rounded-2xl font-bold text-sm shadow-sm hover:bg-gray-800 transition-colors"
+              className="w-full bg-gray-900 text-white py-3 rounded-2xl font-bold text-sm shadow-sm hover:bg-gray-800 active:scale-95 transition-all"
             >
               Continue Shopping
             </button>

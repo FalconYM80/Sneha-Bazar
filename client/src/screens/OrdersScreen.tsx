@@ -169,10 +169,10 @@ export const OrdersScreen = ({
           ) : activeOrderTab === 'active' ? (
             activeOrders.length > 0 ? (
               <div className="space-y-4">
-                {activeOrders.map(order => (
+                {activeOrders.map((order, index) => (
                   <div
                     key={order.id}
-                    className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 cursor-pointer active:scale-[0.98] transition-transform"
+                    className={`bg-white rounded-2xl p-5 shadow-xs hover:shadow-md border border-gray-100 cursor-pointer active:scale-[0.99] transition-all animate-card-in stagger-${Math.min(index + 1, 6)}`}
                     onClick={() => {
                       setPlacedOrder({
                         id: order.orderNumber,
@@ -212,7 +212,7 @@ export const OrdersScreen = ({
                             <img 
                               src={item.product.image} 
                               alt={item.product.name} 
-                              className="w-full h-full object-contain" 
+                              className="w-full h-full object-contain transition-transform duration-300 hover:scale-105" 
                               loading="lazy"
                               onError={(e) => {
                                 e.currentTarget.style.display = 'none'
@@ -253,14 +253,14 @@ export const OrdersScreen = ({
                       <div className="flex items-center gap-1">
                         {getOrderProgressSteps(order.status).map((step, i) => (
                           <div key={step.label} className="flex items-center gap-1 flex-1 last:flex-none">
-                            <div className={`w-3 h-3 rounded-full shrink-0 ${step.done ? 'bg-emerald-600' : 'bg-gray-200'}`} />
-                            {i < 3 && <div className={`h-0.5 flex-1 ${step.done ? 'bg-emerald-600' : 'bg-gray-200'}`} />}
+                            <div className={`w-3 h-3 rounded-full shrink-0 transition-colors ${step.done ? 'bg-emerald-600' : 'bg-gray-200'}`} />
+                            {i < 3 && <div className={`h-0.5 flex-1 transition-colors ${step.done ? 'bg-emerald-600' : 'bg-gray-200'}`} />}
                           </div>
                         ))}
                       </div>
                       <div className="flex justify-between mt-2 text-[10px] sm:text-xs">
                         {getOrderProgressSteps(order.status).map((step, _i) => (
-                          <span key={step.label} className={`font-medium ${step.done ? 'text-emerald-600' : 'text-gray-400'}`}>
+                          <span key={step.label} className={`font-medium transition-colors ${step.done ? 'text-emerald-600' : 'text-gray-400'}`}>
                             {step.label}
                           </span>
                         ))}
@@ -268,27 +268,27 @@ export const OrdersScreen = ({
                     </div>
 
                     <div className="flex justify-end">
-                      <span className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-xl">View Status →</span>
+                      <span className="bg-gray-900 text-white text-sm font-bold px-4 py-2 rounded-xl active:scale-95 transition-all">View Status →</span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center py-16 text-gray-400">
+              <div className="flex flex-col items-center justify-center py-16 text-gray-400 animate-page-in">
                 <div className="w-20 h-20 bg-gray-100 rounded-3xl flex items-center justify-center mb-5">
                   <IcPackageEmpty />
                 </div>
                 <p className="text-sm font-semibold text-gray-600 mb-1">No active orders</p>
                 <p className="text-xs text-gray-400 mb-5">Place an order and track it here</p>
-                <button onClick={() => navigate('home')} className="bg-gray-900 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-sm hover:bg-gray-800 transition-colors">
+                <button onClick={() => navigate('home')} className="bg-gray-900 text-white px-6 py-3 rounded-2xl text-sm font-bold shadow-sm hover:bg-gray-800 active:scale-95 transition-all">
                   Shop Now
                 </button>
               </div>
             )
           ) : pastOrders.length > 0 ? (
             <div className="space-y-4">
-              {pastOrders.map(order => (
-                <div key={order.id} className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              {pastOrders.map((order, index) => (
+                <div key={order.id} className={`bg-white rounded-2xl p-5 shadow-xs hover:shadow-md border border-gray-100 transition-all animate-card-in stagger-${Math.min(index + 1, 6)}`}>
                   <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3 mb-3">
                     <div>
                       <p className="font-extrabold text-gray-900 text-base">#{order.orderNumber}</p>
@@ -304,7 +304,7 @@ export const OrdersScreen = ({
                       <p className="text-gray-900 font-extrabold text-lg">₹{order.totalAmount}</p>
                     </div>
                     <div className="flex gap-2">
-                      <button className="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-xl hover:bg-[#F8F9FA] transition-colors">
+                      <button className="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-xl hover:bg-[#F8F9FA] active:scale-95 transition-all">
                         Reorder
                       </button>
                       <button
@@ -329,7 +329,7 @@ export const OrdersScreen = ({
                           })
                           navigate('order-tracking')
                         }}
-                        className="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-xl hover:bg-[#F8F9FA] transition-colors"
+                        className="bg-white border border-gray-300 text-gray-700 text-sm font-bold px-4 py-2 rounded-xl hover:bg-[#F8F9FA] active:scale-95 transition-all"
                       >
                         Details
                       </button>

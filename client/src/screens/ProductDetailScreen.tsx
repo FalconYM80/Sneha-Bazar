@@ -40,6 +40,7 @@ export const ProductDetailScreen = ({
   const [imageError, setImageError] = useState(false)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [isLoadingRelated, setIsLoadingRelated] = useState(false)
+  const [isAddedFeedback, setIsAddedFeedback] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   // Load product from API on mount if not provided via navigation state
@@ -222,6 +223,10 @@ export const ProductDetailScreen = ({
   const handleAddToCart = () => {
     if (!isOutOfStock) {
       addToCart(p, productQty)
+      setIsAddedFeedback(true)
+      setTimeout(() => {
+        setIsAddedFeedback(false)
+      }, 1200)
     }
   }
 
@@ -256,7 +261,7 @@ export const ProductDetailScreen = ({
               closeProduct()
               navigate('product-list')
             }}
-            className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-emerald-700 transition-colors py-1.5 px-2 -ml-2 rounded-lg hover:bg-stone-100"
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-emerald-700 transition-colors py-1.5 px-2 -ml-2 rounded-lg hover:bg-stone-100 active:scale-95"
           >
             <IcChevLeft />
             <span>Back to Browse</span>
@@ -265,13 +270,13 @@ export const ProductDetailScreen = ({
           <button
             type="button"
             onClick={() => navigate('cart')}
-            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-gray-700 hover:bg-stone-50 hover:border-stone-300 transition-colors relative"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-gray-700 hover:bg-stone-50 hover:border-stone-300 active:scale-95 transition-all relative"
             aria-label="View shopping cart"
           >
             <IcCart />
             <span className="text-xs font-bold text-gray-800 hidden sm:inline">Cart</span>
             {cartCount > 0 && (
-              <span className="w-5 h-5 bg-emerald-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
+              <span className="w-5 h-5 bg-emerald-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-success-pop">
                 {cartCount}
               </span>
             )}
@@ -284,7 +289,7 @@ export const ProductDetailScreen = ({
         {/* Product Grid: Left Image, Right Info */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
           {/* Left Column: Contained Image Box */}
-          <div className="lg:col-span-6 bg-white rounded-2xl border border-stone-200 p-6 sm:p-8 flex items-center justify-center relative min-h-[300px] sm:min-h-[380px] lg:min-h-[440px] shadow-sm">
+          <div className="lg:col-span-6 bg-white rounded-2xl border border-stone-200 p-6 sm:p-8 flex items-center justify-center relative min-h-[300px] sm:min-h-[380px] lg:min-h-[440px] shadow-sm animate-card-in">
             {discount > 0 && (
               <span className="absolute top-4 left-4 bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
                 {discount}% OFF
@@ -305,7 +310,7 @@ export const ProductDetailScreen = ({
               <img
                 src={p.image}
                 alt={p.name}
-                className="max-h-[260px] sm:max-h-[340px] lg:max-h-[380px] w-auto max-w-full object-contain select-none"
+                className="max-h-[260px] sm:max-h-[340px] lg:max-h-[380px] w-auto max-w-full object-contain select-none transition-transform duration-300 hover:scale-[1.02]"
                 loading="eager"
                 onError={() => setImageError(true)}
               />
@@ -313,7 +318,7 @@ export const ProductDetailScreen = ({
           </div>
 
           {/* Right Column: Product Information */}
-          <div className="lg:col-span-6 bg-white rounded-2xl border border-stone-200 p-6 sm:p-8 shadow-sm flex flex-col gap-4">
+          <div className="lg:col-span-6 bg-white rounded-2xl border border-stone-200 p-6 sm:p-8 shadow-sm flex flex-col gap-4 animate-page-in">
             {/* Brand */}
             {p.company && (
               <div className="inline-block text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md self-start">
@@ -380,7 +385,7 @@ export const ProductDetailScreen = ({
                     onClick={() => handleQtyChange(productQty - 1)}
                     disabled={isOutOfStock || productQty <= 1}
                     aria-label="Decrease quantity"
-                    className="w-9 h-9 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-gray-800 font-bold text-lg hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-9 h-9 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-gray-800 font-bold text-lg hover:bg-stone-100 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >
                     −
                   </button>
@@ -392,7 +397,7 @@ export const ProductDetailScreen = ({
                     onClick={() => handleQtyChange(productQty + 1)}
                     disabled={isOutOfStock || (p.stockQuantity > 0 && productQty >= p.stockQuantity)}
                     aria-label="Increase quantity"
-                    className="w-9 h-9 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-gray-800 font-bold text-lg hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-9 h-9 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-gray-800 font-bold text-lg hover:bg-stone-100 active:scale-90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                   >
                     +
                   </button>
@@ -403,13 +408,15 @@ export const ProductDetailScreen = ({
                 type="button"
                 onClick={handleAddToCart}
                 disabled={isOutOfStock}
-                className={`flex-1 py-3 px-6 rounded-xl font-bold text-base transition-all shadow-sm flex items-center justify-center gap-2 ${
+                className={`flex-1 py-3 px-6 rounded-xl font-bold text-base transition-all shadow-sm flex items-center justify-center gap-2 active:scale-95 ${
                   isOutOfStock
                     ? 'bg-stone-200 text-stone-500 cursor-not-allowed'
-                    : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white'
+                    : isAddedFeedback
+                      ? 'bg-emerald-700 text-white animate-success-pop'
+                      : 'bg-emerald-600 hover:bg-emerald-700 text-white'
                 }`}
               >
-                {isOutOfStock ? 'Out of Stock' : `Add • ₹${p.price * productQty}`}
+                {isOutOfStock ? 'Out of Stock' : isAddedFeedback ? 'Added to Cart ✓' : `Add • ₹${p.price * productQty}`}
               </button>
             </div>
 
@@ -442,14 +449,14 @@ export const ProductDetailScreen = ({
 
         {/* You May Also Like (Only rendered if same-category products with valid images exist) */}
         {!isLoadingRelated && relatedProducts.length > 0 && (
-          <section className="pt-2">
+          <section className="pt-2 animate-card-in">
             <h2 className="text-lg font-bold text-gray-900 mb-3">
               You may also like
             </h2>
             {/* Horizontal scroll on mobile, 4-col grid on desktop, reusing ProductCard */}
             <div className="flex sm:grid sm:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto sm:overflow-visible pb-3 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0">
-              {relatedProducts.map(rp => (
-                <div key={rp.id} className="w-36 shrink-0 sm:w-auto">
+              {relatedProducts.map((rp, index) => (
+                <div key={rp.id} className={`w-36 shrink-0 sm:w-auto animate-card-in stagger-${Math.min(index + 1, 4)}`}>
                   <ProductCard
                     product={rp}
                     cart={cart}
@@ -470,7 +477,7 @@ export const ProductDetailScreen = ({
           <button
             type="button"
             onClick={() => navigate('cart')}
-            className="flex-1 h-11 bg-white border border-stone-300 text-gray-700 rounded-xl font-bold text-xs hover:bg-stone-50 transition-colors flex items-center justify-center"
+            className="flex-1 h-11 bg-white border border-stone-300 text-gray-700 rounded-xl font-bold text-xs hover:bg-stone-50 active:scale-95 transition-all flex items-center justify-center"
           >
             {inCart ? `View Cart (${cartCount})` : 'View Cart'}
           </button>
@@ -478,13 +485,15 @@ export const ProductDetailScreen = ({
             type="button"
             onClick={handleAddToCart}
             disabled={isOutOfStock}
-            className={`flex-1 h-11 rounded-xl font-bold text-xs transition-colors flex items-center justify-center shadow-sm ${
+            className={`flex-1 h-11 rounded-xl font-bold text-xs transition-all flex items-center justify-center shadow-sm active:scale-95 ${
               isOutOfStock
                 ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
-                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                : isAddedFeedback
+                  ? 'bg-emerald-700 text-white animate-success-pop'
+                  : 'bg-emerald-600 hover:bg-emerald-700 text-white'
             }`}
           >
-            {isOutOfStock ? 'Out of Stock' : `Add • ₹${p.price * productQty}`}
+            {isOutOfStock ? 'Out of Stock' : isAddedFeedback ? 'Added to Cart ✓' : `Add • ₹${p.price * productQty}`}
           </button>
         </div>
       </div>

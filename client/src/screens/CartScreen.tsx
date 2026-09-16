@@ -121,15 +121,15 @@ export const CartScreen = ({
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Cart Items - Left Column (2/3 on desktop) */}
                 <div className="lg:col-span-2 space-y-4">
-                  {cart.map(item => (
-                    <div key={item.product.id} className="bg-white rounded-xl p-3.5 sm:p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                  {cart.map((item, index) => (
+                    <div key={item.product.id} className={`bg-white rounded-xl p-3.5 sm:p-4 border border-gray-100 shadow-xs hover:shadow-md transition-shadow animate-card-in stagger-${Math.min(index + 1, 6)}`}>
                       <div className="flex gap-3 sm:gap-4 items-start">
                         {/* Product Image */}
                         <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-50 shrink-0 border border-gray-100">
                           <img 
                             src={item.product.image} 
                             alt={item.product.name} 
-                            className="w-full h-full object-cover" 
+                            className="w-full h-full object-cover transition-transform duration-300 hover:scale-105" 
                             loading="lazy"
                             onError={(e) => {
                               e.currentTarget.style.display = 'none'
@@ -150,26 +150,26 @@ export const CartScreen = ({
 
                           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-0.5">
                             <div className="flex flex-col">
-                              <span className="text-gray-900 font-bold text-base sm:text-lg leading-tight">₹{item.product.price * item.qty}</span>
+                              <span className="text-gray-900 font-bold text-base sm:text-lg leading-tight transition-all">₹{item.product.price * item.qty}</span>
                               {item.product.originalPrice && item.product.originalPrice > item.product.price && (
                                 <span className="text-gray-400 text-xs line-through mt-0.5">₹{item.product.originalPrice * item.qty}</span>
                               )}
                             </div>
 
                             <div className="flex items-center justify-end gap-2 shrink-0">
-                              <div className="flex items-center gap-1 bg-emerald-600 rounded-lg px-1.5 py-1 shrink-0">
+                              <div className="flex items-center gap-1 bg-emerald-600 rounded-lg px-1.5 py-1 shrink-0 shadow-xs">
                                 <button
                                   onClick={() => updateQty(item.product.id, -1)}
                                   aria-label={`Decrease quantity of ${item.product.name}`}
-                                  className="w-7 h-7 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
+                                  className="w-7 h-7 flex items-center justify-center text-white font-semibold hover:bg-white/20 active:scale-90 rounded transition-all"
                                 >
                                   −
                                 </button>
-                                <span className="text-white font-semibold text-sm min-w-[20px] text-center">{item.qty}</span>
+                                <span className="text-white font-semibold text-sm min-w-[20px] text-center transition-all">{item.qty}</span>
                                 <button
                                   onClick={() => updateQty(item.product.id, 1)}
                                   aria-label={`Increase quantity of ${item.product.name}`}
-                                  className="w-7 h-7 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
+                                  className="w-7 h-7 flex items-center justify-center text-white font-semibold hover:bg-white/20 active:scale-90 rounded transition-all disabled:opacity-40 disabled:hover:bg-transparent"
                                   disabled={item.qty >= item.product.stockQuantity}
                                 >
                                   +
@@ -179,7 +179,7 @@ export const CartScreen = ({
                                 type="button"
                                 onClick={() => removeFromCart(item.product.id)}
                                 aria-label={`Remove ${item.product.name} from cart`}
-                                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-100 hover:border-red-600 transition-colors shrink-0"
+                                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-100 hover:border-red-600 active:scale-90 transition-all shrink-0"
                               >
                                 <IcTrash />
                               </button>
@@ -193,7 +193,7 @@ export const CartScreen = ({
 
                 {/* Order Summary - Right Column (1/3 on desktop, sticky) */}
                 <div className="lg:col-span-1">
-                  <div className="lg:sticky lg:top-6 bg-white rounded-xl p-5 border border-gray-100 shadow-sm">
+                  <div className="lg:sticky lg:top-6 bg-white rounded-xl p-5 border border-gray-100 shadow-sm animate-card-in stagger-2">
                     <h3 className="font-bold text-gray-900 mb-4 text-base">Order Summary</h3>
                     <div className="space-y-3">
                       <div className="flex justify-between text-sm text-gray-600">
@@ -211,7 +211,7 @@ export const CartScreen = ({
                     </div>
                     <button
                       onClick={() => navigate('checkout')}
-                      className="w-full mt-5 bg-gray-900 text-white py-3.5 rounded-xl font-semibold text-base hover:bg-gray-800 transition-colors"
+                      className="w-full mt-5 bg-gray-900 text-white py-3.5 rounded-xl font-semibold text-base hover:bg-gray-800 active:scale-[0.99] transition-all shadow-xs"
                     >
                       Proceed to Checkout
                     </button>
@@ -223,10 +223,10 @@ export const CartScreen = ({
 
           {/* Mobile Checkout Button */}
           {isMobile && (
-            <div className="bg-white border-t border-gray-100 shrink-0 p-4">
+            <div className="bg-white border-t border-gray-100 shrink-0 p-4 animate-sheet-up">
               <button
                 onClick={() => navigate('checkout')}
-                className="w-full bg-gray-900 text-white py-3.5 rounded-xl font-semibold text-base hover:bg-gray-800 transition-colors"
+                className="w-full bg-gray-900 text-white py-3.5 rounded-xl font-semibold text-base hover:bg-gray-800 active:scale-[0.99] transition-all shadow-xs"
               >
                 Proceed to Checkout • ₹{cartTotal}
               </button>

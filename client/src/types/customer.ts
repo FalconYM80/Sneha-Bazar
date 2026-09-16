@@ -19,7 +19,7 @@ export interface LoginRequest {
 export interface RegisterRequest {
   name: string
   phone: string
-  email?: string
+  email: string
   password: string
   verificationToken?: string
 }
@@ -53,4 +53,17 @@ export interface ResendOtpResponse {
   success: boolean
   message: string
   retryAfter?: number
+}
+
+export interface ForgotPasswordRequest {
+  email: string
+}
+
+export interface ResetPasswordRequest {
+  password: string
+}
+
+export interface ApiMessageResponse {
+  success: boolean
+  message: string
 }

@@ -29,12 +29,12 @@ export const CategoryBottomSheet = ({
     <div className="fixed inset-0 z-50 md:hidden">
       {/* Backdrop */}
       <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm animate-backdrop-in"
         onClick={onClose}
       />
 
       {/* Bottom Sheet */}
-      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[85vh] flex flex-col shadow-2xl">
+      <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl max-h-[85vh] flex flex-col shadow-2xl animate-sheet-up">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-100">
           <h2 className="text-lg font-semibold text-gray-900">Categories</h2>

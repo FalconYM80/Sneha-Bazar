@@ -18,6 +18,8 @@ import { isValidScreen, shuffleWithImagePriority } from './utils/helpers'
 import { SplashScreen } from './screens/SplashScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { RegisterScreen } from './screens/RegisterScreen'
+import { ForgotPasswordScreen } from './screens/ForgotPasswordScreen'
+import { ResetPasswordScreen } from './screens/ResetPasswordScreen'
 import { HomeScreen } from './screens/HomeScreen'
 import { ProductListScreen } from './screens/ProductListScreen'
 import { ProductDetailScreen } from './screens/ProductDetailScreen'
@@ -32,8 +34,28 @@ export default function App() {
   const { isAuthenticated, isLoading, logout, customer } = useAuth()
   const [isMobile, setIsMobile] = useState(true)
   
+  const [resetToken, setResetToken] = useState<string>(() => {
+    try {
+      const path = window.location.pathname
+      if (path.startsWith('/reset-password/')) {
+        return path.replace('/reset-password/', '').split('/')[0] || ''
+      }
+      const params = new URLSearchParams(window.location.search)
+      return params.get('token') || ''
+    } catch {
+      return ''
+    }
+  })
+
   const [screen, setScreen] = useState<Screen>(() => {
     try {
+      const path = window.location.pathname
+      if (path.startsWith('/reset-password/') || (path === '/reset-password' && window.location.search.includes('token='))) {
+        return 'reset-password'
+      }
+      if (path === '/forgot-password') {
+        return 'forgot-password'
+      }
       const savedScreen = sessionStorage.getItem('customerCurrentScreen')
       if (savedScreen && isValidScreen(savedScreen)) {
         return savedScreen as Screen
@@ -43,6 +65,31 @@ export default function App() {
     }
     return 'splash'
   })
+
+  // Listen to popstate (browser forward/back buttons)
+  useEffect(() => {
+    const handlePopState = () => {
+      try {
+        const path = window.location.pathname
+        if (path.startsWith('/reset-password/')) {
+          const token = path.replace('/reset-password/', '').split('/')[0] || ''
+          setResetToken(token)
+          setScreen('reset-password')
+        } else if (path === '/forgot-password') {
+          setScreen('forgot-password')
+        } else if (path === '/register') {
+          setScreen('register')
+        } else if (path === '/login') {
+          setScreen('login')
+        }
+      } catch (e) {
+        console.error('Error handling popstate:', e)
+      }
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [])
 
   // Detect mobile/desktop
   useEffect(() => {
@@ -230,7 +277,7 @@ export default function App() {
   // Sync screen changes to sessionStorage (only for authenticated screens)
   useEffect(() => {
     // Don't save temporary/auth screens
-    const temporaryScreens: Screen[] = ['splash', 'login', 'register']
+    const temporaryScreens: Screen[] = ['splash', 'login', 'register', 'forgot-password', 'reset-password']
     if (temporaryScreens.includes(screen)) {
       return
     }
@@ -258,10 +305,27 @@ export default function App() {
       const t = setTimeout(() => {
         if (isLoading) return
         
+        const path = window.location.pathname
+        if (path.startsWith('/reset-password/') || (path === '/reset-password' && window.location.search.includes('token='))) {
+          const token = path.replace('/reset-password/', '').split('/')[0] || new URLSearchParams(window.location.search).get('token') || ''
+          setResetToken(token)
+          setScreen('reset-password')
+          return
+        }
+        if (path === '/forgot-password') {
+          setScreen('forgot-password')
+          return
+        }
+        if (path === '/register') {
+          setScreen('register')
+          return
+        }
+
         if (isAuthenticated) {
           // Try to restore the saved screen
           const savedScreen = sessionStorage.getItem('customerCurrentScreen')
-          if (savedScreen && isValidScreen(savedScreen) && savedScreen !== 'splash' && savedScreen !== 'login' && savedScreen !== 'register') {
+          const temporaryScreens: Screen[] = ['splash', 'login', 'register', 'forgot-password', 'reset-password']
+          if (savedScreen && isValidScreen(savedScreen) && !temporaryScreens.includes(savedScreen as Screen)) {
             // Don't restore screens that require context we can't easily restore
             if (savedScreen === 'product-detail' || savedScreen === 'checkout' || savedScreen === 'order-confirm' || savedScreen === 'order-tracking') {
               setScreen('home')
@@ -713,189 +777,201 @@ export default function App() {
         }}
       >
 
-        {screen === 'splash' && <SplashScreen onNavigate={handleNavigate} />}
-        {screen === 'login' && <LoginScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
-        {screen === 'register' && <RegisterScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
-        {screen === 'home' && (
-          <HomeScreen
-            products={products}
-            categories={categories}
-            isLoadingCategories={isLoadingCategories}
-            isLoadingProducts={isLoadingProducts}
-            categoriesError={categoriesError}
-            productsError={productsError}
-            searchQuery={searchQuery}
-            handleSearch={handleSearch}
-            handleSearchFocus={handleSearchFocus}
-            handleSearchBlur={handleSearchBlur}
-            executeSearch={executeSearch}
-            openCategory={openCategory}
-            showSearchDropdown={showSearchDropdown}
-            isSearching={isSearching}
-            searchSuggestions={searchSuggestions}
-            handleSuggestionClick={handleSuggestionClick}
-            cart={cart}
-            addToCart={addToCart}
-            updateQuantity={updateQty}
-            openProduct={openProduct}
-            activeBottomTab={activeBottomTab}
-            onNavigate={handleNavigate}
-            onNavigateToAllProducts={() => {
-              setSelectedCategory('')
-              navigate('product-list')
-            }}
-            isMobile={isMobile}
-          />
-        )}
-        {screen === 'product-list' && (
-          <ProductListScreen
-            products={products}
-            categories={categories}
-            selectedCategory={selectedCategory}
-            isLoadingProducts={isLoadingProducts}
-            productsError={productsError}
-            searchQuery={searchQuery}
-            handleSearch={handleSearch}
-            handleSearchFocus={handleSearchFocus}
-            handleSearchBlur={handleSearchBlur}
-            executeSearch={executeSearch}
-            setSelectedCategory={handleSelectCategory}
-            navigate={handleNavigate}
-            showSearchDropdown={showSearchDropdown}
-            isSearching={isSearching}
-            searchSuggestions={searchSuggestions}
-            handleSuggestionClick={handleSuggestionClick}
-            cart={cart}
-            addToCart={addToCart}
-            updateQuantity={updateQty}
-            openProduct={openProduct}
-            activeBottomTab={activeBottomTab}
-            onNavigate={handleNavigate}
-            isMobile={isMobile}
-            hasMore={hasMore}
-            isLoadingMore={isLoadingMore}
-            onLoadMore={loadMoreProducts}
-            totalProducts={totalProducts}
-          />
-        )}
-        {screen === 'product-detail' && (
-          <ProductDetailScreen
-            selectedProduct={selectedProduct}
-            productQty={productQty}
-            setProductQty={setProductQty}
-            cart={cart}
-            cartCount={cartCount}
-            products={products}
-            addToCart={addToCart}
-            updateQuantity={updateQty}
-            navigate={handleNavigate}
-            closeProduct={closeProduct}
-            onProductLoaded={setSelectedProduct}
-          />
-        )}
-        {screen === 'cart' && (
-          <CartScreen
-            cart={cart}
-            isCartLoading={isCartLoading}
-            cartError={cartError}
-            cartCount={cartCount}
-            cartSubtotal={cartSubtotal}
-            cartTotal={cartTotal}
-            updateQty={updateQty}
-            removeFromCart={removeFromCart}
-            navigate={handleNavigate}
-            activeBottomTab={activeBottomTab}
-            onNavigate={handleNavigate}
-            onOpenCategory={openCategory}
-            categories={categories}
-            isMobile={isMobile}
-            searchQuery={searchQuery}
-            handleSearch={handleSearch}
-            handleSearchFocus={handleSearchFocus}
-            handleSearchBlur={handleSearchBlur}
-            executeSearch={executeSearch}
-            showSearchDropdown={showSearchDropdown}
-            isSearching={isSearching}
-            searchSuggestions={searchSuggestions}
-            handleSuggestionClick={handleSuggestionClick}
-          />
-        )}
-        {screen === 'checkout' && (
-          <CheckoutScreen
-            cart={cart}
-            cartCount={cartCount}
-            cartSubtotal={cartSubtotal}
-            cartTotal={cartTotal}
-            checkoutError={checkoutError}
-            isCheckingOut={isCheckingOut}
-            placeOrder={placeOrder}
-            navigate={handleNavigate}
-          />
-        )}
-        {screen === 'order-confirm' && (
-          <OrderConfirmScreen
-            placedOrder={placedOrder}
-            navigate={handleNavigate}
-          />
-        )}
-        {screen === 'order-tracking' && (
-          <OrderTrackingScreen
-            placedOrder={placedOrder}
-            isAuthenticated={isAuthenticated}
-            navigate={handleNavigate}
-          />
-        )}
-        {screen === 'orders' && (
-          <OrdersScreen
-            orders={orders}
-            isLoadingOrders={isLoadingOrders}
-            ordersError={ordersError}
-            activeOrderTab={activeOrderTab}
-            setActiveOrderTab={setActiveOrderTab}
-            navigate={handleNavigate}
-            setPlacedOrder={setPlacedOrder}
-            setOrders={setOrders}
-            setIsLoadingOrders={setIsLoadingOrders}
-            setOrdersError={setOrdersError}
-            activeBottomTab={activeBottomTab}
-            onNavigate={handleNavigate}
-            onOpenCategory={openCategory}
-            categories={categories}
-            isMobile={isMobile}
-            searchQuery={searchQuery}
-            handleSearch={handleSearch}
-            handleSearchFocus={handleSearchFocus}
-            handleSearchBlur={handleSearchBlur}
-            executeSearch={executeSearch}
-            showSearchDropdown={showSearchDropdown}
-            isSearching={isSearching}
-            searchSuggestions={searchSuggestions}
-            handleSuggestionClick={handleSuggestionClick}
-          />
-        )}
-        {screen === 'profile' && (
-          <ProfileScreen
-            customer={customer}
-            navigate={handleNavigate}
-            logout={logout}
-            clearNavigationState={clearNavigationState}
-            setCart={setCart}
-            activeBottomTab={activeBottomTab}
-            onNavigate={handleNavigate}
-            onOpenCategory={openCategory}
-            categories={categories}
-            isMobile={isMobile}
-            searchQuery={searchQuery}
-            handleSearch={handleSearch}
-            handleSearchFocus={handleSearchFocus}
-            handleSearchBlur={handleSearchBlur}
-            executeSearch={executeSearch}
-            showSearchDropdown={showSearchDropdown}
-            isSearching={isSearching}
-            searchSuggestions={searchSuggestions}
-            handleSuggestionClick={handleSuggestionClick}
-          />
-        )}
+        <div key={screen} className="flex-1 flex flex-col overflow-hidden relative w-full animate-page-in">
+          {screen === 'splash' && <SplashScreen onNavigate={handleNavigate} />}
+          {screen === 'login' && <LoginScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
+          {screen === 'register' && <RegisterScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
+          {screen === 'forgot-password' && <ForgotPasswordScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
+          {screen === 'reset-password' && (
+            <ResetPasswordScreen
+              token={resetToken}
+              onSetScreen={setScreen}
+              onPasswordResetSuccess={() => {
+                setScreen('login')
+              }}
+            />
+          )}
+          {screen === 'home' && (
+            <HomeScreen
+              products={products}
+              categories={categories}
+              isLoadingCategories={isLoadingCategories}
+              isLoadingProducts={isLoadingProducts}
+              categoriesError={categoriesError}
+              productsError={productsError}
+              searchQuery={searchQuery}
+              handleSearch={handleSearch}
+              handleSearchFocus={handleSearchFocus}
+              handleSearchBlur={handleSearchBlur}
+              executeSearch={executeSearch}
+              openCategory={openCategory}
+              showSearchDropdown={showSearchDropdown}
+              isSearching={isSearching}
+              searchSuggestions={searchSuggestions}
+              handleSuggestionClick={handleSuggestionClick}
+              cart={cart}
+              addToCart={addToCart}
+              updateQuantity={updateQty}
+              openProduct={openProduct}
+              activeBottomTab={activeBottomTab}
+              onNavigate={handleNavigate}
+              onNavigateToAllProducts={() => {
+                setSelectedCategory('')
+                navigate('product-list')
+              }}
+              isMobile={isMobile}
+            />
+          )}
+          {screen === 'product-list' && (
+            <ProductListScreen
+              products={products}
+              categories={categories}
+              selectedCategory={selectedCategory}
+              isLoadingProducts={isLoadingProducts}
+              productsError={productsError}
+              searchQuery={searchQuery}
+              handleSearch={handleSearch}
+              handleSearchFocus={handleSearchFocus}
+              handleSearchBlur={handleSearchBlur}
+              executeSearch={executeSearch}
+              setSelectedCategory={handleSelectCategory}
+              navigate={handleNavigate}
+              showSearchDropdown={showSearchDropdown}
+              isSearching={isSearching}
+              searchSuggestions={searchSuggestions}
+              handleSuggestionClick={handleSuggestionClick}
+              cart={cart}
+              addToCart={addToCart}
+              updateQuantity={updateQty}
+              openProduct={openProduct}
+              activeBottomTab={activeBottomTab}
+              onNavigate={handleNavigate}
+              isMobile={isMobile}
+              hasMore={hasMore}
+              isLoadingMore={isLoadingMore}
+              onLoadMore={loadMoreProducts}
+              totalProducts={totalProducts}
+            />
+          )}
+          {screen === 'product-detail' && (
+            <ProductDetailScreen
+              selectedProduct={selectedProduct}
+              productQty={productQty}
+              setProductQty={setProductQty}
+              cart={cart}
+              cartCount={cartCount}
+              products={products}
+              addToCart={addToCart}
+              updateQuantity={updateQty}
+              navigate={handleNavigate}
+              closeProduct={closeProduct}
+              onProductLoaded={setSelectedProduct}
+            />
+          )}
+          {screen === 'cart' && (
+            <CartScreen
+              cart={cart}
+              isCartLoading={isCartLoading}
+              cartError={cartError}
+              cartCount={cartCount}
+              cartSubtotal={cartSubtotal}
+              cartTotal={cartTotal}
+              updateQty={updateQty}
+              removeFromCart={removeFromCart}
+              navigate={handleNavigate}
+              activeBottomTab={activeBottomTab}
+              onNavigate={handleNavigate}
+              onOpenCategory={openCategory}
+              categories={categories}
+              isMobile={isMobile}
+              searchQuery={searchQuery}
+              handleSearch={handleSearch}
+              handleSearchFocus={handleSearchFocus}
+              handleSearchBlur={handleSearchBlur}
+              executeSearch={executeSearch}
+              showSearchDropdown={showSearchDropdown}
+              isSearching={isSearching}
+              searchSuggestions={searchSuggestions}
+              handleSuggestionClick={handleSuggestionClick}
+            />
+          )}
+          {screen === 'checkout' && (
+            <CheckoutScreen
+              cart={cart}
+              cartCount={cartCount}
+              cartSubtotal={cartSubtotal}
+              cartTotal={cartTotal}
+              checkoutError={checkoutError}
+              isCheckingOut={isCheckingOut}
+              placeOrder={placeOrder}
+              navigate={handleNavigate}
+            />
+          )}
+          {screen === 'order-confirm' && (
+            <OrderConfirmScreen
+              placedOrder={placedOrder}
+              navigate={handleNavigate}
+            />
+          )}
+          {screen === 'order-tracking' && (
+            <OrderTrackingScreen
+              placedOrder={placedOrder}
+              isAuthenticated={isAuthenticated}
+              navigate={handleNavigate}
+            />
+          )}
+          {screen === 'orders' && (
+            <OrdersScreen
+              orders={orders}
+              isLoadingOrders={isLoadingOrders}
+              ordersError={ordersError}
+              activeOrderTab={activeOrderTab}
+              setActiveOrderTab={setActiveOrderTab}
+              navigate={handleNavigate}
+              setPlacedOrder={setPlacedOrder}
+              setOrders={setOrders}
+              setIsLoadingOrders={setIsLoadingOrders}
+              setOrdersError={setOrdersError}
+              activeBottomTab={activeBottomTab}
+              onNavigate={handleNavigate}
+              onOpenCategory={openCategory}
+              categories={categories}
+              isMobile={isMobile}
+              searchQuery={searchQuery}
+              handleSearch={handleSearch}
+              handleSearchFocus={handleSearchFocus}
+              handleSearchBlur={handleSearchBlur}
+              executeSearch={executeSearch}
+              showSearchDropdown={showSearchDropdown}
+              isSearching={isSearching}
+              searchSuggestions={searchSuggestions}
+              handleSuggestionClick={handleSuggestionClick}
+            />
+          )}
+          {screen === 'profile' && (
+            <ProfileScreen
+              customer={customer}
+              navigate={handleNavigate}
+              logout={logout}
+              clearNavigationState={clearNavigationState}
+              setCart={setCart}
+              activeBottomTab={activeBottomTab}
+              onNavigate={handleNavigate}
+              onOpenCategory={openCategory}
+              categories={categories}
+              isMobile={isMobile}
+              searchQuery={searchQuery}
+              handleSearch={handleSearch}
+              handleSearchFocus={handleSearchFocus}
+              handleSearchBlur={handleSearchBlur}
+              executeSearch={executeSearch}
+              showSearchDropdown={showSearchDropdown}
+              isSearching={isSearching}
+              searchSuggestions={searchSuggestions}
+              handleSuggestionClick={handleSuggestionClick}
+            />
+          )}
+        </div>
       </div>
     </div>
   )

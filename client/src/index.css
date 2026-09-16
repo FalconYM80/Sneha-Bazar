@@ -76,12 +76,152 @@ body,
   }
 }
 
-/* Smooth animations */
-* {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;
-  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-  transition-duration: 150ms;
+/* Animation variables and easing tokens */
+:root {
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.15);
+  --ease-out-cubic: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out-cubic: cubic-bezier(0.4, 0, 0.2, 1);
+  --duration-fast: 150ms;
+  --duration-normal: 250ms;
+  --duration-slow: 350ms;
 }
+
+/* Base button and interactive transitions */
+button, a, input, select, textarea {
+  transition-property: color, background-color, border-color, opacity, box-shadow, transform;
+  transition-timing-function: var(--ease-in-out-cubic);
+  transition-duration: var(--duration-fast);
+}
+
+/* Card hover lift & transitions */
+.hover-lift {
+  transition: transform var(--duration-fast) var(--ease-out-cubic), box-shadow var(--duration-fast) var(--ease-out-cubic);
+}
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+}
+
+/* Keyframe animations */
+@keyframes pageFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes cardEntrance {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes sheetSlideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes backdropFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes modalScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes subtleShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+@keyframes successPop {
+  0% { transform: scale(0.85); opacity: 0; }
+  60% { transform: scale(1.06); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes shimmerEffect {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Animation utilities */
+.animate-page-in {
+  animation: pageFadeIn 220ms var(--ease-out-cubic) forwards;
+  will-change: opacity, transform;
+}
+
+.animate-card-in {
+  animation: cardEntrance 260ms var(--ease-out-cubic) forwards;
+  will-change: opacity, transform;
+}
+
+.animate-sheet-up {
+  animation: sheetSlideUp 280ms var(--ease-out-cubic) forwards;
+}
+
+.animate-backdrop-in {
+  animation: backdropFadeIn 200ms ease-out forwards;
+}
+
+.animate-modal-in {
+  animation: modalScaleIn 240ms var(--ease-out-cubic) forwards;
+}
+
+.animate-error-shake {
+  animation: subtleShake 240ms ease-in-out, pageFadeIn 180ms ease-out;
+}
+
+.animate-success-pop {
+  animation: successPop 320ms var(--ease-spring) forwards;
+}
+
+/* Skeleton shimmer utility */
+.skeleton-shimmer {
+  background: linear-gradient(90deg, #F3F4F6 25%, #E5E7EB 50%, #F3F4F6 75%);
+  background-size: 200% 100%;
+  animation: shimmerEffect 1.5s infinite linear;
+}
+
+/* Stagger delay utilities */
+.stagger-1 { animation-delay: 30ms; }
+.stagger-2 { animation-delay: 60ms; }
+.stagger-3 { animation-delay: 90ms; }
+.stagger-4 { animation-delay: 120ms; }
+.stagger-5 { animation-delay: 150ms; }
+.stagger-6 { animation-delay: 180ms; }
+.stagger-7 { animation-delay: 210ms; }
+.stagger-8 { animation-delay: 240ms; }
 
 /* Disable transitions for performance during rapid interactions */
 .no-transition * {
@@ -100,4 +240,16 @@ body,
 /* Border styles for animation */
 .border-3 {
   border-width: 3px;
+}
+
+/* Accessibility: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
