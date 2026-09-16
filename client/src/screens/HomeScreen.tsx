@@ -497,7 +497,11 @@ export const HomeScreen = ({
                   </button>
                   <button
                     onClick={() => {
-                      if (categories.length > 0) openCategory(categories[0].id)
+                      if (onNavigateToAllProducts) {
+                        onNavigateToAllProducts()
+                      } else {
+                        openCategory('')
+                      }
                     }}
                     className="text-white text-xs sm:text-sm md:text-base font-bold px-4 sm:px-6 py-2 sm:py-2.5 rounded-xl border-2 border-white/40 hover:bg-white/15 transition-all shadow-lg hidden sm:block"
                     style={{ color: currentBanner.textColor }}

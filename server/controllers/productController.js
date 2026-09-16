@@ -174,8 +174,9 @@ export const getProducts = async (req, res) => {
       filter.isAvailable = true;
     }
 
-    // Filter by category if provided
-    if (category) {
+    // Filter by category if provided (only for admin or when not searching)
+    const trimmedSearch = typeof search === 'string' ? search.trim() : '';
+    if (category && (!trimmedSearch || admin === 'true')) {
       if (!mongoose.Types.ObjectId.isValid(category)) {
         return res.status(400).json({
           success: false,
@@ -185,12 +186,13 @@ export const getProducts = async (req, res) => {
       filter.category = category;
     }
 
-    // Search by name or company if search term provided
-    if (search) {
-      const searchRegex = new RegExp(search, "i");
+    // Search by name, company, or itemCode if search term provided
+    if (trimmedSearch) {
+      const searchRegex = new RegExp(trimmedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i");
       filter.$or = [
         { name: searchRegex },
         { company: searchRegex },
+        { itemCode: searchRegex },
       ];
     }
 

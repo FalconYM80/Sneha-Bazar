@@ -12,7 +12,8 @@
     "prices:dry-run": "node scripts/updateProductPrices.js --dry-run",
     "prices:update": "node scripts/updateProductPrices.js",
     "prices:zero-rate:dry-run": "node scripts/updateProductPrices.js --zero-rate --dry-run",
-    "prices:zero-rate:update": "node scripts/updateProductPrices.js --zero-rate"
+    "prices:zero-rate:update": "node scripts/updateProductPrices.js --zero-rate",
+    "test": "node --test tests/phoneUtils.test.js tests/customerAuth.test.js tests/pickupTime.test.js"
   },
   "keywords": [],
   "author": "",
@@ -24,9 +25,11 @@
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
+    "express-rate-limit": "^8.7.0",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.4",
     "multer": "^2.3.0",
+    "twilio": "^6.1.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

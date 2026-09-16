@@ -50,6 +50,7 @@ const processOrderItems = async (items) => {
     processedItems.push({
       product: product._id,
       productName: product.name,
+      productImage: product.image || "",
       quantity: quantity,
       price: price,
       subtotal: subtotal,
@@ -59,16 +60,21 @@ const processOrderItems = async (items) => {
   return { processedItems, totalAmount, totalItemCount };
 };
 
-// Helper function to calculate preparation time
-const calculatePreparationTime = (totalItemCount) => {
-  if (totalItemCount >= 1 && totalItemCount <= 5) {
-    return 15;
-  } else if (totalItemCount >= 6 && totalItemCount <= 10) {
-    return 30;
-  } else {
-    return 45;
-  }
+// Helper function to calculate preparation time based on total items/units
+export const calculatePickupMinutes = (totalItems) => {
+  if (totalItems <= 6) return 15;
+  if (totalItems <= 10) return 25;
+  if (totalItems <= 15) return 35;
+  if (totalItems <= 20) return 45;
+  if (totalItems <= 30) return 60;
+  if (totalItems <= 40) return 75;
+  if (totalItems <= 50) return 90;
+  if (totalItems <= 75) return 105;
+  if (totalItems <= 100) return 120;
+  return 150;
 };
+
+const calculatePreparationTime = calculatePickupMinutes;
 
 // Create a new order
 export const createOrder = async (req, res) => {
@@ -157,7 +163,7 @@ export const createOrder = async (req, res) => {
     // Populate product and customer references for response
     const populatedOrder = await Order.findById(order._id)
       .populate("customer", "name phone email")
-      .populate("items.product", "name itemCode company");
+      .populate("items.product", "name itemCode company image");
 
     res.status(201).json({
       success: true,
@@ -205,7 +211,7 @@ export const getOrders = async (req, res) => {
     // Get orders with product and customer populated, sorted by createdAt descending
     const orders = await query
       .populate("customer", "name phone email")
-      .populate("items.product", "name itemCode company")
+      .populate("items.product", "name itemCode company image")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -236,7 +242,7 @@ export const getOrderById = async (req, res) => {
 
     const order = await Order.findById(id)
       .populate("customer", "name phone email")
-      .populate("items.product", "name itemCode company");
+      .populate("items.product", "name itemCode company image");
 
     if (!order) {
       return res.status(404).json({
@@ -297,7 +303,7 @@ export const updateOrderStatus = async (req, res) => {
       { new: true, runValidators: true }
     )
       .populate("customer", "name phone email")
-      .populate("items.product", "name itemCode company");
+      .populate("items.product", "name itemCode company image");
 
     res.status(200).json({
       success: true,
@@ -367,7 +373,7 @@ export const getMyOrders = async (req, res) => {
     // Get orders for the authenticated customer only
     const orders = await Order.find({ customer: customer._id })
       .populate("customer", "name phone email")
-      .populate("items.product", "name itemCode company")
+      .populate("items.product", "name itemCode company image")
       .sort({ createdAt: -1 });
 
     res.status(200).json({
@@ -445,7 +451,7 @@ export const checkout = async (req, res) => {
     // Populate product and customer references for response
     const populatedOrder = await Order.findById(order._id)
       .populate("customer", "name phone email")
-      .populate("items.product", "name itemCode company");
+      .populate("items.product", "name itemCode company image");
 
     res.status(201).json({
       success: true,

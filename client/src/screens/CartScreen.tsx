@@ -5,7 +5,10 @@ import { NavBottom } from '../components/NavBottom'
 import { Header } from '../components/Header'
 import { Navigation } from '../components/Navigation'
 import { MainContent } from '../components/PageContainer'
-import { IcEmptyCart } from '../components/icons'
+import { IcEmptyCart, IcTrash } from '../components/icons'
+
+import type { Product } from '../types/app'
+import { SearchDropdown } from '../components/SearchDropdown'
 
 interface CartScreenProps {
   cart: FrontendCartItem[]
@@ -15,12 +18,22 @@ interface CartScreenProps {
   cartSubtotal: number
   cartTotal: number
   updateQty: (id: string, delta: number) => void
+  removeFromCart: (id: string) => void
   navigate: (screen: string) => void
   activeBottomTab: 'home' | 'categories' | 'cart' | 'orders' | 'profile'
   onNavigate: (screen: string) => void
   onOpenCategory: (catId: string) => void
   categories: { id: string }[]
   isMobile?: boolean
+  searchQuery?: string
+  handleSearch?: (e: React.ChangeEvent<HTMLInputElement>) => void
+  handleSearchFocus?: () => void
+  handleSearchBlur?: () => void
+  executeSearch?: () => void
+  showSearchDropdown?: boolean
+  isSearching?: boolean
+  searchSuggestions?: Product[]
+  handleSuggestionClick?: (product: Product) => void
 }
 
 export const CartScreen = ({
@@ -31,29 +44,47 @@ export const CartScreen = ({
   cartSubtotal,
   cartTotal,
   updateQty,
+  removeFromCart,
   navigate,
   activeBottomTab,
   onNavigate,
   onOpenCategory,
   categories,
-  isMobile = true
+  isMobile = true,
+  searchQuery = '',
+  handleSearch = () => {},
+  handleSearchFocus = () => {},
+  handleSearchBlur = () => {},
+  executeSearch = () => {},
+  showSearchDropdown = false,
+  isSearching = false,
+  searchSuggestions = [],
+  handleSuggestionClick = () => {},
 }: CartScreenProps) => {
   return (
     <div className="flex-1 flex flex-col bg-[#F7F6F2] overflow-hidden">
       {/* Header */}
       <Header
-        searchQuery=""
-        handleSearch={() => {}}
-        handleSearchFocus={() => {}}
-        handleSearchBlur={() => {}}
-        executeSearch={() => {}}
+        searchQuery={searchQuery}
+        handleSearch={handleSearch}
+        handleSearchFocus={handleSearchFocus}
+        handleSearchBlur={handleSearchBlur}
+        executeSearch={executeSearch}
         cartCount={cartCount}
         onNavigate={onNavigate}
         isMobile={isMobile}
         title="My Cart"
         showBackButton={true}
         onBack={() => navigate('home')}
-      />
+      >
+        <SearchDropdown
+          showSearchDropdown={showSearchDropdown}
+          isSearching={isSearching}
+          searchSuggestions={searchSuggestions}
+          searchQuery={searchQuery}
+          handleSuggestionClick={handleSuggestionClick}
+        />
+      </Header>
 
       {/* Desktop Navigation - hidden on mobile */}
       {!isMobile && (
@@ -91,49 +122,68 @@ export const CartScreen = ({
                 {/* Cart Items - Left Column (2/3 on desktop) */}
                 <div className="lg:col-span-2 space-y-4">
                   {cart.map(item => (
-                    <div key={item.product.id} className="bg-white rounded-xl p-4 flex gap-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-gray-50 shrink-0">
-                        <img 
-                          src={item.product.image} 
-                          alt={item.product.name} 
-                          className="w-full h-full object-cover" 
-                          loading="lazy"
-                          onError={(e) => {
-                            e.currentTarget.style.display = 'none'
-                          }}
-                        />
-                      </div>
-                      <div className="flex-1 min-w-0 flex flex-col justify-between">
-                        <div>
-                          <h3 className="text-gray-900 font-semibold text-sm leading-tight line-clamp-2">
-                            {item.product.name}
-                          </h3>
-                          {item.product.unit && (
-                            <p className="text-gray-500 text-xs mt-1">{item.product.unit}</p>
-                          )}
+                    <div key={item.product.id} className="bg-white rounded-xl p-3.5 sm:p-4 border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                      <div className="flex gap-3 sm:gap-4 items-start">
+                        {/* Product Image */}
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-lg overflow-hidden bg-gray-50 shrink-0 border border-gray-100">
+                          <img 
+                            src={item.product.image} 
+                            alt={item.product.name} 
+                            className="w-full h-full object-cover" 
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                            }}
+                          />
                         </div>
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="flex flex-col">
-                            <span className="text-gray-900 font-bold text-base">₹{item.product.price * item.qty}</span>
-                            {item.product.originalPrice && item.product.originalPrice > item.product.price && (
-                              <span className="text-gray-400 text-xs line-through">₹{item.product.originalPrice * item.qty}</span>
+
+                        {/* Product Info & Actions */}
+                        <div className="flex-1 min-w-0 flex flex-col justify-between self-stretch gap-2">
+                          <div>
+                            <h3 className="text-gray-900 font-semibold text-sm sm:text-base leading-snug break-words">
+                              {item.product.name}
+                            </h3>
+                            {item.product.unit && (
+                              <p className="text-gray-500 text-xs mt-0.5">{item.product.unit}</p>
                             )}
                           </div>
-                          <div className="flex items-center gap-1 bg-emerald-600 rounded-lg px-1.5 py-1">
-                            <button
-                              onClick={() => updateQty(item.product.id, -1)}
-                              className="w-7 h-7 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
-                            >
-                              −
-                            </button>
-                            <span className="text-white font-semibold text-sm w-4 text-center">{item.qty}</span>
-                            <button
-                              onClick={() => updateQty(item.product.id, 1)}
-                              className="w-7 h-7 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
-                              disabled={item.qty >= item.product.stockQuantity}
-                            >
-                              +
-                            </button>
+
+                          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 pt-0.5">
+                            <div className="flex flex-col">
+                              <span className="text-gray-900 font-bold text-base sm:text-lg leading-tight">₹{item.product.price * item.qty}</span>
+                              {item.product.originalPrice && item.product.originalPrice > item.product.price && (
+                                <span className="text-gray-400 text-xs line-through mt-0.5">₹{item.product.originalPrice * item.qty}</span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center justify-end gap-2 shrink-0">
+                              <div className="flex items-center gap-1 bg-emerald-600 rounded-lg px-1.5 py-1 shrink-0">
+                                <button
+                                  onClick={() => updateQty(item.product.id, -1)}
+                                  aria-label={`Decrease quantity of ${item.product.name}`}
+                                  className="w-7 h-7 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
+                                >
+                                  −
+                                </button>
+                                <span className="text-white font-semibold text-sm min-w-[20px] text-center">{item.qty}</span>
+                                <button
+                                  onClick={() => updateQty(item.product.id, 1)}
+                                  aria-label={`Increase quantity of ${item.product.name}`}
+                                  className="w-7 h-7 flex items-center justify-center text-white font-semibold hover:bg-white/20 rounded transition-colors"
+                                  disabled={item.qty >= item.product.stockQuantity}
+                                >
+                                  +
+                                </button>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => removeFromCart(item.product.id)}
+                                aria-label={`Remove ${item.product.name} from cart`}
+                                className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center rounded-lg bg-red-50 hover:bg-red-600 text-red-600 hover:text-white border border-red-100 hover:border-red-600 transition-colors shrink-0"
+                              >
+                                <IcTrash />
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>

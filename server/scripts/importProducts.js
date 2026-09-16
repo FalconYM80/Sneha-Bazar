@@ -100,7 +100,12 @@ const findOrCreateCategory = async (categoryName) => {
     return null;
   }
 
-  const trimmedName = categoryName.trim();
+  let trimmedName = categoryName.trim();
+  
+  // Normalize "Other / Needs Review" to "Other"
+  if (/^other\s*[\/\\]\s*needs\s*review$/i.test(trimmedName) || trimmedName.toLowerCase() === 'other / needs review') {
+    trimmedName = 'Other';
+  }
   
   // Try to find existing category (case-insensitive)
   let category = await Category.findOne({ 

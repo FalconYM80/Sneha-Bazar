@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import type { PlacedOrder } from '../types/app'
 import type { BackendOrder } from '../types/order'
-import { IcChevLeft, IcMapPin, IcClock, IcPackage, IcPackageSmall, IcCheckTiny, IcBag, IcBagSmall } from '../components/icons'
+import { IcChevLeft, IcLocation, IcExternalLink, IcClock, IcPackage, IcPackageSmall, IcCheck, IcCheckTiny, IcBagSmall } from '../components/icons'
 import { orderService } from '../services/orderService'
-import { formatPickupTime } from '../types/order'
+import { formatPickupTime, formatOrderDateTime } from '../types/order'
 import { calculatePickupTime } from '../utils/helpers'
+import { shopConfig } from '../config/shopConfig'
 
 interface OrderTrackingScreenProps {
   placedOrder: PlacedOrder | null
@@ -54,7 +55,49 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
       : calculatePickupTime(totalQuantity)
   
   const status = currentOrder?.status || (placedOrder?.status as any) || 'pending'
+  const orderCreatedAt = currentOrder?.createdAt || placedOrder?.createdAt || placedOrder?.date
+  const formattedOrderDateTime = formatOrderDateTime(orderCreatedAt)
   
+  const displayItems = (orderDetails?.items && orderDetails.items.length > 0)
+    ? orderDetails.items.map((item, idx) => {
+        const productObj = typeof item.product === 'object' && item.product !== null ? item.product : undefined
+        const rawImage = item.productImage || productObj?.image || ''
+        const image = typeof rawImage === 'string' ? rawImage.trim() : ''
+        const name = item.productName || productObj?.name || 'Product'
+        const quantity = item.quantity || 1
+        const price = item.price || 0
+        const subtotal = item.subtotal ?? (price * quantity)
+
+        return {
+          id: productObj?._id || `${name}-${idx}`,
+          name,
+          image,
+          quantity,
+          price,
+          subtotal,
+        }
+      })
+    : (placedOrder?.items && placedOrder.items.length > 0)
+      ? placedOrder.items.map((item, idx) => {
+          const product = item.product || {}
+          const name = product.name || item.name || item.productName || 'Product'
+          const rawImage = product.image || item.image || item.productImage || ''
+          const image = typeof rawImage === 'string' ? rawImage.trim() : ''
+          const quantity = item.qty ?? item.quantity ?? 1
+          const price = product.price ?? item.price ?? 0
+          const subtotal = item.subtotal ?? (price * quantity)
+
+          return {
+            id: product.id || product._id || `${name}-${idx}`,
+            name,
+            image,
+            quantity,
+            price,
+            subtotal,
+          }
+        })
+      : []
+
   const steps = [
     { label: 'Order Placed', sub: 'We received your order', done: ['pending', 'confirmed', 'preparing', 'ready', 'completed'].includes(status), active: status === 'pending', icon: <IcCheckTiny /> },
     { label: 'Confirmed', sub: 'Order confirmed by store', done: ['confirmed', 'preparing', 'ready', 'completed'].includes(status), active: status === 'confirmed', icon: <IcCheckTiny /> },
@@ -81,13 +124,22 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
 
   return (
     <div className="flex-1 flex flex-col bg-[#FCFCFA] overflow-hidden">
-      <div className="bg-white px-4 shadow-sm shrink-0">
-        <div className="max-w-[1050px] mx-auto w-full flex items-center gap-3 pb-3">
+      <div className="bg-white px-4 py-3 shadow-sm shrink-0 md:px-6">
+        <div className="max-w-[1050px] mx-auto w-full flex items-center gap-3">
           <button onClick={() => navigate('orders')} className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 shrink-0">
             <IcChevLeft />
           </button>
-          <h1 className="font-extrabold text-gray-900 text-lg flex-1">Order Status</h1>
-          <span className="text-gray-400 text-xs font-semibold">#{placedOrder.orderNumber}</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between gap-2">
+              <h1 className="font-extrabold text-gray-900 text-lg">Order Status</h1>
+              <span className="text-gray-400 text-xs font-semibold shrink-0">#{placedOrder.orderNumber}</span>
+            </div>
+            {formattedOrderDateTime && (
+              <p className="text-gray-500 text-xs mt-0.5 font-medium">
+                {formattedOrderDateTime}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
@@ -161,17 +213,88 @@ export const OrderTrackingScreen = ({ placedOrder, isAuthenticated, navigate }: 
 
             {/* Pickup Location */}
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-              <h3 className="font-extrabold text-gray-900 text-sm mb-3">Pickup Location</h3>
-              <div className="flex gap-3">
-                <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 shrink-0">
-                  <IcMapPin />
+              <h3 className="font-extrabold text-gray-900 text-sm mb-2">Pickup Location</h3>
+              <div className="flex items-start gap-3">
+                <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600 shrink-0 mt-0.5">
+                  <IcLocation />
                 </div>
-                <div>
-                  <p className="text-xs font-bold text-gray-700">Store Address</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Sneha Bazar<br />Vamanjoor, Karnataka</p>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-gray-900 text-sm">{shopConfig.shopName}</p>
+                  <p className="text-gray-500 text-xs mt-0.5 leading-relaxed">{shopConfig.address.fullAddress}</p>
+                  <a
+                    href={shopConfig.googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 text-xs text-blue-600 font-semibold mt-2 hover:underline"
+                  >
+                    View on Google Maps <IcExternalLink />
+                  </a>
                 </div>
               </div>
             </div>
+
+            {/* Ordered Items Card */}
+            {displayItems.length > 0 && (
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+                <h3 className="font-extrabold text-gray-900 text-sm mb-3">Ordered Items</h3>
+                <div className="divide-y divide-gray-100">
+                  {displayItems.map((item) => (
+                    <div
+                      key={item.id}
+                      className="py-3 first:pt-0 last:pb-0 flex items-center gap-3"
+                    >
+                      {/* Thumbnail (56-64px) */}
+                      <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden bg-white border border-gray-200 shrink-0 flex items-center justify-center p-1">
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                            loading="lazy"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none'
+                              const fallback = e.currentTarget.parentElement?.querySelector('.fallback-no-image')
+                              if (fallback) {
+                                (fallback as HTMLElement).style.display = 'flex'
+                              }
+                            }}
+                          />
+                        ) : null}
+                        <div
+                          className={`fallback-no-image w-full h-full items-center justify-center text-gray-400 text-[10px] sm:text-xs font-medium text-center bg-gray-50 ${
+                            item.image ? 'hidden' : 'flex'
+                          }`}
+                        >
+                          No Image
+                        </div>
+                      </div>
+
+                      {/* Item Details */}
+                      <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-4">
+                        <div className="min-w-0">
+                          <p className="text-gray-900 font-semibold text-sm leading-snug break-words">
+                            {item.name}
+                          </p>
+                          <p className="text-gray-500 text-xs mt-0.5 font-medium">
+                            Qty: {item.quantity}
+                          </p>
+                        </div>
+                        <div className="flex items-baseline sm:flex-col sm:items-end gap-1.5 sm:gap-0 shrink-0">
+                          <span className="font-bold text-gray-900 text-sm sm:text-base">
+                            ₹{item.subtotal}
+                          </span>
+                          {item.quantity > 1 && (
+                            <span className="text-gray-400 text-[11px] sm:text-xs font-medium">
+                              (₹{item.price} × {item.quantity})
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

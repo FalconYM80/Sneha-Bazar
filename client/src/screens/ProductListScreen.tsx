@@ -12,7 +12,7 @@ import { Header } from '../components/Header'
 import { Navigation } from '../components/Navigation'
 import { MainContent } from '../components/PageContainer'
 import { CategoryBottomSheet } from '../components/CategoryBottomSheet'
-import { IcCategory, IcChevDown } from '../components/icons'
+import { IcCategory, IcChevDown, IcChevUp } from '../components/icons'
 import { useEffect, useRef, useCallback, useState } from 'react'
 
 interface ProductListScreenProps {
@@ -42,6 +42,7 @@ interface ProductListScreenProps {
   hasMore?: boolean
   isLoadingMore?: boolean
   onLoadMore?: () => void
+  totalProducts?: number
 }
 
 export const ProductListScreen = ({
@@ -70,10 +71,12 @@ export const ProductListScreen = ({
   isMobile = true,
   hasMore = true,
   isLoadingMore = false,
-  onLoadMore
+  onLoadMore,
+  totalProducts
 }: ProductListScreenProps) => {
   const cat = categories.find(c => c.id === selectedCategory)
   const filtered = products // Already filtered by the useEffect based on selectedCategory and searchQuery
+  const totalCount = typeof totalProducts === 'number' ? totalProducts : filtered.length
   
   // Ensure categories have accent colors (fallback if not populated)
   const categoriesWithColors = categories.map(c => ({
@@ -86,6 +89,9 @@ export const ProductListScreen = ({
 
   // Mobile category bottom sheet state
   const [isCategorySheetOpen, setIsCategorySheetOpen] = useState(false)
+
+  // Floating scroll to top state
+  const [showScrollTop, setShowScrollTop] = useState(false)
 
   // Scroll-based infinite loading
   const scrollContainerRef = useRef<HTMLDivElement>(null)
@@ -110,11 +116,16 @@ export const ProductListScreen = ({
   const handleScroll = useCallback(() => {
     const container = scrollContainerRef.current
     if (!container) return
+
+    const { scrollTop, scrollHeight, clientHeight } = container
+
+    // Show button after user scrolls past ~450px
+    setShowScrollTop(scrollTop > 450)
+
     if (isLoadingMoreRef.current) return
     if (!hasMoreRef.current) return
     if (!onLoadMoreRef.current) return
 
-    const { scrollTop, scrollHeight, clientHeight } = container
     const distanceFromBottom = scrollHeight - scrollTop - clientHeight
 
     // Load more when user is within 700px of bottom
@@ -122,6 +133,20 @@ export const ProductListScreen = ({
       onLoadMoreRef.current()
     }
   }, [])
+
+  // Smooth scroll to top handler
+  const scrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      })
+    }
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    })
+  }
 
   // Attach scroll listener once
   useEffect(() => {
@@ -134,6 +159,21 @@ export const ProductListScreen = ({
       container.removeEventListener('scroll', handleScroll)
     }
   }, [handleScroll])
+
+  // Reset scroll position to top whenever selectedCategory or searchQuery changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0
+      if (typeof scrollContainerRef.current.scrollTo === 'function') {
+        scrollContainerRef.current.scrollTo({ top: 0, behavior: 'auto' })
+      }
+    }
+    window.scrollTo({
+      top: 0,
+      behavior: 'auto',
+    })
+    setShowScrollTop(false)
+  }, [selectedCategory, searchQuery, isLoadingProducts])
 
   // Handle short pages - auto-load if content doesn't fill container
   useEffect(() => {
@@ -204,6 +244,8 @@ export const ProductListScreen = ({
     </div>
   )
 
+  const isSearchActive = Boolean(searchQuery.trim())
+
   return (
     <div className="flex-1 flex flex-col bg-[#F7F6F2] overflow-hidden">
       {/* Header */}
@@ -216,7 +258,7 @@ export const ProductListScreen = ({
         cartCount={cartCount}
         onNavigate={onNavigate}
         isMobile={isMobile}
-        title={selectedCategory === '' ? 'All Products' : (cat?.name || 'Products')}
+        title={isSearchActive ? 'All Products' : (selectedCategory === '' ? 'All Products' : (cat?.name || 'Products'))}
         showBackButton={true}
         onBack={() => navigate('home')}
       >
@@ -254,7 +296,7 @@ export const ProductListScreen = ({
                   <span>Categories</span>
                   <IcChevDown />
                 </button>
-                <span className="text-xs text-gray-500 font-medium">{filtered.length} products</span>
+                <span className="text-xs text-gray-500 font-medium">{totalCount} products</span>
               </div>
 
               {isLoadingProducts ? (
@@ -300,9 +342,9 @@ export const ProductListScreen = ({
                   ) : (
                     <div className="px-4 py-4">
                       <EmptyState
-                        icon="🛒"
+                        icon={isSearchActive ? "🔍" : "🛒"}
                         title="No products found"
-                        subtitle="Try selecting a different category"
+                        subtitle={isSearchActive ? `No products found matching "${searchQuery.trim()}".` : "Try selecting a different category"}
                       />
                     </div>
                   )}
@@ -313,10 +355,13 @@ export const ProductListScreen = ({
             <div className="p-6">
               <div className="mb-6">
                 <h1 className="text-2xl font-bold text-gray-900 mb-1">
-                  {selectedCategory === '' ? 'All Products' : (cat?.name || 'Products')}
+                  {isSearchActive
+                    ? `Search results for "${searchQuery.trim()}"`
+                    : (selectedCategory === '' ? 'All Products' : (cat?.name || 'Products'))
+                  }
                 </h1>
                 <p className="text-sm text-gray-500">
-                  Explore our complete collection
+                  {isSearchActive ? 'Showing matching products across all categories' : 'Explore our complete collection'}
                 </p>
               </div>
 
@@ -331,7 +376,7 @@ export const ProductListScreen = ({
               ) : (
                 <>
                   <div className="flex items-center justify-between mb-4">
-                    <p className="text-sm text-gray-500">{filtered.length} products</p>
+                    <p className="text-sm text-gray-500">{totalCount} products</p>
                   </div>
                   
                   {filtered.length > 0 ? (
@@ -364,9 +409,9 @@ export const ProductListScreen = ({
                     </>
                   ) : (
                     <EmptyState 
-                      icon="🛒"
+                      icon={isSearchActive ? "🔍" : "🛒"}
                       title="No products found"
-                      subtitle="Try selecting a different category"
+                      subtitle={isSearchActive ? `No products found matching "${searchQuery.trim()}".` : "Try selecting a different category"}
                     />
                   )}
                 </>
@@ -375,6 +420,22 @@ export const ProductListScreen = ({
           )}
         </MainContent>
       </div>
+
+      {/* Floating Scroll to Top Button - Mobile Browse only */}
+      {isMobile && (
+        <button
+          type="button"
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
+          className={`md:hidden fixed right-4 bottom-[72px] z-30 w-11 h-11 bg-white border border-stone-200 text-gray-800 rounded-full shadow-md flex items-center justify-center transition-all duration-300 ease-out active:scale-90 hover:bg-stone-50 ${
+            showScrollTop
+              ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto'
+              : 'opacity-0 translate-y-3 scale-75 pointer-events-none'
+          }`}
+        >
+          <IcChevUp />
+        </button>
+      )}
 
       {/* Bottom Navigation - only on mobile */}
       {isMobile && (

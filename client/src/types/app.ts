@@ -1,6 +1,7 @@
 export interface Product {
   id: string
   name: string
+  company?: string
   price: number
   originalPrice?: number
   unit?: string
@@ -19,6 +20,7 @@ export interface PlacedOrder {
   items: any[] // Using any to avoid circular dependency with CartItem
   total: number
   date: string
+  createdAt?: string
   status: string
   preparationMinutes: number
   estimatedPickupTime: string

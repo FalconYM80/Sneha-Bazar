@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { customerService } from '../services/customerService'
 import { useAuth } from '../contexts/AuthContext'
+import { isValidIndianPhone, normalizeToE164 } from '../utils/phoneValidation'
+import { Logo } from '../components/Logo'
 import type { Screen } from '../types/app'
 
 interface RegisterScreenProps {
@@ -19,18 +21,18 @@ export const RegisterScreen = ({ onNavigate, onSetScreen }: RegisterScreenProps)
 
   const handleRegister = async () => {
     setRegisterError('')
-    
+
     // Validation
     if (!name.trim()) {
-      setRegisterError('Please enter your name')
+      setRegisterError('Please enter your full name')
       return
     }
     if (!phone) {
-      setRegisterError('Please enter your phone number')
+      setRegisterError('Please enter your mobile number')
       return
     }
-    if (phone.length !== 10) {
-      setRegisterError('Please enter a valid 10-digit phone number')
+    if (!isValidIndianPhone(phone)) {
+      setRegisterError('Enter a valid 10-digit Indian mobile number starting with 6, 7, 8, or 9')
       return
     }
     if (!password) {
@@ -44,13 +46,14 @@ export const RegisterScreen = ({ onNavigate, onSetScreen }: RegisterScreenProps)
 
     setIsRegistering(true)
     try {
+      const e164 = normalizeToE164(phone)
       const response = await customerService.register({
         name: name.trim(),
-        phone,
+        phone: e164,
         email: email.trim() || undefined,
         password,
       })
-      
+
       login(response.customer, response.token)
       onNavigate('home')
     } catch (error) {
@@ -63,14 +66,9 @@ export const RegisterScreen = ({ onNavigate, onSetScreen }: RegisterScreenProps)
   return (
     <div className="flex-1 flex flex-col bg-white overflow-y-auto">
       <div className="px-6 py-4 flex flex-col flex-1">
+        {/* Header Branding */}
         <div className="flex items-center gap-2.5 mb-7">
-          <div className="w-10 h-10 bg-gray-900 rounded-xl flex items-center justify-center shadow-md">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path d="M6 18h12M8 12l-3 6h14l-3-6M12 3c-2 0-4 1.5-4 4h8c0-2.5-2-4-4-4z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="9" cy="22" r="1.5" fill="white" />
-              <circle cx="15" cy="22" r="1.5" fill="white" />
-            </svg>
-          </div>
+          <Logo className="w-10 h-10 rounded-xl" />
           <span className="text-xl font-extrabold text-gray-900">Sneha Bazar</span>
         </div>
 
@@ -78,52 +76,70 @@ export const RegisterScreen = ({ onNavigate, onSetScreen }: RegisterScreenProps)
         <p className="text-gray-400 text-sm mb-6">Join us and start shopping fresh</p>
 
         <div className="space-y-4 mb-5">
+          {/* Full Name */}
           <div>
-            <label className="text-[10px] font-bold text-gray-500 mb-1.5 block uppercase tracking-widest">Full Name</label>
+            <label className="text-[10px] font-bold text-gray-500 mb-1.5 block uppercase tracking-widest">
+              Full Name
+            </label>
             <div className="flex items-center border-2 border-gray-200 rounded-xl px-3.5 py-3.5 gap-2 focus-within:border-gray-400 transition-colors bg-[#F8F9FA]">
-              <input 
-                className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder-gray-400" 
-                placeholder="John Doe" 
-                type="text" 
+              <input
+                className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder-gray-400 font-medium"
+                placeholder="John Doe"
+                type="text"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
               />
             </div>
           </div>
+
+          {/* Mobile Number */}
           <div>
-            <label className="text-[10px] font-bold text-gray-500 mb-1.5 block uppercase tracking-widest">Mobile Number</label>
+            <label className="text-[10px] font-bold text-gray-500 mb-1.5 block uppercase tracking-widest">
+              Mobile Number
+            </label>
             <div className="flex items-center border-2 border-gray-200 rounded-xl px-3.5 py-3.5 gap-2 focus-within:border-gray-400 transition-colors bg-[#F8F9FA]">
-              <span className="text-gray-600 text-sm font-bold shrink-0">🇮🇳 +91</span>
+              <span className="text-gray-700 text-xs font-bold tracking-wider px-1.5 py-0.5 rounded bg-gray-200 shrink-0">
+                IN
+              </span>
+              <span className="text-gray-900 text-sm font-bold shrink-0">+91</span>
               <div className="w-px h-5 bg-gray-300 shrink-0" />
-              <input 
-                className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder-gray-400" 
-                placeholder="98765 43210" 
-                type="tel" 
+              <input
+                className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder-gray-400 font-medium"
+                placeholder="98765 43210"
+                type="tel"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
                 maxLength={10}
               />
             </div>
           </div>
+
+          {/* Email Address (Optional) */}
           <div>
-            <label className="text-[10px] font-bold text-gray-500 mb-1.5 block uppercase tracking-widest">Email Address (Optional)</label>
+            <label className="text-[10px] font-bold text-gray-500 mb-1.5 block uppercase tracking-widest">
+              Email Address (Optional)
+            </label>
             <div className="flex items-center border-2 border-gray-200 rounded-xl px-3.5 py-3.5 gap-2 focus-within:border-gray-400 transition-colors bg-[#F8F9FA]">
-              <input 
-                className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder-gray-400" 
-                placeholder="name@example.com" 
-                type="email" 
+              <input
+                className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder-gray-400 font-medium"
+                placeholder="name@example.com"
+                type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
             </div>
           </div>
+
+          {/* Password */}
           <div>
-            <label className="text-[10px] font-bold text-gray-500 mb-1.5 block uppercase tracking-widest">Password</label>
+            <label className="text-[10px] font-bold text-gray-500 mb-1.5 block uppercase tracking-widest">
+              Password
+            </label>
             <div className="flex items-center border-2 border-gray-200 rounded-xl px-3.5 py-3.5 gap-2 focus-within:border-gray-400 transition-colors bg-[#F8F9FA]">
-              <input 
-                className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder-gray-400" 
-                placeholder="Create a password (min 6 characters)" 
-                type="password" 
+              <input
+                className="flex-1 bg-transparent text-gray-900 text-sm outline-none placeholder-gray-400 font-medium"
+                placeholder="Create a password (min 6 characters)"
+                type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
               />
@@ -131,13 +147,16 @@ export const RegisterScreen = ({ onNavigate, onSetScreen }: RegisterScreenProps)
           </div>
         </div>
 
+        {/* Error message */}
         {registerError && (
           <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-xl text-sm font-semibold">
             {registerError}
           </div>
         )}
 
+        {/* Create Account Submit Button */}
         <button
+          type="button"
           onClick={handleRegister}
           disabled={isRegistering}
           className="w-full bg-gray-900 text-white py-4 rounded-2xl font-bold text-base shadow-sm hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
@@ -146,8 +165,14 @@ export const RegisterScreen = ({ onNavigate, onSetScreen }: RegisterScreenProps)
         </button>
 
         <p className="text-center text-gray-400 text-sm mt-6">
-          {"Already have an account? "}
-          <button onClick={() => onSetScreen('login')} className="text-gray-700 font-bold hover:text-gray-900 transition-colors">Login</button>
+          {'Already have an account? '}
+          <button
+            type="button"
+            onClick={() => onSetScreen('login')}
+            className="text-gray-700 font-bold hover:text-gray-900 transition-colors"
+          >
+            Login
+          </button>
         </p>
       </div>
     </div>

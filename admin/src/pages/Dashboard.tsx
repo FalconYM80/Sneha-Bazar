@@ -431,30 +431,30 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "#f4f6f4" }}>
-      <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-6">
+      <div className="max-w-[1400px] mx-auto px-4 py-5 sm:px-6 sm:py-7 space-y-5 sm:space-y-6">
 
         {/* Greeting */}
         <div>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center text-green-600">
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div className="w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center text-green-600 flex-shrink-0">
               <IconShield size={18} />
             </div>
-            <h2 className="text-2xl font-bold text-gray-900">Welcome back, Admin</h2>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Welcome back, Admin</h2>
           </div>
-          <p className="text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening with your store today.</p>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Here&apos;s what&apos;s happening with your store today.</p>
         </div>
 
         {/* KPI Cards */}
-        <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3 sm:gap-4">
           {SUMMARY.map((s) => (
-            <div key={s.label} className="bg-white rounded-2xl p-5 card-shadow border border-gray-100 hover:shadow-md transition-shadow">
-              <div className="flex items-start justify-between mb-4">
+            <div key={s.label} className="bg-white rounded-2xl p-4 sm:p-5 card-shadow border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="flex items-start justify-between mb-3 sm:mb-4">
                 <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{s.label}</p>
                 <div className={`w-9 h-9 rounded-xl ${s.iconBg} ${s.iconColor} flex items-center justify-center flex-shrink-0`}>
                   <s.icon size={17} />
                 </div>
               </div>
-              <p className="text-3xl font-bold text-gray-900 font-mono-data leading-none">{s.value}</p>
+              <p className="text-2xl sm:text-3xl font-bold text-gray-900 font-mono-data leading-none">{s.value}</p>
               <p className={`text-xs mt-2 font-medium ${s.subColor}`}>{s.sub}</p>
             </div>
           ))}
@@ -464,15 +464,15 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
         <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-4">
 
           {/* Area Chart */}
-          <div className="bg-white rounded-2xl p-6 card-shadow border border-gray-100">
-            <div className="flex items-start justify-between mb-6">
+          <div className="bg-white rounded-2xl p-4 sm:p-6 card-shadow border border-gray-100">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 sm:gap-0 mb-5 sm:mb-6">
               <div>
                 <h3 className="text-sm font-bold text-gray-900">Sales Overview</h3>
                 <p className="text-xs text-gray-400 mt-0.5">
                   {chartPeriod === "week" ? "Revenue performance this week" : "Revenue performance this month"}
                 </p>
               </div>
-              <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
+              <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 self-start sm:self-auto">
                 {(["week", "month"] as const).map((p) => (
                   <button
                     key={p}
@@ -487,9 +487,9 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </div>
             </div>
 
-            <div className="flex items-center gap-6 mb-5">
+            <div className="flex items-center gap-4 sm:gap-6 mb-5">
               <div>
-                <p className="text-2xl font-bold text-gray-900 font-mono-data">{INR(chartTotalRevenue)}</p>
+                <p className="text-xl sm:text-2xl font-bold text-gray-900 font-mono-data">{INR(chartTotalRevenue)}</p>
                 {chartComparisonText ? (
                   <p className={`text-xs font-semibold mt-0.5 ${chartComparisonColor}`}>{chartComparisonText}</p>
                 ) : (
@@ -498,31 +498,33 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               </div>
               <div className="h-10 w-px bg-gray-100" />
               <div>
-                <p className="text-lg font-bold text-gray-700 font-mono-data">{chartTotalOrders}</p>
+                <p className="text-base sm:text-lg font-bold text-gray-700 font-mono-data">{chartTotalOrders}</p>
                 <p className="text-xs text-gray-400 font-medium mt-0.5">Total orders</p>
               </div>
             </div>
 
-            <ResponsiveContainer width="100%" height={180}>
-              <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15} />
-                    <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9ca3af", fontFamily: "Poppins" }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: "#9ca3af", fontFamily: "DM Mono" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
-                <Tooltip content={<CustomTooltip />} cursor={{ stroke: "#e5e7eb", strokeWidth: 1 }} />
-                <Area type="monotone" dataKey="revenue" stroke="#16a34a" strokeWidth={2.5} fill="url(#salesGrad)" dot={false} activeDot={{ r: 5, fill: "#16a34a", stroke: "white", strokeWidth: 2 }} />
-              </AreaChart>
-            </ResponsiveContainer>
+            <div className="w-full overflow-hidden">
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={chartData} margin={{ top: 0, right: 0, left: -30, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#16a34a" stopOpacity={0.15} />
+                      <stop offset="95%" stopColor="#16a34a" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" vertical={false} />
+                  <XAxis dataKey="day" tick={{ fontSize: 11, fill: "#9ca3af", fontFamily: "Poppins" }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: "#9ca3af", fontFamily: "DM Mono" }} axisLine={false} tickLine={false} tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}k`} />
+                  <Tooltip content={<CustomTooltip />} cursor={{ stroke: "#e5e7eb", strokeWidth: 1 }} />
+                  <Area type="monotone" dataKey="revenue" stroke="#16a34a" strokeWidth={2.5} fill="url(#salesGrad)" dot={false} activeDot={{ r: 5, fill: "#16a34a", stroke: "white", strokeWidth: 2 }} />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
           {/* Low Stock Alert */}
           <div className="bg-white rounded-2xl card-shadow border border-gray-100 flex flex-col">
-            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-gray-50">
+            <div className="flex items-center justify-between px-4 sm:px-5 pt-4 sm:pt-5 pb-3 sm:pb-4 border-b border-gray-50">
               <div>
                 <h3 className="text-sm font-bold text-gray-900">Low Stock Alert</h3>
                 <p className="text-xs text-gray-400 mt-0.5">Items needing restock</p>
@@ -531,14 +533,14 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                 {lowStockItems.length} items
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto divide-y divide-gray-50">
+            <div className="flex-1 overflow-y-auto divide-y divide-gray-50 max-h-72 xl:max-h-none">
               {lowStockItems.length === 0 ? (
                 <div className="flex items-center justify-center py-10">
                   <p className="text-sm text-gray-400">All stock levels are OK 🎉</p>
                 </div>
               ) : (
                 lowStockItems.map((p) => (
-                  <div key={p.id} className="flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50/50 transition-colors group">
+                  <div key={p.id} className="flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-3.5 hover:bg-gray-50/50 transition-colors group">
                     <div className="w-9 h-9 rounded-xl bg-gray-50 flex items-center justify-center text-lg flex-shrink-0">📦</div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-800 truncate">{p.name}</p>
@@ -548,7 +550,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
                     </div>
                     <button
                       onClick={() => onNavigate("inventory")}
-                      className="text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100"
+                      className="text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors flex-shrink-0 sm:opacity-0 sm:group-hover:opacity-100"
                     >
                       Restock
                     </button>
@@ -561,7 +563,7 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
         {/* Recent Orders */}
         <div className="bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
-          <div className="flex items-center justify-between px-6 py-4 border-b border-gray-50">
+          <div className="flex items-center justify-between px-4 sm:px-6 py-3.5 sm:py-4 border-b border-gray-50">
             <div>
               <h3 className="text-sm font-bold text-gray-900">Recent Orders</h3>
               <p className="text-xs text-gray-400 mt-0.5">Today&apos;s order activity</p>
@@ -574,11 +576,11 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             </button>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full">
+            <table className="w-full min-w-[580px]">
               <thead>
                 <tr className="border-b border-gray-50 bg-gray-50/40">
                   {["Order ID", "Customer", "Items", "Amount", "Pickup", "Status"].map((h) => (
-                    <th key={h} className="text-left px-6 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                    <th key={h} className="text-left px-4 sm:px-6 py-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
                       {h}
                     </th>
                   ))}
@@ -587,32 +589,32 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               <tbody className="divide-y divide-gray-50">
                 {recentOrders.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-12 text-center text-sm text-gray-400">
+                    <td colSpan={6} className="px-4 sm:px-6 py-12 text-center text-sm text-gray-400">
                       No orders yet today.
                     </td>
                   </tr>
                 ) : (
                   recentOrders.map((o) => (
                     <tr key={o.id} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-3.5 sm:py-4">
                         <span className="font-mono-data text-xs font-semibold text-gray-700">{o.orderNumber}</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-3.5 sm:py-4">
                         <div className="flex items-center gap-2.5">
                           <Avatar name={o.customer} />
-                          <span className="text-sm font-medium text-gray-800">{o.customer}</span>
+                          <span className="text-sm font-medium text-gray-800 truncate max-w-[140px]">{o.customer}</span>
                         </div>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-3.5 sm:py-4">
                         <span className="text-xs text-gray-500">{o.itemCount} items</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-3.5 sm:py-4">
                         <span className="font-mono-data text-sm font-semibold text-gray-800">{INR(o.amount)}</span>
                       </td>
-                      <td className="px-6 py-4">
-                        <span className="text-xs font-medium text-gray-600">{o.pickupTime}</span>
+                      <td className="px-4 sm:px-6 py-3.5 sm:py-4">
+                        <span className="text-xs font-medium text-gray-600 whitespace-nowrap">{o.pickupTime}</span>
                       </td>
-                      <td className="px-6 py-4">
+                      <td className="px-4 sm:px-6 py-3.5 sm:py-4">
                         <OrderStatusBadge status={o.uiStatus} />
                       </td>
                     </tr>

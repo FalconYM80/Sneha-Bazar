@@ -90,7 +90,9 @@ export default function App() {
   const [currentPage, setCurrentPage] = useState(1)
   const [hasMore, setHasMore] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [totalProducts, setTotalProducts] = useState(0)
   const [searchQuery, setSearchQuery] = useState('')
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
   const [searchSuggestions, setSearchSuggestions] = useState<Product[]>([])
   const [showSearchDropdown, setShowSearchDropdown] = useState(false)
   const [isSearching, setIsSearching] = useState(false)
@@ -98,6 +100,7 @@ export default function App() {
   // Refs to avoid dependency issues in callbacks
   const productsRef = useRef(products)
   const searchQueryRef = useRef(searchQuery)
+  const debouncedSearchQueryRef = useRef(debouncedSearchQuery)
   const currentPageRef = useRef(currentPage)
   const hasMoreRef = useRef(hasMore)
   const isLoadingMoreRef = useRef(isLoadingMore)
@@ -110,6 +113,18 @@ export default function App() {
 
   useEffect(() => {
     searchQueryRef.current = searchQuery
+  }, [searchQuery])
+
+  useEffect(() => {
+    debouncedSearchQueryRef.current = debouncedSearchQuery
+  }, [debouncedSearchQuery])
+
+  // Debounce search query changes
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim())
+    }, 250)
+    return () => clearTimeout(timer)
   }, [searchQuery])
 
   useEffect(() => {
@@ -126,7 +141,17 @@ export default function App() {
 
   // Stable search handler to prevent input remounting on every keystroke
   const handleSearch = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value)
+    const val = e.target.value
+    setSearchQuery(val)
+    if (val.trim()) {
+      // Searching always resets the category to "All Products" (global search)
+      setSelectedCategory('')
+      try {
+        sessionStorage.removeItem('customerSelectedCategory')
+      } catch (error) {
+        console.error('Error removing category from sessionStorage:', error)
+      }
+    }
   }, [])
 
   // Handle search input focus - show dropdown with recommendations
@@ -293,16 +318,21 @@ export default function App() {
       setIsLoadingProducts(true)
       setProductsError('')
       try {
+        const isSearchActive = Boolean(debouncedSearchQuery)
+        // If searching, category filter is completely omitted (global search across all products)
+        const effectiveCategory = isSearchActive ? undefined : (selectedCategory || undefined)
+
         const response = await productService.getProductsPaginated(
-          selectedCategory || undefined,
-          searchQuery || undefined,
+          effectiveCategory,
+          debouncedSearchQuery || undefined,
           1,
           12
         )
         const adaptedProducts = response.data.map(adaptProduct)
 
         console.log('[PAGINATION]', {
-          category: selectedCategory || 'All Products',
+          category: isSearchActive ? 'All Products (Global Search)' : (selectedCategory || 'All Products'),
+          search: debouncedSearchQuery || 'None',
           page: response.pagination.page,
           received: adaptedProducts.length,
           total: response.pagination.total,
@@ -310,10 +340,13 @@ export default function App() {
           hasMore: response.pagination.hasMore
         })
 
-        // Shuffle products with image priority for the current page
-        const shuffledProducts = shuffleWithImagePriority(adaptedProducts, (p) => p.image)
+        // Apply randomization ONLY when browsing a category without active search query
+        const displayProducts = isSearchActive
+          ? adaptedProducts
+          : shuffleWithImagePriority(adaptedProducts, (p) => p.image)
 
-        setProducts(shuffledProducts)
+        setProducts(displayProducts)
+        setTotalProducts(response.pagination?.total ?? adaptedProducts.length)
         setHasMore(response.pagination.hasMore)
       } catch (error) {
         setProductsError(error instanceof Error ? error.message : 'Failed to load products')
@@ -324,7 +357,7 @@ export default function App() {
     }
 
     fetchProducts()
-  }, [selectedCategory, searchQuery])
+  }, [selectedCategory, debouncedSearchQuery])
 
   // Load more products (pagination)
   const loadMoreProducts = async () => {
@@ -341,9 +374,12 @@ export default function App() {
 
     try {
       const nextPage = currentPageRef.current + 1
+      const isSearchActive = Boolean(debouncedSearchQueryRef.current)
+      const effectiveCategory = isSearchActive ? undefined : (selectedCategory || undefined)
+
       const response = await productService.getProductsPaginated(
-        selectedCategory || undefined,
-        searchQuery || undefined,
+        effectiveCategory,
+        debouncedSearchQueryRef.current || undefined,
         nextPage,
         12
       )
@@ -351,7 +387,8 @@ export default function App() {
       const adaptedProducts = response.data.map(adaptProduct)
 
       console.log('[PAGINATION]', {
-        category: selectedCategory || 'All Products',
+        category: isSearchActive ? 'All Products (Global Search)' : (selectedCategory || 'All Products'),
+        search: debouncedSearchQueryRef.current || 'None',
         page: response.pagination.page,
         received: adaptedProducts.length,
         total: response.pagination.total,
@@ -359,14 +396,20 @@ export default function App() {
         hasMore: response.pagination.hasMore
       })
 
-      // Shuffle new products with image priority
-      const shuffledNewProducts = shuffleWithImagePriority(adaptedProducts, (p) => p.image)
+      // Apply randomization ONLY when browsing a category without active search query
+      const displayProducts = isSearchActive
+        ? adaptedProducts
+        : shuffleWithImagePriority(adaptedProducts, (p) => p.image)
 
       setProducts(prev => {
         const existingIds = new Set(prev.map(p => p.id))
-        const uniqueNewProducts = shuffledNewProducts.filter(p => !existingIds.has(p.id))
+        const uniqueNewProducts = displayProducts.filter(p => !existingIds.has(p.id))
         return [...prev, ...uniqueNewProducts]
       })
+
+      if (response.pagination && typeof response.pagination.total === 'number') {
+        setTotalProducts(response.pagination.total)
+      }
 
       setCurrentPage(nextPage)
       setHasMore(response.pagination.hasMore)
@@ -491,8 +534,34 @@ export default function App() {
     }
   }
 
+  const removeFromCart = async (id: string) => {
+    try {
+      const backendCart = await cartService.removeFromCart(id)
+      const validItems = backendCart.items
+        .map(item => adaptCartItem(item))
+        .filter((item): item is { product: Product; quantity: number } => item !== null)
+        .map(item => ({ product: item.product, qty: item.quantity })) as FrontendCartItem[]
+      setCart(validItems)
+    } catch (error) {
+      console.error('Error removing from cart:', error)
+      setCartError(error instanceof Error ? error.message : 'Failed to remove from cart')
+    }
+  }
+
   const navigate = useCallback((s: Screen) => {
-    setScreen(s)
+    setScreen(prevScreen => {
+      // When navigating from Home to Browse, reset to All Products
+      if (prevScreen === 'home' && s === 'product-list') {
+        setSelectedCategory('')
+        setSearchQuery('')
+        try {
+          sessionStorage.removeItem('customerSelectedCategory')
+        } catch (error) {
+          console.error('Error removing category from sessionStorage:', error)
+        }
+      }
+      return s
+    })
   }, [])
 
   const clearNavigationState = () => {
@@ -530,22 +599,53 @@ export default function App() {
   const openCategory = useCallback((catId: string) => {
     setSelectedCategory(catId)
     setSearchQuery('') // Clear search when switching categories
-    navigate('product-list')
-  }, [navigate])
+    setDebouncedSearchQuery('')
+    if (!catId) {
+      try {
+        sessionStorage.removeItem('customerSelectedCategory')
+      } catch (error) {
+        console.error('Error removing category from sessionStorage:', error)
+      }
+    }
+    setScreen('product-list')
+  }, [])
+
+  const handleSelectCategory = useCallback((catId: string) => {
+    setSelectedCategory(catId)
+    setSearchQuery('') // Clear search when manually selecting a category
+    setDebouncedSearchQuery('')
+    if (!catId) {
+      try {
+        sessionStorage.removeItem('customerSelectedCategory')
+      } catch (error) {
+        console.error('Error removing category from sessionStorage:', error)
+      }
+    }
+  }, [])
 
   // Execute full search (Enter key or search button)
   const executeSearch = useCallback(() => {
     setShowSearchDropdown(false)
-    if (searchQueryRef.current.trim()) {
+    const clean = searchQueryRef.current.trim()
+    if (clean) {
+      // Global search across all products
+      setSelectedCategory('')
+      setDebouncedSearchQuery(clean)
+      try {
+        sessionStorage.removeItem('customerSelectedCategory')
+      } catch (error) {
+        console.error('Error removing category from sessionStorage:', error)
+      }
       // Navigate to product list with search query
-      navigate('product-list')
+      setScreen('product-list')
     }
-  }, [navigate])
+  }, [])
 
   // Handle suggestion click
   const handleSuggestionClick = useCallback((product: Product) => {
     setShowSearchDropdown(false)
     setSearchQuery('') // Clear search after selection
+    setDebouncedSearchQuery('')
     openProduct(product)
   }, [openProduct])
 
@@ -578,6 +678,7 @@ export default function App() {
         items: [...cart], // Keep current cart items for display
         total: frontendOrder.totalAmount,
         date: frontendOrder.formattedDate,
+        createdAt: frontendOrder.createdAt,
         status: frontendOrder.status,
         preparationMinutes: frontendOrder.preparationMinutes,
         estimatedPickupTime: frontendOrder.estimatedPickupTime,
@@ -658,7 +759,7 @@ export default function App() {
             handleSearchFocus={handleSearchFocus}
             handleSearchBlur={handleSearchBlur}
             executeSearch={executeSearch}
-            setSelectedCategory={setSelectedCategory}
+            setSelectedCategory={handleSelectCategory}
             navigate={handleNavigate}
             showSearchDropdown={showSearchDropdown}
             isSearching={isSearching}
@@ -674,6 +775,7 @@ export default function App() {
             hasMore={hasMore}
             isLoadingMore={isLoadingMore}
             onLoadMore={loadMoreProducts}
+            totalProducts={totalProducts}
           />
         )}
         {screen === 'product-detail' && (
@@ -685,6 +787,7 @@ export default function App() {
             cartCount={cartCount}
             products={products}
             addToCart={addToCart}
+            updateQuantity={updateQty}
             navigate={handleNavigate}
             closeProduct={closeProduct}
             onProductLoaded={setSelectedProduct}
@@ -699,12 +802,22 @@ export default function App() {
             cartSubtotal={cartSubtotal}
             cartTotal={cartTotal}
             updateQty={updateQty}
+            removeFromCart={removeFromCart}
             navigate={handleNavigate}
             activeBottomTab={activeBottomTab}
             onNavigate={handleNavigate}
             onOpenCategory={openCategory}
             categories={categories}
             isMobile={isMobile}
+            searchQuery={searchQuery}
+            handleSearch={handleSearch}
+            handleSearchFocus={handleSearchFocus}
+            handleSearchBlur={handleSearchBlur}
+            executeSearch={executeSearch}
+            showSearchDropdown={showSearchDropdown}
+            isSearching={isSearching}
+            searchSuggestions={searchSuggestions}
+            handleSuggestionClick={handleSuggestionClick}
           />
         )}
         {screen === 'checkout' && (
@@ -749,6 +862,15 @@ export default function App() {
             onOpenCategory={openCategory}
             categories={categories}
             isMobile={isMobile}
+            searchQuery={searchQuery}
+            handleSearch={handleSearch}
+            handleSearchFocus={handleSearchFocus}
+            handleSearchBlur={handleSearchBlur}
+            executeSearch={executeSearch}
+            showSearchDropdown={showSearchDropdown}
+            isSearching={isSearching}
+            searchSuggestions={searchSuggestions}
+            handleSuggestionClick={handleSuggestionClick}
           />
         )}
         {screen === 'profile' && (
@@ -763,6 +885,15 @@ export default function App() {
             onOpenCategory={openCategory}
             categories={categories}
             isMobile={isMobile}
+            searchQuery={searchQuery}
+            handleSearch={handleSearch}
+            handleSearchFocus={handleSearchFocus}
+            handleSearchBlur={handleSearchBlur}
+            executeSearch={executeSearch}
+            showSearchDropdown={showSearchDropdown}
+            isSearching={isSearching}
+            searchSuggestions={searchSuggestions}
+            handleSuggestionClick={handleSuggestionClick}
           />
         )}
       </div>

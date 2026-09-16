@@ -1,7 +1,28 @@
 import { apiService } from './api'
-import type { LoginRequest, RegisterRequest, AuthResponse, Customer } from '../types/customer'
+import type {
+  LoginRequest,
+  RegisterRequest,
+  UpdateProfileRequest,
+  AuthResponse,
+  Customer,
+  SendOtpResponse,
+  VerifyOtpResponse,
+  ResendOtpResponse,
+} from '../types/customer'
 
 export const customerService = {
+  async sendOtp(phone: string): Promise<SendOtpResponse> {
+    return apiService.post<SendOtpResponse>('/customers/send-otp', { phone })
+  },
+
+  async verifyOtp(phone: string, otp: string): Promise<VerifyOtpResponse> {
+    return apiService.post<VerifyOtpResponse>('/customers/verify-otp', { phone, otp })
+  },
+
+  async resendOtp(phone: string): Promise<ResendOtpResponse> {
+    return apiService.post<ResendOtpResponse>('/customers/resend-otp', { phone })
+  },
+
   async login(credentials: LoginRequest): Promise<AuthResponse> {
     return apiService.post<AuthResponse>('/customers/login', credentials)
   },
@@ -12,5 +33,9 @@ export const customerService = {
 
   async getCurrentCustomer(): Promise<Customer> {
     return apiService.get<Customer>('/customers/me')
+  },
+
+  async updateProfile(data: UpdateProfileRequest): Promise<Customer> {
+    return apiService.patch<Customer>('/customers/profile', data)
   },
 }

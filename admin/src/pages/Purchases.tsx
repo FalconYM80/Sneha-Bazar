@@ -78,27 +78,27 @@ function AddPurchaseModal({
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <ModalCard className="w-[520px]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <ModalCard className="w-[520px] max-w-[calc(100vw-32px)] max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div>
             <h3 className="text-sm font-bold text-gray-900">Add Purchase</h3>
             <p className="text-xs text-gray-400 mt-0.5">Record a new purchase</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
             <IconX size={15} />
           </button>
         </div>
 
         {/* Info banner */}
-        <div className="mx-6 mt-5 flex items-start gap-2.5 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
+        <div className="mx-4 sm:mx-6 mt-4 sm:mt-5 flex items-start gap-2.5 bg-blue-50 border border-blue-100 rounded-xl px-4 py-3">
           <span className="text-blue-600 mt-0.5 flex-shrink-0"><IconInfo size={14} /></span>
           <p className="text-xs text-blue-700 font-medium leading-relaxed">
             This record is maintained independently and does not affect inventory.
           </p>
         </div>
 
-        <div className="px-6 py-5 grid grid-cols-2 gap-4">
-          <div className="col-span-2 relative">
+        <div className="px-4 sm:px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+          <div className="sm:col-span-2 relative">
             <FormField label="Item Name *">
               <TextInput 
                 placeholder="e.g. Aashirvaad Atta (10kg)" 
@@ -139,7 +139,7 @@ function AddPurchaseModal({
             <TextInput placeholder="0.00" type="number" value={f.mrp} onChange={set("mrp")} />
           </FormField>
           
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <FormField label="Purchase Date">
               <TextInput type="date" value={f.purchaseDate} onChange={set("purchaseDate")} />
             </FormField>
@@ -147,12 +147,12 @@ function AddPurchaseModal({
         </div>
 
         {error && (
-          <div className="px-6 pb-2">
+          <div className="px-5 sm:px-6 pb-2">
             <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           </div>
         )}
 
-        <div className="px-6 pb-5 flex gap-3">
+        <div className="px-5 sm:px-6 pb-5 flex gap-3 sticky bottom-0 bg-white pt-2 border-t border-gray-100">
           <Btn variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Btn>
           <Btn variant="primary" onClick={handleSubmit} disabled={!valid || saving} className="flex-1">
             {saving ? "Saving..." : "Save Purchase"}
@@ -218,19 +218,19 @@ function EditPurchaseModal({
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <ModalCard className="w-[520px]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <ModalCard className="w-[520px] max-w-[calc(100vw-32px)] max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div>
             <h3 className="text-sm font-bold text-gray-900">Edit Purchase</h3>
             <p className="text-xs text-gray-400 mt-0.5">Update purchase details</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors">
             <IconX size={15} />
           </button>
         </div>
 
-        <div className="px-6 py-5 grid grid-cols-2 gap-4">
-          <div className="col-span-2 relative">
+        <div className="px-5 sm:px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+          <div className="sm:col-span-2 relative">
             <FormField label="Item Name *">
               <TextInput 
                 placeholder="e.g. Aashirvaad Atta (10kg)" 
@@ -271,7 +271,7 @@ function EditPurchaseModal({
             <TextInput placeholder="0.00" type="number" value={f.mrp} onChange={set("mrp")} />
           </FormField>
           
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <FormField label="Purchase Date">
               <TextInput type="date" value={f.purchaseDate} onChange={set("purchaseDate")} />
             </FormField>
@@ -279,12 +279,12 @@ function EditPurchaseModal({
         </div>
 
         {error && (
-          <div className="px-6 pb-2">
+          <div className="px-5 sm:px-6 pb-2">
             <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           </div>
         )}
 
-        <div className="px-6 pb-5 flex gap-3">
+        <div className="px-5 sm:px-6 pb-5 flex gap-3 sticky bottom-0 bg-white pt-2 border-t border-gray-100">
           <Btn variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Btn>
           <Btn variant="primary" onClick={handleSubmit} disabled={!valid || saving} className="flex-1">
             {saving ? "Saving..." : "Update Purchase"}
@@ -340,7 +340,6 @@ export default function Purchases() {
     (p) => p.itemName.toLowerCase().includes(search.toLowerCase())
   );
 
-  // Calculate summary cards
   const totalPurchases = purchases.length;
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
@@ -400,48 +399,95 @@ export default function Purchases() {
             />
           )}
 
-          <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-5">
+          <div className="max-w-[1400px] mx-auto px-4 py-5 sm:px-6 sm:py-7 space-y-4 sm:space-y-5">
 
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Purchases</h2>
-                <p className="text-sm text-gray-500 mt-1">Track purchase records</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Purchases</h2>
+                <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">Track purchase records</p>
               </div>
-              <Btn variant="primary" onClick={() => setAdding(true)}>
+              <Btn variant="primary" onClick={() => setAdding(true)} className="self-start sm:self-auto">
                 <IconPlus size={15} /> Add Purchase
               </Btn>
             </div>
 
             {/* Summary */}
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
               {[
-                { label: "Total Purchases", value: totalPurchases, sub: "all time", mono: true },
-                { label: "This Month", value: thisMonthPurchases, sub: "current month", mono: true },
-                { label: "Total Purchase Amount", value: INR(totalPurchaseAmount), sub: "all purchases", mono: true },
+                { label: "Total Purchases", value: totalPurchases, sub: "all time" },
+                { label: "This Month", value: thisMonthPurchases, sub: "current month" },
+                { label: "Total Purchase Amount", value: INR(totalPurchaseAmount), sub: "all purchases" },
               ].map(({ label, value, sub }) => (
-                <div key={label} className="bg-white rounded-2xl px-5 py-4 card-shadow border border-gray-100">
+                <div key={label} className="bg-white rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 card-shadow border border-gray-100">
                   <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
-                  <p className="text-2xl font-bold text-gray-900 font-mono-data mt-1.5">{value}</p>
+                  <p className="text-xl sm:text-2xl font-bold text-gray-900 font-mono-data mt-1 sm:mt-1.5">{value}</p>
                   <p className="text-xs text-gray-400 font-medium mt-0.5">{sub}</p>
                 </div>
               ))}
             </div>
 
             {/* Filters */}
-            <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-4 flex gap-3 items-center">
-              <div className="w-72">
+            <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-3.5 sm:p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
+              <div className="w-full sm:w-72">
                 <SearchInput placeholder="Search by item name…" value={search} onChange={setSearch} />
               </div>
-              <button className="flex items-center gap-2 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-gray-500 hover:border-gray-400 hover:text-gray-700 transition-colors bg-white">
+              <button className="flex items-center justify-center gap-2 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors bg-white">
                 <IconCalendar size={14} />
                 Date Filter
               </button>
             </div>
 
-            {/* Table */}
+            {/* Purchases Container */}
             <div className="bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
-              <div className="overflow-x-auto">
+              
+              {/* Mobile Card View (Visible on < md) */}
+              <div className="block md:hidden divide-y divide-gray-100">
+                {filtered.length === 0 ? (
+                  <div className="px-4 py-12 text-center text-sm text-gray-400">No purchases found.</div>
+                ) : (
+                  filtered.map((p) => (
+                    <div key={p._id} className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-sm font-semibold text-gray-900 leading-tight">{p.itemName}</p>
+                          <span className="text-xs text-gray-400 font-medium mt-0.5 block">{formatDate(p.purchaseDate)}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button 
+                            onClick={() => setEditing(p)}
+                            aria-label="Edit purchase"
+                            className="w-8 h-8 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-colors border border-gray-200"
+                          >
+                            <IconEdit size={14} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(p)}
+                            aria-label="Delete purchase"
+                            className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors border border-gray-200"
+                          >
+                            <IconTrash size={14} />
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                        <div>
+                          <span className="text-gray-400 block mb-0.5">Purchase Amount</span>
+                          <span className="font-mono-data font-bold text-sm text-gray-900">{INR(p.purchaseAmount)}</span>
+                        </div>
+                        <div className="text-right">
+                          <span className="text-gray-400 block mb-0.5">MRP</span>
+                          <span className="font-mono-data font-semibold text-sm text-gray-700">{INR(p.mrp)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Desktop Table View (Visible on >= md: exactly preserved) */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/60">
@@ -494,7 +540,8 @@ export default function Purchases() {
                   </tbody>
                 </table>
               </div>
-              <div className="px-6 py-3.5 border-t border-gray-50">
+
+              <div className="px-4 sm:px-6 py-3.5 border-t border-gray-50">
                 <p className="text-xs text-gray-400 font-medium">
                   Showing <span className="text-gray-700 font-semibold">{filtered.length}</span> of {purchases.length} records
                 </p>

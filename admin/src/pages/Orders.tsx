@@ -60,35 +60,35 @@ function OrderDetailModal({
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <ModalCard className="w-[520px] max-h-[90vh] flex flex-col">
+      <ModalCard className="w-[520px] max-w-[calc(100vw-32px)] max-h-[90vh] flex flex-col">
         {/* Header */}
-        <div className="flex items-start justify-between px-6 py-5 border-b border-gray-100 flex-shrink-0">
+        <div className="flex items-start justify-between px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100 flex-shrink-0">
           <div>
-            <div className="flex items-center gap-3 mb-1">
+            <div className="flex items-center gap-2.5 sm:gap-3 mb-1">
               <span className="font-mono-data text-base font-bold text-gray-900">{order.orderNumber}</span>
               <OrderStatusBadge status={order.status} />
             </div>
             <p className="text-xs text-gray-400">
-              Ordered at <strong className="text-gray-600">{order.orderTime}</strong>
-              {" · "}Pickup at <strong className="text-gray-600">{order.pickupTime}</strong>
+              Ordered <strong className="text-gray-600">{order.orderTime}</strong>
+              {" · "}Pickup <strong className="text-gray-600">{order.pickupTime}</strong>
             </p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors mt-0.5">
-            <IconX size={15} />
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1.5 rounded-lg hover:bg-gray-100 transition-colors mt-0.5">
+            <IconX size={16} />
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          <div className="px-6 py-5 space-y-5">
+          <div className="px-4 sm:px-6 py-4 sm:py-5 space-y-4 sm:space-y-5">
 
             {/* Customer */}
             <div>
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Customer</p>
-              <div className="flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl border border-gray-100">
+              <div className="flex items-center gap-3 p-3 sm:p-3.5 bg-gray-50 rounded-xl border border-gray-100">
                 <Avatar name={order.customer} size="md" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-800">{order.customer}</p>
-                  <p className="text-xs text-gray-400 font-mono-data mt-0.5">{order.phone}</p>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 truncate">{order.customer}</p>
+                  <p className="text-xs text-gray-400 font-mono-data mt-0.5 truncate">{order.phone}</p>
                 </div>
               </div>
             </div>
@@ -98,27 +98,27 @@ function OrderDetailModal({
               <p className="text-[11px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Ordered Items ({order.items.length})</p>
               <div className="divide-y divide-gray-50 border border-gray-100 rounded-xl overflow-hidden">
                 {order.items.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between px-4 py-3 bg-white hover:bg-gray-50/50 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full bg-green-50 border border-green-100 flex items-center justify-center flex-shrink-0">
+                  <div key={i} className="flex items-center justify-between px-3.5 sm:px-4 py-3 bg-white hover:bg-gray-50/50 transition-colors">
+                    <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                      <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-green-50 border border-green-100 flex items-center justify-center flex-shrink-0">
                         <span className="font-mono-data text-xs font-bold text-green-700">{item.qty}</span>
                       </div>
-                      <span className="text-sm font-medium text-gray-700">{item.name}</span>
+                      <span className="text-xs sm:text-sm font-medium text-gray-700 truncate">{item.name}</span>
                     </div>
-                    <span className="font-mono-data text-sm font-semibold text-gray-900">{INR(item.price)}</span>
+                    <span className="font-mono-data text-xs sm:text-sm font-semibold text-gray-900 flex-shrink-0 ml-2">{INR(item.price)}</span>
                   </div>
                 ))}
               </div>
             </div>
 
             {/* Summary */}
-            <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-4 space-y-2.5">
+            <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3.5 space-y-2">
               <div className="flex justify-between text-xs text-gray-500">
                 <span className="font-medium">Total Products</span>
                 <span className="font-semibold text-gray-700">{order.items.length} items · {totalQty} units</span>
               </div>
               <div className="h-px bg-gray-200" />
-              <div className="flex justify-between">
+              <div className="flex justify-between items-center">
                 <span className="text-sm font-semibold text-gray-700">Total Amount</span>
                 <span className="font-mono-data text-base font-bold text-gray-900">{INR(total)}</span>
               </div>
@@ -132,33 +132,32 @@ function OrderDetailModal({
                   const done = i <= idx;
                   const active = i === idx;
                   return (
-                    <div key={s} className="flex items-start flex-1">
-                      <div className="flex flex-col items-center gap-1.5">
+                    <div key={s} className="flex items-start flex-1 min-w-0">
+                      <div className="flex flex-col items-center gap-1.5 w-full">
                         <div
-                          className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+                          className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
                             done ? "bg-green-600 shadow-sm" : "bg-gray-100"
                           } ${active ? "ring-2 ring-green-300 ring-offset-1" : ""}`}
                         >
                           {done ? (
-                            <IconCheck size={13} />
+                            <IconCheck size={12} />
                           ) : (
                             <span className="w-2 h-2 rounded-full bg-gray-300" />
                           )}
                         </div>
                         <span
-                          className="text-center leading-tight"
+                          className="text-center leading-tight truncate w-full"
                           style={{
-                            fontSize: 10,
+                            fontSize: 9,
                             fontWeight: active ? 700 : 500,
                             color: done ? "#16a34a" : "#9ca3af",
-                            maxWidth: 72,
                           }}
                         >
                           {s}
                         </span>
                       </div>
                       {i < STATUS_FLOW.length - 1 && (
-                        <div className={`flex-1 h-0.5 mt-4 mx-1 ${i < idx ? "bg-green-400" : "bg-gray-100"}`} />
+                        <div className={`flex-1 h-0.5 mt-3.5 sm:mt-4 mx-0.5 ${i < idx ? "bg-green-400" : "bg-gray-100"}`} />
                       )}
                     </div>
                   );
@@ -170,11 +169,11 @@ function OrderDetailModal({
 
         {/* Footer */}
         {error && (
-          <div className="px-6 py-2 border-t border-gray-100">
+          <div className="px-4 sm:px-6 py-2 border-t border-gray-100">
             <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           </div>
         )}
-        <div className="px-6 py-4 border-t border-gray-100 flex gap-3 flex-shrink-0">
+        <div className="px-4 sm:px-6 py-4 border-t border-gray-100 flex gap-3 flex-shrink-0">
           <Btn variant="outline" onClick={onClose} className="flex-1" disabled={advancing}>Close</Btn>
           {nextLabel && (
             <button
@@ -279,144 +278,214 @@ export default function Orders() {
             />
           )}
 
-          <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-5">
+          <div className="max-w-[1400px] mx-auto px-4 py-5 sm:px-6 sm:py-7 space-y-4 sm:space-y-5">
 
-        {/* Header */}
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">Orders</h2>
-          <p className="text-sm text-gray-500 mt-1">Manage customer pickup orders</p>
-        </div>
-
-        {/* KPI row */}
-        <div className="grid grid-cols-4 gap-4">
-          {[
-            { label: "Pending", value: counts["Pending"], color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100" },
-            { label: "Preparing", value: counts["Preparing"], color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100" },
-            { label: "Ready for Pickup", value: counts["Ready for Pickup"], color: "text-green-700", bg: "bg-green-50", border: "border-green-100" },
-            { label: "Picked Up Today", value: counts["Picked Up"], color: "text-gray-500", bg: "bg-gray-100", border: "border-gray-200" },
-          ].map(({ label, value, color, bg, border }) => (
-            <div key={label} className={`${bg} border ${border} rounded-2xl px-5 py-4`}>
-              <p className="text-xs font-semibold text-gray-500">{label}</p>
-              <p className={`text-3xl font-bold font-mono-data mt-1.5 ${color}`}>{value}</p>
+            {/* Header */}
+            <div>
+              <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Orders</h2>
+              <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">Manage customer pickup orders</p>
             </div>
-          ))}
-        </div>
 
-        {/* Tabs + Search */}
-        <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-1.5 flex items-center gap-1 flex-wrap">
-          {TABS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all ${
-                tab === t ? "bg-green-600 text-white shadow-sm" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
-              }`}
-            >
-              {t}
-              <span
-                className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
-                  tab === t ? "bg-green-500 text-white" : "bg-gray-100 text-gray-500"
-                }`}
-              >
-                {counts[t]}
-              </span>
-            </button>
-          ))}
-          <div className="ml-auto pr-1">
-            <SearchInput placeholder="Search by customer or order ID…" value={search} onChange={setSearch} />
-          </div>
-        </div>
+            {/* KPI row */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              {[
+                { label: "Pending", value: counts["Pending"], color: "text-amber-600", bg: "bg-amber-50", border: "border-amber-100" },
+                { label: "Preparing", value: counts["Preparing"], color: "text-blue-600", bg: "bg-blue-50", border: "border-blue-100" },
+                { label: "Ready for Pickup", value: counts["Ready for Pickup"], color: "text-green-700", bg: "bg-green-50", border: "border-green-100" },
+                { label: "Picked Up Today", value: counts["Picked Up"], color: "text-gray-500", bg: "bg-gray-100", border: "border-gray-200" },
+              ].map(({ label, value, color, bg, border }) => (
+                <div key={label} className={`${bg} border ${border} rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4`}>
+                  <p className="text-xs font-semibold text-gray-500">{label}</p>
+                  <p className={`text-2xl sm:text-3xl font-bold font-mono-data mt-1 sm:mt-1.5 ${color}`}>{value}</p>
+                </div>
+              ))}
+            </div>
 
-        {/* Table */}
-        <div className="bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-gray-100 bg-gray-50/60">
-                  {["Order", "Customer", "Items", "Qty", "Amount", "Order Time", "Pickup", "Status", "Action"].map((h) => (
-                    <th key={h} className="text-left px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
+            {/* Tabs + Search */}
+            <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-2 sm:p-1.5 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-1">
+              <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 sm:flex-wrap flex-nowrap -mx-1 px-1">
+                {TABS.map((t) => (
+                  <button
+                    key={t}
+                    onClick={() => setTab(t)}
+                    className={`inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-semibold transition-all whitespace-nowrap flex-shrink-0 ${
+                      tab === t ? "bg-green-600 text-white shadow-sm" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                    }`}
+                  >
+                    {t}
+                    <span
+                      className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none ${
+                        tab === t ? "bg-green-500 text-white" : "bg-gray-100 text-gray-500"
+                      }`}
+                    >
+                      {counts[t]}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <div className="w-full sm:w-auto sm:ml-auto sm:pr-1">
+                <SearchInput placeholder="Search customer or order ID…" value={search} onChange={setSearch} />
+              </div>
+            </div>
+
+            {/* Orders Container */}
+            <div className="bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
+              
+              {/* Mobile Card List (Visible on < md) */}
+              <div className="block md:hidden divide-y divide-gray-100">
                 {visible.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="px-6 py-16 text-center text-sm text-gray-400">No orders found.</td>
-                  </tr>
+                  <div className="px-4 py-12 text-center text-sm text-gray-400">No orders found.</div>
                 ) : (
                   visible.map((o) => {
                     const total = o.items.reduce((a, i) => a + i.price, 0);
                     const totalQty = o.items.reduce((a, i) => a + i.qty, 0);
                     const nextLabel = NEXT_LABEL[o.status];
                     const btnStyle = STATUS_BTN_STYLE[o.status];
+
                     return (
-                      <tr
+                      <div
                         key={o.id}
-                        className="hover:bg-gray-50/60 transition-colors cursor-pointer"
+                        className="p-4 space-y-3 hover:bg-gray-50/60 transition-colors cursor-pointer"
                         onClick={() => setSelected(o)}
                       >
-                        <td className="px-6 py-4">
-                          <span className="font-mono-data text-xs font-semibold text-gray-700">{o.orderNumber}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2.5">
-                            <Avatar name={o.customer} />
-                            <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">{o.customer}</span>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs text-gray-500">{o.items.length}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="font-mono-data text-xs font-semibold text-gray-600">{totalQty}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="font-mono-data text-sm font-bold text-gray-900">{INR(total)}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs text-gray-500">{o.orderTime}</span>
-                        </td>
-                        <td className="px-6 py-4">
-                          <span className="text-xs font-semibold text-gray-700">{o.pickupTime}</span>
-                        </td>
-                        <td className="px-6 py-4">
+                        <div className="flex items-center justify-between">
+                          <span className="font-mono-data text-sm font-bold text-gray-900">{o.orderNumber}</span>
                           <OrderStatusBadge status={o.status} />
-                        </td>
-                        <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
-                          {nextLabel ? (
-                            <button
-                              onClick={async () => {
-                                try {
-                                  await advance(o.id);
-                                } catch (err) {
-                                  // Error handling is done in the advance function
-                                  console.error("Failed to advance order:", err);
-                                }
-                              }}
-                              className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${btnStyle}`}
-                            >
-                              {nextLabel}
-                            </button>
-                          ) : (
-                            <span className="text-xs text-gray-300">—</span>
-                          )}
-                        </td>
-                      </tr>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <Avatar name={o.customer} size="sm" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-800 truncate">{o.customer}</p>
+                            <p className="text-xs text-gray-400 mt-0.5">Ordered {o.orderTime}</p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-xs bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                          <div>
+                            <span className="text-gray-400 block mb-0.5">Items</span>
+                            <span className="font-semibold text-gray-700">{o.items.length} items ({totalQty} units)</span>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 block mb-0.5">Pickup</span>
+                            <span className="font-semibold text-gray-700">{o.pickupTime}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className="text-gray-400 block mb-0.5">Total</span>
+                            <span className="font-mono-data font-bold text-sm text-gray-900">{INR(total)}</span>
+                          </div>
+                        </div>
+
+                        {nextLabel && (
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await advance(o.id);
+                              } catch (err) {
+                                console.error("Failed to advance order:", err);
+                              }
+                            }}
+                            className={`w-full text-xs font-semibold py-2.5 px-3 rounded-xl transition-colors text-center ${btnStyle}`}
+                          >
+                            {nextLabel}
+                          </button>
+                        )}
+                      </div>
                     );
                   })
                 )}
-              </tbody>
-            </table>
+              </div>
+
+              {/* Desktop Table View (Visible on >= md: exactly preserved) */}
+              <div className="hidden md:block overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b border-gray-100 bg-gray-50/60">
+                      {["Order", "Customer", "Items", "Qty", "Amount", "Order Time", "Pickup", "Status", "Action"].map((h) => (
+                        <th key={h} className="text-left px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-50">
+                    {visible.length === 0 ? (
+                      <tr>
+                        <td colSpan={9} className="px-6 py-16 text-center text-sm text-gray-400">No orders found.</td>
+                      </tr>
+                    ) : (
+                      visible.map((o) => {
+                        const total = o.items.reduce((a, i) => a + i.price, 0);
+                        const totalQty = o.items.reduce((a, i) => a + i.qty, 0);
+                        const nextLabel = NEXT_LABEL[o.status];
+                        const btnStyle = STATUS_BTN_STYLE[o.status];
+                        return (
+                          <tr
+                            key={o.id}
+                            className="hover:bg-gray-50/60 transition-colors cursor-pointer"
+                            onClick={() => setSelected(o)}
+                          >
+                            <td className="px-6 py-4">
+                              <span className="font-mono-data text-xs font-semibold text-gray-700">{o.orderNumber}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <div className="flex items-center gap-2.5">
+                                <Avatar name={o.customer} />
+                                <span className="text-sm font-semibold text-gray-800 whitespace-nowrap">{o.customer}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-xs text-gray-500">{o.items.length}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="font-mono-data text-xs font-semibold text-gray-600">{totalQty}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="font-mono-data text-sm font-bold text-gray-900">{INR(total)}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-xs text-gray-500">{o.orderTime}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className="text-xs font-semibold text-gray-700">{o.pickupTime}</span>
+                            </td>
+                            <td className="px-6 py-4">
+                              <OrderStatusBadge status={o.status} />
+                            </td>
+                            <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
+                              {nextLabel ? (
+                                <button
+                                  onClick={async () => {
+                                    try {
+                                      await advance(o.id);
+                                    } catch (err) {
+                                      console.error("Failed to advance order:", err);
+                                    }
+                                  }}
+                                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap ${btnStyle}`}
+                                >
+                                  {nextLabel}
+                                </button>
+                              ) : (
+                                <span className="text-xs text-gray-300">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="px-4 sm:px-6 py-3.5 border-t border-gray-50">
+                <p className="text-xs text-gray-400 font-medium">
+                  Showing <span className="text-gray-700 font-semibold">{visible.length}</span> of {orders.length} orders
+                </p>
+              </div>
+            </div>
           </div>
-          <div className="px-6 py-3.5 border-t border-gray-50">
-            <p className="text-xs text-gray-400 font-medium">
-              Showing <span className="text-gray-700 font-semibold">{visible.length}</span> of {orders.length} orders
-            </p>
-          </div>
-        </div>
-      </div>
         </>
       )}
     </div>

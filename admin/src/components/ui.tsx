@@ -253,18 +253,18 @@ export function Avatar({ name, size = "sm" }: { name: string; size?: "sm" | "md"
 export function ModalBackdrop({ children, onClose }: { children: React.ReactNode; onClose: () => void }) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       style={{ background: "rgba(17,24,39,0.45)", backdropFilter: "blur(4px)" }}
     >
-      <div className="absolute inset-0" onClick={onClose} />
-      <div className="relative">{children}</div>
+      <div className="fixed inset-0" onClick={onClose} />
+      <div className="relative max-w-full my-auto flex justify-center">{children}</div>
     </div>
   );
 }
 
 export function ModalCard({ children, className = "" }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`bg-white rounded-2xl modal-shadow w-full ${className}`}>
+    <div className={`bg-white rounded-2xl modal-shadow max-w-[calc(100vw-24px)] ${className}`}>
       {children}
     </div>
   );

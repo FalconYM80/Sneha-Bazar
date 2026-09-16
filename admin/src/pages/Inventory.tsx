@@ -52,8 +52,6 @@ const mapProduct = (product: BackendProduct, threshold: number): UIProduct => ({
   imagePublicId: product.imagePublicId,
 });
 
-
-
 // ── Update Stock Modal ────────────────────────────────────────────────────────
 
 function UpdateStockModal({
@@ -85,15 +83,15 @@ function UpdateStockModal({
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <ModalCard className="w-[360px]">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+      <ModalCard className="w-[360px] max-w-[calc(100vw-32px)]">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100">
           <h3 className="text-sm font-bold text-gray-900">Update Stock</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors">
             <IconX size={15} />
           </button>
         </div>
 
-        <div className="px-6 py-5 space-y-5">
+        <div className="px-5 sm:px-6 py-5 space-y-5">
           {/* Product preview */}
           <div className="flex items-center gap-3 p-3.5 bg-gray-50 rounded-xl border border-gray-100">
             <div className="w-12 h-12 rounded-xl bg-white border border-gray-100 flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
@@ -103,9 +101,9 @@ function UpdateStockModal({
                 <span>{product.emoji}</span>
               )}
             </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800">{product.name}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{product.category}</p>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-gray-800 truncate">{product.name}</p>
+              <p className="text-xs text-gray-400 mt-0.5 truncate">{product.category}</p>
             </div>
           </div>
 
@@ -118,10 +116,10 @@ function UpdateStockModal({
           {/* Adjustment */}
           <div>
             <p className="text-xs font-semibold text-gray-500 mb-2.5">Quantity Adjustment</p>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <button
                 onClick={() => setDelta((d) => d - 1)}
-                className="w-10 h-10 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-all active:scale-95"
+                className="w-11 h-11 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-gray-400 hover:bg-gray-50 transition-all active:scale-95 flex-shrink-0"
               >
                 <IconMinus size={16} />
               </button>
@@ -132,7 +130,7 @@ function UpdateStockModal({
               </div>
               <button
                 onClick={() => setDelta((d) => d + 1)}
-                className="w-10 h-10 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-green-400 hover:bg-green-50 hover:text-green-700 transition-all active:scale-95"
+                className="w-11 h-11 rounded-xl border-2 border-gray-200 flex items-center justify-center text-gray-600 hover:border-green-400 hover:bg-green-50 hover:text-green-700 transition-all active:scale-95 flex-shrink-0"
               >
                 <IconPlus size={16} />
               </button>
@@ -147,12 +145,12 @@ function UpdateStockModal({
         </div>
 
         {error && (
-          <div className="px-6 pb-2">
+          <div className="px-5 sm:px-6 pb-2">
             <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           </div>
         )}
 
-        <div className="px-6 pb-5 flex gap-3">
+        <div className="px-5 sm:px-6 pb-5 flex gap-3">
           <Btn variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Btn>
           <Btn variant="primary" onClick={handleSave} className="flex-1" disabled={saving}>
             {saving ? "Saving..." : "Save Changes"}
@@ -195,7 +193,6 @@ function AddProductModal({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
       const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
       const allowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
       const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
@@ -204,7 +201,6 @@ function AddProductModal({
         setError("Only image files (jpeg, jpg, png, gif, webp) are allowed");
         return;
       }
-      // Validate file size (5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError("Image size must be less than 5MB");
         return;
@@ -281,15 +277,15 @@ function AddProductModal({
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <ModalCard className="w-[520px] max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+      <ModalCard className="w-[520px] max-w-[calc(100vw-32px)] max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h3 className="text-sm font-bold text-gray-900">Add New Product</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors">
             <IconX size={15} />
           </button>
         </div>
-        <div className="px-6 py-5 grid grid-cols-2 gap-4">
-          <div className="col-span-2">
+        <div className="px-5 sm:px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+          <div className="sm:col-span-2">
             <FormField label="Product Name *">
               <TextInput placeholder="e.g. Tata Salt 1kg" value={f.name} onChange={set("name")} />
             </FormField>
@@ -298,7 +294,7 @@ function AddProductModal({
             <select
               value={f.category}
               onChange={(e) => set("category")(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
               style={{ fontFamily: "inherit" }}
             >
               <option value="">Select category</option>
@@ -322,7 +318,7 @@ function AddProductModal({
             <select
               value={f.unit}
               onChange={(e) => set("unit")(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
               style={{ fontFamily: "inherit" }}
             >
               <option value="">Select unit</option>
@@ -339,7 +335,7 @@ function AddProductModal({
           <FormField label="Brand / Company">
             <TextInput placeholder="e.g. Tata" value={f.company} onChange={set("company")} />
           </FormField>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <FormField label="Product Image">
               <div className="space-y-3">
                 {!imagePreview ? (
@@ -380,11 +376,11 @@ function AddProductModal({
           </div>
         </div>
         {error && (
-          <div className="px-6 pb-2">
+          <div className="px-5 sm:px-6 pb-2">
             <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           </div>
         )}
-        <div className="px-6 pb-5 flex gap-3 sticky bottom-0 bg-white pt-2">
+        <div className="px-5 sm:px-6 pb-5 flex gap-3 sticky bottom-0 bg-white pt-2 border-t border-gray-100">
           <Btn variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Btn>
           <Btn variant="primary" onClick={handleSubmit} className="flex-1" disabled={saving}>
             {saving ? "Adding..." : "Add Product"}
@@ -426,7 +422,6 @@ function EditProductModal({
 
   const STOCK_UNITS = ["pack", "pcs", "kg", "g", "litre", "ml", "packet", "box", "bottle", "dozen"];
 
-  // Sync form when product changes
   useEffect(() => {
     setF({
       name: product.name,
@@ -445,7 +440,6 @@ function EditProductModal({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Validate file type
       const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/gif", "image/webp"];
       const allowedExtensions = [".jpg", ".jpeg", ".png", ".gif", ".webp"];
       const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
@@ -454,7 +448,6 @@ function EditProductModal({
         setError("Only image files (jpeg, jpg, png, gif, webp) are allowed");
         return;
       }
-      // Validate file size (5MB)
       if (file.size > 5 * 1024 * 1024) {
         setError("Image size must be less than 5MB");
         return;
@@ -531,15 +524,15 @@ function EditProductModal({
 
   return (
     <ModalBackdrop onClose={onClose}>
-      <ModalCard className="w-[520px] max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+      <ModalCard className="w-[520px] max-w-[calc(100vw-32px)] max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <h3 className="text-sm font-bold text-gray-900">Edit Product</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-100 transition-colors">
             <IconX size={15} />
           </button>
         </div>
-        <div className="px-6 py-5 grid grid-cols-2 gap-4">
-          <div className="col-span-2">
+        <div className="px-5 sm:px-6 py-5 grid grid-cols-1 sm:grid-cols-2 gap-3.5 sm:gap-4">
+          <div className="sm:col-span-2">
             <FormField label="Product Name *">
               <TextInput placeholder="e.g. Tata Salt 1kg" value={f.name} onChange={set("name")} />
             </FormField>
@@ -548,7 +541,7 @@ function EditProductModal({
             <select
               value={f.category}
               onChange={(e) => set("category")(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
               style={{ fontFamily: "inherit" }}
             >
               <option value="">Select category</option>
@@ -572,7 +565,7 @@ function EditProductModal({
             <select
               value={f.unit}
               onChange={(e) => set("unit")(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
+              className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm text-gray-700 outline-none focus:border-green-400 bg-white cursor-pointer"
               style={{ fontFamily: "inherit" }}
             >
               <option value="">Select unit</option>
@@ -589,7 +582,7 @@ function EditProductModal({
           <FormField label="Brand / Company">
             <TextInput placeholder="e.g. Tata" value={f.company} onChange={set("company")} />
           </FormField>
-          <div className="col-span-2">
+          <div className="sm:col-span-2">
             <FormField label="Product Image">
               <div className="space-y-3">
                 {!imagePreview ? (
@@ -630,11 +623,11 @@ function EditProductModal({
           </div>
         </div>
         {error && (
-          <div className="px-6 pb-2">
+          <div className="px-5 sm:px-6 pb-2">
             <p className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
           </div>
         )}
-        <div className="px-6 pb-5 flex gap-3 sticky bottom-0 bg-white pt-2">
+        <div className="px-5 sm:px-6 pb-5 flex gap-3 sticky bottom-0 bg-white pt-2 border-t border-gray-100">
           <Btn variant="outline" onClick={onClose} className="flex-1" disabled={saving}>Cancel</Btn>
           <Btn variant="primary" onClick={handleSubmit} className="flex-1" disabled={saving}>
             {saving ? "Saving..." : "Save Changes"}
@@ -680,7 +673,6 @@ export default function Inventory() {
       if (cat !== "All") params.append('category', cat);
       if (filter !== "All Status") params.append('stockStatus', filter);
       
-      // Send low stock threshold to backend for server-side filtering
       const { lowStockThreshold } = loadSettings();
       params.append('lowStockThreshold', lowStockThreshold.toString());
 
@@ -689,21 +681,17 @@ export default function Inventory() {
         api.get("/categories")
       ]);
       
-      // Handle API response structure - check if it's wrapped in ApiResponse or direct
       const response = productsResponse as any;
       const productsData = Array.isArray(response) ? response : response.data || [];
       const categoriesData = Array.isArray(categoriesResponse) ? categoriesResponse : (categoriesResponse as any).data || [];
 
-      // Map products with threshold for UI display
       const mappedProducts = productsData.map((p: BackendProduct) => mapProduct(p, lowStockThreshold));
       setProducts(mappedProducts);
       setCategories(categoriesData);
 
-      // Extract pagination metadata if available
       if (!Array.isArray(response) && response.pagination) {
         setPagination(response.pagination);
       } else {
-        // Fallback if pagination metadata not present
         setPagination({
           total: productsData.length,
           totalPages: 1,
@@ -717,7 +705,6 @@ export default function Inventory() {
     }
   };
 
-  // Debounce search input
   useEffect(() => {
     const timer = setTimeout(() => {
       setSearch(searchInput);
@@ -773,45 +760,45 @@ export default function Inventory() {
       {adding && <AddProductModal onClose={() => setAdding(false)} categories={categories} onSuccess={fetchInventoryData} />}
       {editing && <EditProductModal onClose={() => setEditing(null)} product={editing} categories={categories} onSuccess={fetchInventoryData} />}
 
-      <div className="max-w-[1400px] mx-auto px-6 py-7 space-y-5">
+      <div className="max-w-[1400px] mx-auto px-4 py-5 sm:px-6 sm:py-7 space-y-4 sm:space-y-5">
 
         {/* Header */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900">Inventory</h2>
-            <p className="text-sm text-gray-500 mt-1">Manage your products and stock levels</p>
+            <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Inventory</h2>
+            <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1">Manage your products and stock levels</p>
           </div>
-          <Btn variant="primary" onClick={() => setAdding(true)}>
+          <Btn variant="primary" onClick={() => setAdding(true)} className="self-start sm:self-auto">
             <IconPlus size={15} /> Add Product
           </Btn>
         </div>
 
         {/* Stats bar */}
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
           {[
             { label: "Total Products", value: pagination.total, color: "text-gray-900" },
             { label: "Low Stock", value: products.filter((p) => p.status === "Low Stock").length, color: "text-amber-600" },
             { label: "Out of Stock", value: products.filter((p) => p.status === "Out of Stock").length, color: "text-red-600" },
           ].map(({ label, value, color }) => (
-            <div key={label} className="bg-white rounded-2xl px-5 py-4 card-shadow border border-gray-100">
+            <div key={label} className="bg-white rounded-2xl px-4 sm:px-5 py-3.5 sm:py-4 card-shadow border border-gray-100">
               <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide">{label}</p>
-              <p className={`text-2xl font-bold font-mono-data mt-1.5 ${color}`}>{value}</p>
+              <p className={`text-2xl font-bold font-mono-data mt-1 sm:mt-1.5 ${color}`}>{value}</p>
             </div>
           ))}
         </div>
 
         {/* Filters */}
-        <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-4">
-          <div className="flex flex-wrap gap-3 items-center">
-            <div className="w-64">
+        <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-3.5 sm:p-4">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-center">
+            <div className="w-full sm:w-64">
               <SearchInput placeholder="Search products…" value={searchInput} onChange={handleSearchChange} />
             </div>
 
-            {/* Category pills */}
-            <div className="flex gap-1 flex-wrap">
+            {/* Category pills (horizontal scroll on small screens) */}
+            <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 sm:flex-wrap flex-nowrap w-full sm:w-auto -mx-1 px-1">
               <button
                 onClick={() => handleCategoryChange("All")}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                   cat === "All" ? "bg-green-600 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                 }`}
               >
@@ -821,7 +808,7 @@ export default function Inventory() {
                 <button
                   key={c._id}
                   onClick={() => handleCategoryChange(c._id)}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors whitespace-nowrap flex-shrink-0 ${
                     cat === c._id ? "bg-green-600 text-white" : "text-gray-500 hover:bg-gray-100 hover:text-gray-700"
                   }`}
                 >
@@ -830,11 +817,11 @@ export default function Inventory() {
               ))}
             </div>
 
-            <div className="ml-auto">
+            <div className="w-full sm:w-auto sm:ml-auto">
               <select
                 value={filter}
                 onChange={(e) => setFilter(e.target.value as typeof filter)}
-                className="text-sm font-medium border border-gray-200 rounded-xl px-3 py-2 text-gray-600 outline-none bg-white cursor-pointer focus:border-green-400"
+                className="w-full sm:w-auto text-sm font-medium border border-gray-200 rounded-xl px-3 py-2 text-gray-600 outline-none bg-white cursor-pointer focus:border-green-400"
                 style={{ fontFamily: "inherit" }}
               >
                 {FILTERS.map((f) => <option key={f}>{f}</option>)}
@@ -843,9 +830,99 @@ export default function Inventory() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Product List Container */}
         <div className="bg-white rounded-2xl card-shadow border border-gray-100 overflow-hidden">
-          <div className="overflow-x-auto">
+          
+          {/* Mobile Card List (Visible on < md) */}
+          <div className="block md:hidden divide-y divide-gray-100">
+            {loading ? (
+              <div className="px-4 py-12 text-center text-sm text-gray-400">Loading products...</div>
+            ) : error ? (
+              <div className="px-4 py-12 text-center">
+                <p className="text-sm text-red-600 mb-3">{error}</p>
+                <button onClick={fetchInventoryData} className="text-sm font-semibold text-green-700 hover:text-green-800">
+                  Retry
+                </button>
+              </div>
+            ) : products.length === 0 ? (
+              <div className="px-4 py-12 text-center text-sm text-gray-400">No products match your filters.</div>
+            ) : (
+              products.map((p) => (
+                <div key={p.id} className="p-4 space-y-3">
+                  <div className="flex items-start gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center text-2xl flex-shrink-0 overflow-hidden">
+                      {p.image ? (
+                        <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{p.emoji}</span>
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-semibold text-gray-900 leading-tight">{p.name}</p>
+                        <StockStatusBadge status={p.status} />
+                      </div>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[11px] font-semibold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">
+                          {p.category}
+                        </span>
+                        {p.itemCode && (
+                          <span className="text-[11px] text-gray-400 font-mono-data truncate">
+                            {p.itemCode}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 text-sm bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                    <div>
+                      <span className="text-xs text-gray-400 block leading-none mb-1">Price</span>
+                      <span className="font-mono-data font-bold text-gray-900">{INR(p.price)}</span>
+                      <span className="text-xs text-gray-400">/{p.unit}</span>
+                      {p.mrp && p.mrp > p.price && (
+                        <span className="text-xs text-gray-400 line-through ml-1.5">{INR(p.mrp)}</span>
+                      )}
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs text-gray-400 block leading-none mb-1">Stock Level</span>
+                      <span className={`font-mono-data font-semibold text-sm ${
+                        p.status === "Out of Stock" ? "text-red-600" : p.status === "Low Stock" ? "text-amber-700" : "text-gray-800"
+                      }`}>
+                        {p.stock} {p.stockUnit}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={() => setUpdating(p)}
+                      className="flex-1 text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 py-2.5 px-3 rounded-xl transition-colors text-center border border-green-200"
+                    >
+                      Update Stock
+                    </button>
+                    <button
+                      onClick={() => setEditing(p)}
+                      aria-label="Edit product"
+                      className="w-10 h-10 rounded-xl text-gray-500 hover:text-blue-600 hover:bg-blue-50 border border-gray-200 flex items-center justify-center transition-colors"
+                    >
+                      <IconEdit size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(p)}
+                      aria-label="Delete product"
+                      className="w-10 h-10 rounded-xl text-gray-500 hover:text-red-500 hover:bg-red-50 border border-gray-200 flex items-center justify-center transition-colors"
+                    >
+                      <IconTrash size={16} />
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+
+          {/* Desktop Table View (Visible on >= md: exactly preserved) */}
+          <div className="hidden md:block overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/60">
@@ -947,8 +1024,10 @@ export default function Inventory() {
               </tbody>
             </table>
           </div>
-          <div className="px-6 py-3.5 border-t border-gray-50 flex items-center justify-between">
-            <p className="text-xs text-gray-400 font-medium">
+
+          {/* Pagination bar */}
+          <div className="px-4 sm:px-6 py-3.5 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0">
+            <p className="text-xs text-gray-400 font-medium text-center sm:text-left">
               Showing <span className="text-gray-700 font-semibold">{Math.min((page - 1) * limit + 1, pagination.total)}</span>–<span className="text-gray-700 font-semibold">{Math.min(page * limit, pagination.total)}</span> of <span className="text-gray-700 font-semibold">{pagination.total.toLocaleString()}</span> products
             </p>
             <div className="flex items-center gap-2">
@@ -966,7 +1045,7 @@ export default function Inventory() {
                 <button
                   onClick={() => handlePageChange(page - 1)}
                   disabled={page === 1}
-                  className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`w-8 h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-colors ${
                     page === 1 ? "text-gray-300 cursor-not-allowed" : "text-gray-500 hover:bg-gray-100"
                   }`}
                 >
@@ -974,14 +1053,14 @@ export default function Inventory() {
                 </button>
                 <button
                   onClick={() => handlePageChange(page)}
-                  className="w-7 h-7 rounded-lg text-xs font-semibold bg-green-600 text-white"
+                  className="w-8 h-8 rounded-lg text-xs font-semibold bg-green-600 text-white flex items-center justify-center"
                 >
                   {page}
                 </button>
                 {pagination.totalPages > 1 && page < pagination.totalPages && (
                   <button
                     onClick={() => handlePageChange(page + 1)}
-                    className="w-7 h-7 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+                    className="w-8 h-8 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors flex items-center justify-center"
                   >
                     {page + 1}
                   </button>
@@ -989,7 +1068,7 @@ export default function Inventory() {
                 {pagination.totalPages > 2 && page < pagination.totalPages - 1 && (
                   <button
                     onClick={() => handlePageChange(page + 2)}
-                    className="w-7 h-7 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors"
+                    className="w-8 h-8 rounded-lg text-xs font-semibold text-gray-500 hover:bg-gray-100 transition-colors flex items-center justify-center"
                   >
                     {page + 2}
                   </button>
@@ -997,7 +1076,7 @@ export default function Inventory() {
                 <button
                   onClick={() => handlePageChange(page + 1)}
                   disabled={!pagination.hasMore}
-                  className={`w-7 h-7 rounded-lg text-xs font-semibold transition-colors ${
+                  className={`w-8 h-8 rounded-lg text-xs font-semibold flex items-center justify-center transition-colors ${
                     !pagination.hasMore ? "text-gray-300 cursor-not-allowed" : "text-gray-500 hover:bg-gray-100"
                   }`}
                 >

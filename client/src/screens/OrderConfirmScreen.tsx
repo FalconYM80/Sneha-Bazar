@@ -1,8 +1,9 @@
 
 import type { PlacedOrder } from '../types/app'
-import { IcCheck, IcClock, IcPackage } from '../components/icons'
+import { IcCheck, IcClock, IcPackage, IcLocation, IcExternalLink } from '../components/icons'
 import { formatPickupTime, formatOrderStatus, getStatusColorClass } from '../types/order'
 import { calculatePickupTime } from '../utils/helpers'
+import { shopConfig } from '../config/shopConfig'
 
 interface OrderConfirmScreenProps {
   placedOrder: PlacedOrder | null
@@ -86,13 +87,25 @@ export const OrderConfirmScreen = ({ placedOrder, navigate }: OrderConfirmScreen
             </div>
           </div>
 
-          <div className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4">
-            <p className="text-green-800 text-sm font-semibold text-center">
-              Please collect your order from the store
-            </p>
-            <p className="text-green-600 text-xs text-center mt-1">
-              Sneha Bazar, Vamanjoor
-            </p>
+          <div className="bg-white rounded-2xl p-4 mb-4 text-left shadow-sm border border-gray-100">
+            <h3 className="font-extrabold text-gray-900 text-sm mb-2">Pickup Location</h3>
+            <div className="flex items-start gap-3">
+              <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center shrink-0 text-blue-600 mt-0.5">
+                <IcLocation />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-gray-900 text-sm">{shopConfig.shopName}</p>
+                <p className="text-gray-500 text-xs mt-0.5 leading-relaxed">{shopConfig.address.fullAddress}</p>
+                <a
+                  href={shopConfig.googleMapsUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-xs text-blue-600 font-semibold mt-2 hover:underline"
+                >
+                  View on Google Maps <IcExternalLink />
+                </a>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-3">

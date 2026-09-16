@@ -7,6 +7,10 @@ import { MainContent } from '../components/PageContainer'
 import { IcLocation, IcPackageEmpty, IcHistory } from '../components/icons'
 import { orderService } from '../services/orderService'
 import { formatOrderStatus, getStatusColorClass, adaptOrder } from '../types/order'
+import { shopConfig } from '../config/shopConfig'
+
+import type { Product } from '../types/app'
+import { SearchDropdown } from '../components/SearchDropdown'
 
 interface OrdersScreenProps {
   orders: FrontendOrder[]
@@ -24,6 +28,15 @@ interface OrdersScreenProps {
   onOpenCategory: (catId: string) => void
   categories: { id: string }[]
   isMobile?: boolean
+  searchQuery?: string
+  handleSearch?: (e: React.ChangeEvent<HTMLInputElement>) => void
+  handleSearchFocus?: () => void
+  handleSearchBlur?: () => void
+  executeSearch?: () => void
+  showSearchDropdown?: boolean
+  isSearching?: boolean
+  searchSuggestions?: Product[]
+  handleSuggestionClick?: (product: Product) => void
 }
 
 export const OrdersScreen = ({
@@ -41,7 +54,16 @@ export const OrdersScreen = ({
   onNavigate,
   onOpenCategory,
   categories,
-  isMobile = true
+  isMobile = true,
+  searchQuery = '',
+  handleSearch = () => {},
+  handleSearchFocus = () => {},
+  handleSearchBlur = () => {},
+  executeSearch = () => {},
+  showSearchDropdown = false,
+  isSearching = false,
+  searchSuggestions = [],
+  handleSuggestionClick = () => {},
 }: OrdersScreenProps) => {
   // Separate orders into active and past based on status
   const activeOrders = orders.filter(order => 
@@ -80,16 +102,24 @@ export const OrdersScreen = ({
     <div className="flex-1 flex flex-col bg-[#F7F6F2] overflow-hidden">
       {/* Header */}
       <Header
-        searchQuery=""
-        handleSearch={() => {}}
-        handleSearchFocus={() => {}}
-        handleSearchBlur={() => {}}
-        executeSearch={() => {}}
+        searchQuery={searchQuery}
+        handleSearch={handleSearch}
+        handleSearchFocus={handleSearchFocus}
+        handleSearchBlur={handleSearchBlur}
+        executeSearch={executeSearch}
         cartCount={0}
         onNavigate={onNavigate}
         isMobile={isMobile}
         title="My Orders"
-      />
+      >
+        <SearchDropdown
+          showSearchDropdown={showSearchDropdown}
+          isSearching={isSearching}
+          searchSuggestions={searchSuggestions}
+          searchQuery={searchQuery}
+          handleSuggestionClick={handleSuggestionClick}
+        />
+      </Header>
 
       {/* Desktop Navigation - hidden on mobile */}
       {!isMobile && (
@@ -147,7 +177,15 @@ export const OrdersScreen = ({
                       setPlacedOrder({
                         id: order.orderNumber,
                         orderNumber: order.orderNumber,
-                        items: [],
+                        items: order.items.map(i => ({
+                          product: {
+                            id: i.product.id,
+                            name: i.product.name,
+                            price: i.price,
+                            image: i.product.image,
+                          },
+                          qty: i.quantity,
+                        })),
                         total: order.totalAmount,
                         date: order.formattedDate,
                         status: order.status,
@@ -168,13 +206,28 @@ export const OrdersScreen = ({
                     </div>
 
                     <div className="flex items-center gap-3 mb-4">
-                      {order.items.slice(0, 4).map(item => (
-                        <div key={item.product.id} className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
+                      {order.items.slice(0, 4).map((item, idx) => (
+                        <div key={item.product.id || `${item.product.name}-${idx}`} className="w-12 h-12 sm:w-14 sm:h-14 rounded-xl overflow-hidden bg-white border border-gray-200 shrink-0 flex items-center justify-center p-0.5">
                           {item.product.image ? (
-                            <img src={item.product.image} alt={item.product.name} className="w-full h-full object-cover" loading="lazy" />
-                          ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No Image</div>
-                          )}
+                            <img 
+                              src={item.product.image} 
+                              alt={item.product.name} 
+                              className="w-full h-full object-contain" 
+                              loading="lazy"
+                              onError={(e) => {
+                                e.currentTarget.style.display = 'none'
+                                const fallback = e.currentTarget.parentElement?.querySelector('.fallback-no-image')
+                                if (fallback) {
+                                  (fallback as HTMLElement).style.display = 'flex'
+                                }
+                              }}
+                            />
+                          ) : null}
+                          <div 
+                            className={`fallback-no-image w-full h-full items-center justify-center text-gray-400 text-[10px] sm:text-xs font-medium text-center bg-gray-50 ${item.product.image ? 'hidden' : 'flex'}`}
+                          >
+                            No Image
+                          </div>
                         </div>
                       ))}
                       {order.items.length > 4 && (
@@ -191,7 +244,7 @@ export const OrdersScreen = ({
                       </div>
                       <div className="flex items-center gap-2 text-gray-600 text-sm">
                         <IcLocation />
-                        <span>Pickup at Sneha Bazar</span>
+                        <span>Pickup at {shopConfig.shopName}</span>
                       </div>
                     </div>
 
@@ -259,7 +312,15 @@ export const OrdersScreen = ({
                           setPlacedOrder({
                             id: order.orderNumber,
                             orderNumber: order.orderNumber,
-                            items: [],
+                            items: order.items.map(i => ({
+                              product: {
+                                id: i.product.id,
+                                name: i.product.name,
+                                price: i.price,
+                                image: i.product.image,
+                              },
+                              qty: i.quantity,
+                            })),
                             total: order.totalAmount,
                             date: order.formattedDate,
                             status: order.status,

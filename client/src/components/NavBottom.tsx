@@ -7,13 +7,13 @@ interface NavBottomProps {
   cartCount: number
   onNavigate: (screen: string) => void
   onOpenCategory: (categoryId: string) => void
-  categories: { id: string }[]
+  categories?: { id: string }[]
 }
 
-export const NavBottom = ({ activeBottomTab, cartCount, onNavigate, onOpenCategory, categories }: NavBottomProps) => {
+export const NavBottom = ({ activeBottomTab, cartCount, onNavigate, onOpenCategory, categories: _categories }: NavBottomProps) => {
   const tabs: Array<{ id: BottomTab; label: string; Icon: () => React.ReactNode; badge?: number; action: () => void }> = [
     { id: 'home', label: 'Home', Icon: IcHome, action: () => onNavigate('home') },
-    { id: 'categories', label: 'Browse', Icon: IcGrid, action: () => onOpenCategory(categories[0]?.id || '') },
+    { id: 'categories', label: 'Browse', Icon: IcGrid, action: () => onOpenCategory('') },
     { id: 'cart', label: 'Cart', Icon: IcCart, badge: cartCount, action: () => onNavigate('cart') },
     { id: 'orders', label: 'Orders', Icon: IcPackage, action: () => onNavigate('orders') },
     { id: 'profile', label: 'Profile', Icon: IcUser, action: () => onNavigate('profile') },

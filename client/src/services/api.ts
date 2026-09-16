@@ -53,7 +53,9 @@ class ApiService {
         throw new Error((data as ApiError).message || 'Request failed')
       }
 
-      return (data as ApiResponse<T>).data
+      return (data as ApiResponse<T>).data !== undefined 
+        ? (data as ApiResponse<T>).data 
+        : (data as unknown as T)
     } catch (error) {
       if (error instanceof Error) {
         throw error
@@ -131,6 +133,13 @@ class ApiService {
   async put<T>(endpoint: string, body: unknown): Promise<T> {
     return this.request<T>(endpoint, {
       method: 'PUT',
+      body: JSON.stringify(body),
+    })
+  }
+
+  async patch<T>(endpoint: string, body: unknown): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PATCH',
       body: JSON.stringify(body),
     })
   }

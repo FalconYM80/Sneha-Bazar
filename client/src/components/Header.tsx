@@ -1,4 +1,5 @@
 import React from 'react'
+import { Logo } from './Logo'
 import { IcMapPin, IcBell, IcSearch, IcChevLeft, IcCart, IcUser } from './icons'
 
 interface HeaderProps {
@@ -88,13 +89,8 @@ export const Header = ({
           {/* Left: Branding */}
           <div className="flex items-center gap-4 shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center shadow-sm border border-white/20">
-                <span className="text-white text-2xl font-bold">S</span>
-              </div>
-              <div>
-                <h1 className="font-extrabold text-white text-xl leading-tight">Sneha Bazar</h1>
-                <p className="text-xs text-white/70 font-medium">Everything you need, in one place</p>
-              </div>
+              <Logo className="w-10 h-10 rounded-xl" />
+              <h1 className="font-extrabold text-white text-xl leading-tight">Sneha Bazar</h1>
             </div>
           </div>
 

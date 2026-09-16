@@ -1,6 +1,7 @@
 import type { FrontendCartItem } from '../types/cart'
-import { IcChevLeft, IcBuilding, IcClock } from '../components/icons'
+import { IcChevLeft, IcLocation, IcExternalLink, IcClock } from '../components/icons'
 import { calculatePickupTime } from '../utils/helpers'
+import { shopConfig } from '../config/shopConfig'
 
 interface CheckoutScreenProps {
   cart: FrontendCartItem[]
@@ -41,17 +42,27 @@ export const CheckoutScreen = ({
 
     <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2 pb-20 md:px-6 md:py-4 md:space-y-3">
       <div className="max-w-[1050px] mx-auto w-full space-y-2 md:space-y-3">
-        {/* Pickup Information */}
+        {/* Pickup Location */}
         <div className="bg-white rounded-2xl p-3 shadow-sm border border-gray-100">
-          <h3 className="font-extrabold text-gray-900 text-sm mb-2">Pickup Information</h3>
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="font-extrabold text-gray-900 text-sm">Pickup Location</h3>
+            <span className="bg-blue-50 text-blue-600 text-[10px] font-bold px-2 py-0.5 rounded-full">Pickup Only</span>
+          </div>
           <div className="flex items-start gap-3">
-            <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center shrink-0 text-blue-600">
-              <IcBuilding />
+            <div className="w-8 h-8 bg-blue-50 rounded-xl flex items-center justify-center shrink-0 text-blue-600 mt-0.5">
+              <IcLocation />
             </div>
-            <div className="flex-1">
-              <p className="font-bold text-gray-900 text-sm">Store Pickup</p>
-              <p className="text-gray-500 text-xs mt-0.5 leading-snug">Sneha Bazar<br />Vamanjoor, Karnataka</p>
-              <span className="inline-block mt-1.5 bg-blue-50 text-blue-600 text-[10px] font-bold px-2.5 py-0.5 rounded-full">Pickup Only</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-gray-900 text-sm">{shopConfig.shopName}</p>
+              <p className="text-gray-500 text-xs mt-0.5 leading-relaxed">{shopConfig.address.fullAddress}</p>
+              <a
+                href={shopConfig.googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-xs text-blue-600 font-semibold mt-1.5 hover:underline"
+              >
+                View on Google Maps <IcExternalLink />
+              </a>
             </div>
           </div>
         </div>

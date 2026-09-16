@@ -71,30 +71,30 @@ function SettingsPage() {
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "#f4f6f4" }}>
-      <div className="max-w-2xl mx-auto px-6 py-7 space-y-5">
+      <div className="max-w-2xl mx-auto px-4 py-5 sm:px-6 sm:py-7 space-y-4 sm:space-y-5">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Settings</h2>
-          <p className="text-sm text-gray-500 mt-1">Manage your store configuration</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Settings</h2>
+          <p className="text-xs sm:text-sm text-gray-500 mt-1">Manage your store configuration</p>
         </div>
 
         {/* Success banner */}
         {saved && (
-          <div className="bg-green-50 border border-green-200 text-green-700 text-sm font-medium px-4 py-3 rounded-xl">
+          <div className="bg-green-50 border border-green-200 text-green-700 text-xs sm:text-sm font-medium px-4 py-3 rounded-xl">
             ✓ Settings saved successfully.
           </div>
         )}
 
         {/* Error banner */}
         {error && (
-          <div className="bg-red-50 border border-red-200 text-red-600 text-sm font-medium px-4 py-3 rounded-xl">
+          <div className="bg-red-50 border border-red-200 text-red-600 text-xs sm:text-sm font-medium px-4 py-3 rounded-xl">
             {error}
           </div>
         )}
 
         {/* Store Information */}
-        <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-6">
-          <h3 className="text-sm font-bold text-gray-900 mb-5">Store Information</h3>
-          <div className="space-y-4">
+        <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-5 sm:p-6">
+          <h3 className="text-sm font-bold text-gray-900 mb-4 sm:mb-5">Store Information</h3>
+          <div className="space-y-3.5 sm:space-y-4">
             <FormField label="Store Name">
               <TextInput value={f.storeName} onChange={set("storeName")} placeholder="e.g. Sneha Bazar" />
             </FormField>
@@ -106,14 +106,14 @@ function SettingsPage() {
             </FormField>
           </div>
           <div className="mt-5">
-            <Btn variant="primary" onClick={handleSave}>Save Changes</Btn>
+            <Btn variant="primary" onClick={handleSave} className="w-full sm:w-auto">Save Changes</Btn>
           </div>
         </div>
 
         {/* Inventory Settings */}
-        <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-6">
-          <h3 className="text-sm font-bold text-gray-900 mb-5">Inventory Settings</h3>
-          <div className="space-y-4">
+        <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-5 sm:p-6">
+          <h3 className="text-sm font-bold text-gray-900 mb-4 sm:mb-5">Inventory Settings</h3>
+          <div className="space-y-3.5 sm:space-y-4">
             <FormField label="Low Stock Threshold (units)">
               <TextInput
                 type="number"
@@ -127,7 +127,7 @@ function SettingsPage() {
             </FormField>
           </div>
           <div className="mt-5">
-            <Btn variant="primary" onClick={handleSave}>Save Changes</Btn>
+            <Btn variant="primary" onClick={handleSave} className="w-full sm:w-auto">Save Changes</Btn>
           </div>
         </div>
 
@@ -139,15 +139,30 @@ function SettingsPage() {
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
   const [collapsed, setCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const handleToggle = () => {
+    if (typeof window !== "undefined" && window.innerWidth < 1024) {
+      setMobileSidebarOpen((open) => !open);
+    } else {
+      setCollapsed((c) => !c);
+    }
+  };
 
   return (
     <div className="flex h-full overflow-hidden" style={{ background: "#f4f6f4" }}>
-      <Sidebar activePage={page} onNavigate={setPage} collapsed={collapsed} />
+      <Sidebar 
+        activePage={page} 
+        onNavigate={setPage} 
+        collapsed={collapsed} 
+        mobileOpen={mobileSidebarOpen}
+        onCloseMobile={() => setMobileSidebarOpen(false)}
+      />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header
           title={META[page].title}
           subtitle={META[page].subtitle}
-          onToggle={() => setCollapsed((c) => !c)}
+          onToggle={handleToggle}
         />
         {page === "dashboard"  && <Dashboard onNavigate={setPage} />}
         {page === "inventory"  && <Inventory />}

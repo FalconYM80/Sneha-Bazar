@@ -1,9 +1,11 @@
+import { useState, useEffect, useRef } from 'react'
 import type { Product } from '../types/app'
 import type { FrontendCartItem } from '../types/cart'
-import { IcChevLeft, IcCart, IcStar } from '../components/icons'
+import { IcChevLeft, IcCart, IcMapPin, IcPackageEmpty } from '../components/icons'
+import { ProductCard } from '../components/ProductCard'
 import { productService } from '../services/productService'
 import { adaptProduct } from '../types/product'
-import { useState, useEffect } from 'react'
+import { shopConfig } from '../config/shopConfig'
 
 interface ProductDetailScreenProps {
   selectedProduct: Product | null
@@ -13,6 +15,7 @@ interface ProductDetailScreenProps {
   cartCount: number
   products: Product[]
   addToCart: (product: Product, qty?: number) => void
+  updateQuantity?: (productId: string, delta: number) => void
   navigate: (screen: string) => void
   closeProduct: () => void
   onProductLoaded?: (product: Product) => void
@@ -26,22 +29,27 @@ export const ProductDetailScreen = ({
   cartCount,
   products,
   addToCart,
+  updateQuantity,
   navigate,
   closeProduct,
-  onProductLoaded
+  onProductLoaded,
 }: ProductDetailScreenProps) => {
   const [product, setProduct] = useState<Product | null>(selectedProduct)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+  const [imageError, setImageError] = useState(false)
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
+  const [isLoadingRelated, setIsLoadingRelated] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Load product from API on mount if not provided via navigation state
   useEffect(() => {
     if (selectedProduct) {
       setProduct(selectedProduct)
+      setImageError(false)
       return
     }
 
-    // Try to load product ID from sessionStorage
     let productId = ''
     try {
       productId = sessionStorage.getItem('selectedProductId') || ''
@@ -58,6 +66,7 @@ export const ProductDetailScreen = ({
     const foundInArray = products.find(p => p.id === productId)
     if (foundInArray) {
       setProduct(foundInArray)
+      setImageError(false)
       return
     }
 
@@ -69,7 +78,7 @@ export const ProductDetailScreen = ({
         const backendProduct = await productService.getProductById(productId)
         const adaptedProduct = adaptProduct(backendProduct)
         setProduct(adaptedProduct)
-        // Notify parent component about loaded product
+        setImageError(false)
         if (onProductLoaded) {
           onProductLoaded(adaptedProduct)
         }
@@ -84,13 +93,75 @@ export const ProductDetailScreen = ({
     fetchProduct()
   }, [selectedProduct, products, onProductLoaded])
 
+  // Fetch same-category recommendations whenever the active product changes
+  useEffect(() => {
+    if (!product?.category) {
+      setRelatedProducts([])
+      return
+    }
+
+    let isMounted = true
+
+    const fetchCategoryRecommendations = async () => {
+      setIsLoadingRelated(true)
+      try {
+        // Fetch candidates from the same category (limit 8 to obtain up to 4 valid with images)
+        const backendProducts = await productService.getProducts(product.category, undefined, 1, 8)
+        const adapted = backendProducts.map(adaptProduct)
+
+        if (isMounted) {
+          // Filter: same category, exclude current product, only valid non-placeholder images
+          const valid = adapted.filter(
+            rp =>
+              rp.id !== product.id &&
+              Boolean(
+                rp.image &&
+                rp.image.trim() !== '' &&
+                !rp.image.includes('placeholder') &&
+                !rp.image.includes('default')
+              )
+          ).slice(0, 4)
+
+          setRelatedProducts(valid)
+        }
+      } catch (err) {
+        console.error('Error fetching category recommendations:', err)
+        if (isMounted) {
+          // Fallback to local products array if available
+          const localValid = (products || []).filter(
+            rp =>
+              rp.category === product.category &&
+              rp.id !== product.id &&
+              Boolean(
+                rp.image &&
+                rp.image.trim() !== '' &&
+                !rp.image.includes('placeholder') &&
+                !rp.image.includes('default')
+              )
+          ).slice(0, 4)
+          setRelatedProducts(localValid)
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingRelated(false)
+        }
+      }
+    }
+
+    fetchCategoryRecommendations()
+
+    return () => {
+      isMounted = false
+    }
+  }, [product?.id, product?.category, products])
+
   if (isLoading) {
     return (
-      <div className="flex-1 flex flex-col bg-white overflow-hidden">
-        <div className="flex-1 flex items-center justify-center">
+      <div className="flex-1 flex flex-col bg-[#F7F6F2] overflow-y-auto">
+        <div className="flex-1 flex items-center justify-center p-6">
           <div className="flex flex-col items-center gap-3">
-            <div className="w-8 h-8 border-3 border-gray-300 border-t-emerald-600 rounded-full animate-spin" />
-            <p className="text-sm text-gray-500">Loading product details...</p>
+            <div className="w-8 h-8 border-3 border-stone-300 border-t-emerald-600 rounded-full animate-spin" />
+            <p className="text-sm font-medium text-stone-600">Loading product details...</p>
           </div>
         </div>
       </div>
@@ -99,21 +170,23 @@ export const ProductDetailScreen = ({
 
   if (error || !product) {
     return (
-      <div className="flex-1 flex flex-col bg-white overflow-hidden">
-        <div className="flex-1 flex items-center justify-center px-4">
-          <div className="flex flex-col items-center gap-4 text-center max-w-sm">
-            <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center">
-              <span className="text-3xl">🔍</span>
+      <div className="flex-1 flex flex-col bg-[#F7F6F2] overflow-y-auto">
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="bg-white rounded-2xl border border-stone-200 p-8 text-center max-w-sm w-full shadow-sm">
+            <div className="w-14 h-14 bg-stone-100 rounded-full flex items-center justify-center mx-auto mb-4 text-stone-400">
+              <IcPackageEmpty />
             </div>
-            <div>
-              <h2 className="text-lg font-bold text-gray-900 mb-1">Product Not Found</h2>
-              <p className="text-sm text-gray-500 mb-4">
-                {error || 'The product you are looking for could not be found.'}
-              </p>
-            </div>
+            <h2 className="text-lg font-bold text-gray-900 mb-1">Product Not Found</h2>
+            <p className="text-sm text-gray-500 mb-6">
+              {error || 'The product you are looking for could not be found.'}
+            </p>
             <button
-              onClick={() => { closeProduct(); navigate('product-list') }}
-              className="px-6 py-3 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-700 transition-colors"
+              type="button"
+              onClick={() => {
+                closeProduct()
+                navigate('product-list')
+              }}
+              className="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-bold text-sm transition-colors"
             >
               Browse Products
             </button>
@@ -125,189 +198,295 @@ export const ProductDetailScreen = ({
 
   const p = product
   const inCart = cart.find(i => i.product.id === p.id)
-  const discount = p.originalPrice ? Math.round((1 - p.price / p.originalPrice) * 100) : 0
-  const related = products.filter(pr => pr.category === p.category && pr.id !== p.id).slice(0, 4)
+  const discount = p.originalPrice && p.originalPrice > p.price
+    ? Math.round((1 - p.price / p.originalPrice) * 100)
+    : 0
   const isOutOfStock = !p.isAvailable || p.stockQuantity <= 0
 
+  // Meaningful description check
+  const hasDescription = Boolean(
+    p.description &&
+    p.description.trim().length > 0 &&
+    p.description.trim().toLowerCase() !== p.name.trim().toLowerCase() &&
+    p.description.trim() !== 'Fresh quality product' &&
+    (p.company ? p.description.trim().toLowerCase() !== `${p.company} - ${p.name}`.toLowerCase() : true)
+  )
+
   const handleQtyChange = (newQty: number) => {
-    if (newQty >= 1 && newQty <= p.stockQuantity) {
+    if (newQty >= 1) {
+      if (p.stockQuantity > 0 && newQty > p.stockQuantity) return
       setProductQty(newQty)
     }
   }
 
+  const handleAddToCart = () => {
+    if (!isOutOfStock) {
+      addToCart(p, productQty)
+    }
+  }
+
+  const handleSelectRelated = (rp: Product) => {
+    setProductQty(1)
+    setImageError(false)
+    try {
+      sessionStorage.setItem('selectedProductId', rp.id)
+    } catch (err) {
+      console.error('Error storing product ID:', err)
+    }
+    setProduct(rp)
+    if (onProductLoaded) {
+      onProductLoaded(rp)
+    }
+    // Smoothly scroll to top of product details container
+    if (containerRef.current) {
+      containerRef.current.scrollTo({ top: 0, behavior: 'smooth' })
+    } else {
+      window.scrollTo({ top: 0, behavior: 'smooth' })
+    }
+  }
+
   return (
-    <div className="flex-1 flex flex-col bg-white overflow-hidden">
-      <div className="relative bg-[#F8F9FA] h-60 shrink-0">
-        <img 
-          src={p.image} 
-          alt={p.name} 
-          className="w-full h-full object-cover"
-          onError={(e) => {
-            e.currentTarget.src = '/placeholder-product.svg'
-          }}
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-        <div className="absolute top-4 left-4 right-4 flex justify-between">
+    <div ref={containerRef} className="flex-1 flex flex-col bg-[#F7F6F2] overflow-y-auto">
+      {/* Top Header Navigation */}
+      <header className="sticky top-0 z-20 bg-white/95 backdrop-blur-sm border-b border-stone-200">
+        <div className="max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between">
           <button
-            onClick={() => { closeProduct(); navigate('product-list') }}
-            className="w-9 h-9 bg-white rounded-xl shadow-md flex items-center justify-center text-gray-700"
+            type="button"
+            onClick={() => {
+              closeProduct()
+              navigate('product-list')
+            }}
+            className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-emerald-700 transition-colors py-1.5 px-2 -ml-2 rounded-lg hover:bg-stone-100"
           >
             <IcChevLeft />
+            <span>Back to Browse</span>
           </button>
+
           <button
+            type="button"
             onClick={() => navigate('cart')}
-            className="w-9 h-9 bg-white rounded-xl shadow-md flex items-center justify-center text-gray-700 relative"
+            className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl border border-stone-200 bg-white text-gray-700 hover:bg-stone-50 hover:border-stone-300 transition-colors relative"
+            aria-label="View shopping cart"
           >
             <IcCart />
+            <span className="text-xs font-bold text-gray-800 hidden sm:inline">Cart</span>
             {cartCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
+              <span className="w-5 h-5 bg-emerald-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
                 {cartCount}
               </span>
             )}
           </button>
         </div>
-        {discount > 0 && (
-          <div className="absolute bottom-3 left-4 bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-xl shadow">
-            {discount}% OFF
-          </div>
-        )}
-        {isOutOfStock && (
-          <div className="absolute bottom-3 right-4 bg-red-500 text-white text-xs font-bold px-2.5 py-1 rounded-xl shadow">
-            Out of Stock
-          </div>
-        )}
-      </div>
+      </header>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="px-4 py-4">
-          <div className="flex justify-between items-start gap-2 mb-1">
-            <h1 className="text-xl font-extrabold text-gray-900 flex-1">{p.name}</h1>
-            {p.rating && (
-              <div className="flex items-center gap-1 bg-amber-50 border border-amber-200 px-2 py-1 rounded-xl shrink-0">
-                <IcStar />
-                <span className="text-xs font-bold text-amber-700">{p.rating}</span>
+      {/* Main Content Area */}
+      <main className="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6 pb-28 lg:pb-12 space-y-8">
+        {/* Product Grid: Left Image, Right Info */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8 items-start">
+          {/* Left Column: Contained Image Box */}
+          <div className="lg:col-span-6 bg-white rounded-2xl border border-stone-200 p-6 sm:p-8 flex items-center justify-center relative min-h-[300px] sm:min-h-[380px] lg:min-h-[440px] shadow-sm">
+            {discount > 0 && (
+              <span className="absolute top-4 left-4 bg-amber-500 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
+                {discount}% OFF
+              </span>
+            )}
+            {isOutOfStock && (
+              <span className="absolute top-4 right-4 bg-stone-700 text-white text-xs font-bold px-2.5 py-1 rounded-lg shadow-sm">
+                Out of Stock
+              </span>
+            )}
+
+            {imageError || !p.image ? (
+              <div className="flex flex-col items-center justify-center text-stone-400 py-12">
+                <IcPackageEmpty />
+                <span className="text-xs text-stone-400 mt-2 font-medium">Image unavailable</span>
+              </div>
+            ) : (
+              <img
+                src={p.image}
+                alt={p.name}
+                className="max-h-[260px] sm:max-h-[340px] lg:max-h-[380px] w-auto max-w-full object-contain select-none"
+                loading="eager"
+                onError={() => setImageError(true)}
+              />
+            )}
+          </div>
+
+          {/* Right Column: Product Information */}
+          <div className="lg:col-span-6 bg-white rounded-2xl border border-stone-200 p-6 sm:p-8 shadow-sm flex flex-col gap-4">
+            {/* Brand */}
+            {p.company && (
+              <div className="inline-block text-[11px] font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md self-start">
+                {p.company}
               </div>
             )}
-          </div>
-          <p className="text-gray-400 text-sm mb-4">{p.unit || ''} {p.reviews ? `• ${p.reviews.toLocaleString()} reviews` : ''}</p>
 
-          <div className="flex items-baseline gap-3 mb-5">
-            <span className="text-3xl font-extrabold text-gray-900">₹{p.price}</span>
-            {p.originalPrice && (
-              <>
-                <span className="text-gray-400 line-through text-base">₹{p.originalPrice}</span>
-                <span className="text-orange-500 text-sm font-bold">Save ₹{p.originalPrice - p.price}</span>
-              </>
-            )}
-          </div>
-
-          {/* Stock info */}
-          <div className="mb-5">
-            <p className={`text-sm font-semibold ${isOutOfStock ? 'text-red-600' : 'text-emerald-600'}`}>
-              {isOutOfStock ? 'Out of Stock' : `${p.stockQuantity} items available`}
-            </p>
-          </div>
-
-          {/* Quantity selector */}
-          <div className={`flex items-center gap-4 mb-5 bg-[#F8F9FA] rounded-2xl p-3 ${isOutOfStock ? 'opacity-50' : ''}`}>
-            <span className="text-sm font-bold text-gray-700 flex-1">Quantity</span>
-            <div className="flex items-center gap-3 bg-white rounded-xl px-1 py-1 shadow-sm">
-              <button
-                onClick={() => handleQtyChange(productQty - 1)}
-                disabled={isOutOfStock}
-                className="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center text-gray-700 font-extrabold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-200 transition-colors"
-              >
-                −
-              </button>
-              <span className="w-6 text-center font-extrabold text-gray-900">{productQty}</span>
-              <button
-                onClick={() => handleQtyChange(productQty + 1)}
-                disabled={isOutOfStock || productQty >= p.stockQuantity}
-                className="w-8 h-8 bg-gray-900 rounded-lg flex items-center justify-center text-white font-bold text-lg disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-800 transition-colors"
-              >
-                +
-              </button>
+            {/* Product Title */}
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 leading-tight">
+                {p.name}
+              </h1>
+              {p.unit && (
+                <p className="text-sm font-medium text-gray-500 mt-1">
+                  {p.unit}
+                </p>
+              )}
             </div>
-            <span className="text-sm font-bold text-gray-900 shrink-0">₹{p.price * productQty}</span>
-          </div>
 
-          {/* Tags */}
-          <div className="grid grid-cols-3 gap-2 mb-5">
-            {[
-              { label: 'Farm Fresh', bg: '#D1FAE5', text: '#047857', border: '#A7F3D0' },
-              { label: 'No Preservatives', bg: '#DBEAFE', text: '#1D4ED8', border: '#BFDBFE' },
-              { label: 'Fresh Daily', bg: '#FEF3C7', text: '#B45309', border: '#FDE68A' }
-            ].map(tag => (
-              <div key={tag.label} className="rounded-xl px-2 py-2 text-center border" style={{ backgroundColor: tag.bg, borderColor: tag.border }}>
-                <p className="text-[10px] font-bold" style={{ color: tag.text }}>{tag.label}</p>
-              </div>
-            ))}
-          </div>
+            {/* Price section */}
+            <div className="flex items-baseline gap-3 pt-1">
+              <span className="text-3xl sm:text-4xl font-extrabold text-gray-900">
+                ₹{p.price}
+              </span>
+              {p.originalPrice && p.originalPrice > p.price && (
+                <>
+                  <span className="text-gray-400 line-through text-lg font-medium">
+                    ₹{p.originalPrice}
+                  </span>
+                  <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                    Save ₹{p.originalPrice - p.price}
+                  </span>
+                </>
+              )}
+            </div>
 
-          <div className="mb-5">
-            <h3 className="font-extrabold text-gray-900 mb-2 text-sm">About this product</h3>
-            <p className="text-gray-500 text-sm leading-relaxed">{p.description || 'Fresh quality product'}</p>
-          </div>
+            {/* Real Availability */}
+            <div className="flex items-center gap-2 pt-0.5">
+              <span
+                className={`w-2.5 h-2.5 rounded-full ${
+                  isOutOfStock ? 'bg-red-500' : 'bg-emerald-500'
+                }`}
+              />
+              <span
+                className={`text-sm font-semibold ${
+                  isOutOfStock ? 'text-red-700' : 'text-emerald-700'
+                }`}
+              >
+                {isOutOfStock ? 'Out of stock' : 'In stock'}
+              </span>
+            </div>
 
-          {related.length > 0 && (
-            <div className="mb-2">
-              <h3 className="font-extrabold text-gray-900 mb-3 text-sm">You may also like</h3>
-              <div className="flex gap-3 overflow-x-auto pb-2">
-                {related.map(rp => (
-                  <div
-                    key={rp.id}
-                    onClick={() => {
-                      setProductQty(1)
-                      // Store the related product ID for refresh support
-                      try {
-                        sessionStorage.setItem('selectedProductId', rp.id)
-                      } catch (err) {
-                        console.error('Error storing product ID:', err)
-                      }
-                      setProduct(rp)
-                    }}
-                    className="flex-shrink-0 w-28 bg-[#F8F9FA] rounded-xl overflow-hidden cursor-pointer active:scale-95 transition-transform border border-[#E2E5E9]"
+            <hr className="border-stone-100 my-1" />
+
+            {/* Quantity Selector & Add to Cart on Desktop/Tablet */}
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+              <div className="flex items-center justify-between sm:justify-start gap-3 bg-stone-50 rounded-xl p-1.5 border border-stone-200">
+                <span className="text-xs font-bold text-gray-600 px-2 sm:hidden">
+                  Quantity
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleQtyChange(productQty - 1)}
+                    disabled={isOutOfStock || productQty <= 1}
+                    aria-label="Decrease quantity"
+                    className="w-9 h-9 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-gray-800 font-bold text-lg hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
-                    <img 
-                      src={rp.image} 
-                      alt={rp.name} 
-                      className="w-full h-20 object-cover" 
-                      loading="lazy"
-                      onError={(e) => {
-                        e.currentTarget.src = '/placeholder-product.png'
-                      }}
-                    />
-                    <div className="p-2">
-                      <p className="text-[10px] font-semibold text-gray-800 line-clamp-2">{rp.name}</p>
-                      <p className="text-gray-900 text-xs font-bold mt-1">₹{rp.price}</p>
-                    </div>
-                  </div>
-                ))}
+                    −
+                  </button>
+                  <span className="w-8 text-center font-bold text-gray-900 text-base">
+                    {productQty}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleQtyChange(productQty + 1)}
+                    disabled={isOutOfStock || (p.stockQuantity > 0 && productQty >= p.stockQuantity)}
+                    aria-label="Increase quantity"
+                    className="w-9 h-9 rounded-lg bg-white border border-stone-200 flex items-center justify-center text-gray-800 font-bold text-lg hover:bg-stone-100 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleAddToCart}
+                disabled={isOutOfStock}
+                className={`flex-1 py-3 px-6 rounded-xl font-bold text-base transition-all shadow-sm flex items-center justify-center gap-2 ${
+                  isOutOfStock
+                    ? 'bg-stone-200 text-stone-500 cursor-not-allowed'
+                    : 'bg-emerald-600 hover:bg-emerald-700 active:scale-[0.99] text-white'
+                }`}
+              >
+                {isOutOfStock ? 'Out of Stock' : `Add • ₹${p.price * productQty}`}
+              </button>
+            </div>
+
+            {/* Pickup fulfillment notice */}
+            <div className="bg-[#F7F6F2] rounded-xl border border-stone-200 p-3.5 flex items-start gap-3 mt-1">
+              <div className="text-emerald-700 shrink-0 mt-0.5">
+                <IcMapPin />
+              </div>
+              <div>
+                <h4 className="text-xs font-bold text-gray-900">Pickup at {shopConfig.shopName}</h4>
+                <p className="text-xs text-gray-600 mt-0.5">
+                  Order online and collect your order from the {shopConfig.shopName} shop.
+                </p>
               </div>
             </div>
-          )}
-        </div>
-      </div>
 
-      <div className="px-4 py-3 bg-white border-t border-gray-100 shrink-0 flex gap-3">
-        <button
-          onClick={() => navigate('cart')}
-          className="flex-1 bg-white border-2 border-gray-300 text-gray-700 py-3.5 rounded-2xl font-bold text-sm hover:bg-[#F8F9FA] transition-colors"
-        >
-          {inCart ? `View Cart (${cartCount})` : 'View Cart'}
-        </button>
-        <button
-          onClick={() => {
-            if (!isOutOfStock) {
-              addToCart(p, productQty);
-              navigate('cart')
-            }
-          }}
-          disabled={isOutOfStock}
-          className={`flex-1 py-3.5 rounded-2xl font-bold text-sm shadow-sm hover:bg-emerald-700 transition-colors ${isOutOfStock ? 'bg-gray-400 text-white cursor-not-allowed' : 'bg-emerald-600 text-white'}`}
-        >
-          {isOutOfStock ? 'Out of Stock' : `Add • ₹${p.price * productQty}`}
-        </button>
+            {/* About this product (Only rendered if genuine description is available) */}
+            {hasDescription && (
+              <div className="pt-3 border-t border-stone-100">
+                <h3 className="text-sm font-bold text-gray-900 mb-1.5">
+                  About this product
+                </h3>
+                <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">
+                  {p.description}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* You May Also Like (Only rendered if same-category products with valid images exist) */}
+        {!isLoadingRelated && relatedProducts.length > 0 && (
+          <section className="pt-2">
+            <h2 className="text-lg font-bold text-gray-900 mb-3">
+              You may also like
+            </h2>
+            {/* Horizontal scroll on mobile, 4-col grid on desktop, reusing ProductCard */}
+            <div className="flex sm:grid sm:grid-cols-4 gap-3 sm:gap-4 overflow-x-auto sm:overflow-visible pb-3 sm:pb-0 -mx-4 px-4 sm:mx-0 sm:px-0">
+              {relatedProducts.map(rp => (
+                <div key={rp.id} className="w-36 shrink-0 sm:w-auto">
+                  <ProductCard
+                    product={rp}
+                    cart={cart}
+                    onAddToCart={addToCart}
+                    onUpdateQuantity={updateQuantity || ((_id, _delta) => {})}
+                    onProductClick={handleSelectRelated}
+                  />
+                </div>
+              ))}
+            </div>
+          </section>
+        )}
+      </main>
+
+      {/* Compact Fixed Bottom Action Bar for Mobile */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200 px-4 py-2.5 z-30 shadow-lg">
+        <div className="max-w-md mx-auto flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('cart')}
+            className="flex-1 h-11 bg-white border border-stone-300 text-gray-700 rounded-xl font-bold text-xs hover:bg-stone-50 transition-colors flex items-center justify-center"
+          >
+            {inCart ? `View Cart (${cartCount})` : 'View Cart'}
+          </button>
+          <button
+            type="button"
+            onClick={handleAddToCart}
+            disabled={isOutOfStock}
+            className={`flex-1 h-11 rounded-xl font-bold text-xs transition-colors flex items-center justify-center shadow-sm ${
+              isOutOfStock
+                ? 'bg-stone-300 text-stone-500 cursor-not-allowed'
+                : 'bg-emerald-600 hover:bg-emerald-700 text-white'
+            }`}
+          >
+            {isOutOfStock ? 'Out of Stock' : `Add • ₹${p.price * productQty}`}
+          </button>
+        </div>
       </div>
     </div>
   )

@@ -42,6 +42,7 @@ export interface FrontendCategory {
 export interface FrontendProduct {
   id: string
   name: string
+  company?: string
   price: number
   originalPrice?: number
   unit?: string
@@ -145,6 +146,7 @@ export const adaptProduct = (backendProduct: BackendProduct): FrontendProduct =>
   return {
     id: backendProduct._id,
     name: backendProduct.name,
+    company: backendProduct.company,
     price: backendProduct.sellingPrice,
     originalPrice: backendProduct.mrp && backendProduct.mrp > backendProduct.sellingPrice 
       ? backendProduct.mrp 
@@ -153,10 +155,8 @@ export const adaptProduct = (backendProduct: BackendProduct): FrontendProduct =>
     category: typeof backendProduct.category === 'object' && backendProduct.category
       ? backendProduct.category._id
       : backendProduct.category || '',
-    image: backendProduct.image || '/placeholder-product.svg',
-    description: backendProduct.company ? `${backendProduct.company} - ${backendProduct.name}` : backendProduct.name,
-    rating: 4.5, // UI-only fallback
-    reviews: 100, // UI-only fallback
+    image: backendProduct.image || '',
+    description: undefined,
     stockQuantity: backendProduct.stockQuantity,
     isAvailable: backendProduct.isAvailable,
   }

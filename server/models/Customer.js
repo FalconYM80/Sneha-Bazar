@@ -30,6 +30,10 @@ const customerSchema = new mongoose.Schema(
       type: Boolean,
       default: true,
     },
+    phoneVerified: {
+      type: Boolean,
+      default: true,
+    },
   },
   {
     timestamps: true,

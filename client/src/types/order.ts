@@ -1,12 +1,15 @@
 // Backend types (exact structure from backend)
 export interface BackendOrderItem {
-  product: {
+  product?: {
     _id: string
     name: string
     itemCode?: string
     company?: string
-  }
+    image?: string
+    imagePublicId?: string
+  } | string
   productName: string
+  productImage?: string
   quantity: number
   price: number
   subtotal: number
@@ -63,16 +66,22 @@ export const adaptOrder = (backendOrder: BackendOrder): FrontendOrder => {
   return {
     id: backendOrder._id,
     orderNumber: backendOrder.orderNumber,
-    items: backendOrder.items.map(item => ({
-      product: {
-        id: item.product._id,
-        name: item.productName,
-        image: '/placeholder-product.svg', // Backend doesn't provide image in order items
-      },
-      quantity: item.quantity,
-      price: item.price,
-      subtotal: item.subtotal,
-    })),
+    items: (backendOrder.items || []).map(item => {
+      const productObj = typeof item.product === 'object' && item.product !== null ? item.product : undefined
+      const rawImage = item.productImage || productObj?.image || ''
+      const image = typeof rawImage === 'string' ? rawImage.trim() : ''
+
+      return {
+        product: {
+          id: productObj?._id || (typeof item.product === 'string' ? item.product : '') || '',
+          name: item.productName || productObj?.name || '',
+          image: image,
+        },
+        quantity: item.quantity,
+        price: item.price,
+        subtotal: item.subtotal,
+      }
+    }),
     totalAmount: backendOrder.totalAmount,
     totalItemCount: backendOrder.totalItemCount,
     preparationMinutes: backendOrder.preparationMinutes,
@@ -118,3 +127,29 @@ export const getStatusColorClass = (status: BackendOrder['status']): string => {
   }
   return colorMap[status] || 'bg-gray-50 text-gray-700 border border-gray-200'
 }
+
+/**
+ * Format order creation date and time in IST (e.g. "Ordered on 15 Sep 2026 at 2:35 PM")
+ */
+export const formatOrderDateTime = (dateString?: string | Date): string => {
+  if (!dateString) return ''
+  const d = new Date(dateString)
+  if (isNaN(d.getTime())) return ''
+
+  // Format date part: "15 Sep 2026"
+  const datePart = d.toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  })
+
+  // Format time part: "2:35 PM"
+  const timePart = d.toLocaleTimeString('en-IN', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+
+  return `Ordered on ${datePart} at ${timePart}`
+}
+

@@ -20,8 +20,12 @@ export const productService = {
     limit: number = 12
   ): Promise<BackendProduct[]> {
     const params = new URLSearchParams()
-    if (categoryId) params.append('category', categoryId)
-    if (search) params.append('search', search)
+    const cleanSearch = search?.trim()
+    if (cleanSearch) {
+      params.append('search', cleanSearch)
+    } else if (categoryId) {
+      params.append('category', categoryId)
+    }
     params.append('page', page.toString())
     params.append('limit', limit.toString())
 
@@ -45,8 +49,12 @@ export const productService = {
     limit: number = 12
   ): Promise<PaginatedProductsResponse> {
     const params = new URLSearchParams()
-    if (categoryId) params.append('category', categoryId)
-    if (search) params.append('search', search)
+    const cleanSearch = search?.trim()
+    if (cleanSearch) {
+      params.append('search', cleanSearch)
+    } else if (categoryId) {
+      params.append('category', categoryId)
+    }
     params.append('page', page.toString())
     params.append('limit', limit.toString())
 

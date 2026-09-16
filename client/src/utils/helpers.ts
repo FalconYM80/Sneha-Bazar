@@ -1,8 +1,18 @@
+export const calculatePickupMinutes = (totalItems: number): number => {
+  if (totalItems <= 6) return 15
+  if (totalItems <= 10) return 25
+  if (totalItems <= 15) return 35
+  if (totalItems <= 20) return 45
+  if (totalItems <= 30) return 60
+  if (totalItems <= 40) return 75
+  if (totalItems <= 50) return 90
+  if (totalItems <= 75) return 105
+  if (totalItems <= 100) return 120
+  return 150
+}
+
 export const calculatePickupTime = (totalQuantity: number): string => {
-  if (totalQuantity <= 5) return '10 minutes'
-  if (totalQuantity <= 15) return '20 minutes'
-  if (totalQuantity <= 30) return '30 minutes'
-  return '45 minutes'
+  return `${calculatePickupMinutes(totalQuantity)} minutes`
 }
 
 export const isValidScreen = (value: string): value is string => {

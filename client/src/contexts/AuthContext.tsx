@@ -11,6 +11,7 @@ interface AuthContextType {
   login: (customer: Customer, token: string) => void
   logout: () => void
   refreshCustomer: () => Promise<void>
+  updateCustomer: (customer: Customer) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -79,6 +80,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     localStorage.removeItem('customerData')
   }
 
+  const updateCustomer = (updatedCustomer: Customer) => {
+    setCustomer(updatedCustomer)
+    localStorage.setItem('customerData', JSON.stringify(updatedCustomer))
+  }
+
   const refreshCustomer = async () => {
     if (!token) return
     try {
@@ -98,6 +104,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     login,
     logout,
     refreshCustomer,
+    updateCustomer,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
