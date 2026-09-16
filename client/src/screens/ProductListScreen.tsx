@@ -260,7 +260,7 @@ export const ProductListScreen = ({
         isMobile={isMobile}
         title={isSearchActive ? 'All Products' : (selectedCategory === '' ? 'All Products' : (cat?.name || 'Products'))}
         showBackButton={true}
-        onBack={() => navigate('home')}
+        onBack={() => navigate(-1 as any)}
       >
         <SearchDropdown
           showSearchDropdown={showSearchDropdown}

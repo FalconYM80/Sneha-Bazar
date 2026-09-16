@@ -53,9 +53,14 @@ export const ProductDetailScreen = ({
 
     let productId = ''
     try {
-      productId = sessionStorage.getItem('selectedProductId') || ''
+      if (window.location.pathname.startsWith('/product/')) {
+        productId = window.location.pathname.replace('/product/', '').split('/')[0] || ''
+      }
+      if (!productId) {
+        productId = sessionStorage.getItem('selectedProductId') || ''
+      }
     } catch (err) {
-      console.error('Error reading from sessionStorage:', err)
+      console.error('Error reading productId:', err)
     }
 
     if (!productId) {
@@ -259,12 +264,12 @@ export const ProductDetailScreen = ({
             type="button"
             onClick={() => {
               closeProduct()
-              navigate('product-list')
+              navigate(-1 as any)
             }}
             className="inline-flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-emerald-700 transition-colors py-1.5 px-2 -ml-2 rounded-lg hover:bg-stone-100 active:scale-95"
           >
             <IcChevLeft />
-            <span>Back to Browse</span>
+            <span>Back</span>
           </button>
 
           <button

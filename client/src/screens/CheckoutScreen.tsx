@@ -27,7 +27,7 @@ export const CheckoutScreen = ({
   <div className="flex-1 flex flex-col bg-[#FCFCFA] overflow-hidden">
     <div className="bg-white px-4 shadow-sm shrink-0 md:px-6">
       <div className="max-w-[1050px] mx-auto w-full flex items-center gap-3 pb-2">
-        <button onClick={() => navigate('cart')} className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 shrink-0 hover:bg-gray-200 active:scale-95 transition-all">
+        <button onClick={() => navigate(-1 as any)} className="w-9 h-9 rounded-xl bg-gray-100 flex items-center justify-center text-gray-700 shrink-0 hover:bg-gray-200 active:scale-95 transition-all">
           <IcChevLeft />
         </button>
         <h1 className="font-extrabold text-gray-900 text-lg">Checkout</h1>

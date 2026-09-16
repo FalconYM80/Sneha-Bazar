@@ -12,7 +12,7 @@ import type { FrontendOrder } from './types/order'
 import { adaptOrder } from './types/order'
 import type { Screen, BottomTab, Product, PlacedOrder } from './types/app'
 import type { FrontendCartItem } from './types/cart'
-import { isValidScreen, shuffleWithImagePriority } from './utils/helpers'
+import { isValidScreen, shuffleWithImagePriority, screenToPath, pathToScreen } from './utils/helpers'
 
 // ─── Imported Screens ──────────────────────────────────────────────────────────
 import { SplashScreen } from './screens/SplashScreen'
@@ -85,17 +85,28 @@ export default function App() {
             const token = path.replace('/reset-password/', '').split('/')[0] || ''
             setResetToken(token)
             setScreen('reset-password')
+            return
           } else if (path === '/forgot-password') {
             setScreen('forgot-password')
+            return
           }
         } else if (path.startsWith('/reset-password') || path === '/forgot-password') {
           window.history.replaceState({}, '', '/')
           setScreen('login')
-        } else if (path === '/register') {
-          setScreen('register')
-        } else if (path === '/login') {
-          setScreen('login')
+          return
         }
+
+        const resolved = pathToScreen(path)
+        if (resolved.productId) {
+          const found = productsRef.current.find(p => p.id === resolved.productId)
+          if (found) {
+            setSelectedProduct(found)
+          }
+        } else if (resolved.screen !== 'product-detail') {
+          setSelectedProduct(null)
+        }
+
+        setScreen(resolved.screen)
       } catch (e) {
         console.error('Error handling popstate:', e)
       }
@@ -334,25 +345,52 @@ export default function App() {
         }
         if (path === '/register') {
           setScreen('register')
+          window.history.replaceState({ screen: 'register' }, '', '/register')
+          return
+        }
+        if (path === '/login') {
+          setScreen('login')
+          window.history.replaceState({ screen: 'login' }, '', '/login')
           return
         }
 
+        const resolved = pathToScreen(path)
+
         if (isAuthenticated) {
-          // Try to restore the saved screen
-          const savedScreen = sessionStorage.getItem('customerCurrentScreen')
-          const temporaryScreens: Screen[] = ['splash', 'login', 'register', 'forgot-password', 'reset-password']
-          if (savedScreen && isValidScreen(savedScreen) && !temporaryScreens.includes(savedScreen as Screen)) {
-            // Don't restore screens that require context we can't easily restore
-            if (savedScreen === 'product-detail' || savedScreen === 'checkout' || savedScreen === 'order-confirm' || savedScreen === 'order-tracking') {
-              setScreen('home')
-            } else {
-              setScreen(savedScreen as Screen)
+          // If direct URL is a route other than root
+          if (path !== '/' && path !== '/home' && resolved.screen !== 'splash') {
+            if (resolved.screen === 'product-detail' && resolved.productId) {
+              const found = productsRef.current.find(p => p.id === resolved.productId)
+              if (found) setSelectedProduct(found)
             }
+            setScreen(resolved.screen)
+            window.history.replaceState({ screen: resolved.screen }, '', path)
           } else {
-            setScreen('home')
+            // Restore saved screen or default to home
+            const savedScreen = sessionStorage.getItem('customerCurrentScreen')
+            const temporaryScreens: Screen[] = ['splash', 'login', 'register', 'forgot-password', 'reset-password']
+            if (savedScreen && isValidScreen(savedScreen) && !temporaryScreens.includes(savedScreen as Screen)) {
+              if (savedScreen === 'checkout' || savedScreen === 'order-confirm' || savedScreen === 'order-tracking') {
+                setScreen('home')
+                window.history.replaceState({ screen: 'home' }, '', '/')
+              } else {
+                setScreen(savedScreen as Screen)
+                window.history.replaceState({ screen: savedScreen }, '', screenToPath(savedScreen as Screen))
+              }
+            } else {
+              setScreen('home')
+              window.history.replaceState({ screen: 'home' }, '', '/')
+            }
           }
         } else {
-          setScreen('login')
+          // Unauthenticated user
+          if (path === '/register') {
+            setScreen('register')
+            window.history.replaceState({ screen: 'register' }, '', '/register')
+          } else {
+            setScreen('login')
+            window.history.replaceState({ screen: 'login' }, '', '/login')
+          }
         }
       }, isAuthenticated ? 500 : 2600) // Faster splash for authenticated users
       return () => clearTimeout(t)
@@ -628,10 +666,22 @@ export default function App() {
     }
   }
 
-  const navigate = useCallback((s: Screen) => {
+  const navigate = useCallback((s: Screen | -1 | string, options?: { replace?: boolean }) => {
+    if (s === -1 || s === '-1') {
+      if (window.history.length > 1) {
+        window.history.back()
+      } else {
+        navigate('home', { replace: true })
+      }
+      return
+    }
+
+    const targetScreen = s as Screen
+    if (!isValidScreen(targetScreen)) return
+
     setScreen(prevScreen => {
       // When navigating from Home to Browse, reset to All Products
-      if (prevScreen === 'home' && s === 'product-list') {
+      if (prevScreen === 'home' && targetScreen === 'product-list') {
         setSelectedCategory('')
         setSearchQuery('')
         try {
@@ -640,14 +690,24 @@ export default function App() {
           console.error('Error removing category from sessionStorage:', error)
         }
       }
-      return s
+      return targetScreen
     })
-  }, [])
+
+    const targetPath = screenToPath(targetScreen, targetScreen === 'product-detail' ? selectedProduct?.id : undefined)
+    if (window.location.pathname !== targetPath) {
+      if (options?.replace) {
+        window.history.replaceState({ screen: targetScreen }, '', targetPath)
+      } else {
+        window.history.pushState({ screen: targetScreen }, '', targetPath)
+      }
+    }
+  }, [selectedProduct?.id])
 
   const clearNavigationState = () => {
     try {
       sessionStorage.removeItem('customerCurrentScreen')
       sessionStorage.removeItem('customerSelectedCategory')
+      sessionStorage.removeItem('selectedProductId')
     } catch (error) {
       console.error('Error clearing navigation state:', error)
     }
@@ -662,8 +722,12 @@ export default function App() {
     } catch (error) {
       console.error('Error storing product ID:', error)
     }
-    navigate('product-detail')
-  }, [navigate])
+    setScreen('product-detail')
+    const targetPath = `/product/${product.id}`
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ screen: 'product-detail', productId: product.id }, '', targetPath)
+    }
+  }, [])
 
   const closeProduct = () => {
     setSelectedProduct(null)
@@ -688,6 +752,10 @@ export default function App() {
       }
     }
     setScreen('product-list')
+    const targetPath = '/browse'
+    if (window.location.pathname !== targetPath) {
+      window.history.pushState({ screen: 'product-list' }, '', targetPath)
+    }
   }, [])
 
   const handleSelectCategory = useCallback((catId: string) => {
@@ -718,6 +786,10 @@ export default function App() {
       }
       // Navigate to product list with search query
       setScreen('product-list')
+      const targetPath = '/browse'
+      if (window.location.pathname !== targetPath) {
+        window.history.pushState({ screen: 'product-list' }, '', targetPath)
+      }
     }
   }, [])
 
@@ -776,8 +848,8 @@ export default function App() {
   }
 
   // Navigation handlers for screens
-  const handleNavigate = useCallback((s: string) => {
-    navigate(s as Screen)
+  const handleNavigate = useCallback((s: string | number, options?: { replace?: boolean }) => {
+    navigate(s as any, options)
   }, [navigate])
 
   // ── Render ─────────────────────────────────────────────────────────────────
@@ -795,23 +867,23 @@ export default function App() {
 
         <div key={screen} className="flex-1 flex flex-col overflow-hidden relative w-full animate-page-in">
           {screen === 'splash' && <SplashScreen onNavigate={handleNavigate} />}
-          {screen === 'login' && <LoginScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
-          {screen === 'register' && <RegisterScreen onNavigate={handleNavigate} onSetScreen={setScreen} />}
+          {screen === 'login' && <LoginScreen onNavigate={handleNavigate} onSetScreen={handleNavigate as any} />}
+          {screen === 'register' && <RegisterScreen onNavigate={handleNavigate} onSetScreen={handleNavigate as any} />}
           {screen === 'forgot-password' && (
             IS_FORGOT_PASSWORD_ENABLED 
-              ? <ForgotPasswordScreen onNavigate={handleNavigate} onSetScreen={setScreen} />
-              : <LoginScreen onNavigate={handleNavigate} onSetScreen={setScreen} />
+              ? <ForgotPasswordScreen onNavigate={handleNavigate} onSetScreen={handleNavigate as any} />
+              : <LoginScreen onNavigate={handleNavigate} onSetScreen={handleNavigate as any} />
           )}
           {screen === 'reset-password' && (
             IS_FORGOT_PASSWORD_ENABLED
               ? <ResetPasswordScreen
                   token={resetToken}
-                  onSetScreen={setScreen}
+                  onSetScreen={handleNavigate as any}
                   onPasswordResetSuccess={() => {
-                    setScreen('login')
+                    handleNavigate('login', { replace: true })
                   }}
                 />
-              : <LoginScreen onNavigate={handleNavigate} onSetScreen={setScreen} />
+              : <LoginScreen onNavigate={handleNavigate} onSetScreen={handleNavigate as any} />
           )}
           {screen === 'home' && (
             <HomeScreen

@@ -75,7 +75,7 @@ export const CartScreen = ({
         isMobile={isMobile}
         title="My Cart"
         showBackButton={true}
-        onBack={() => navigate('home')}
+        onBack={() => navigate(-1 as any)}
       >
         <SearchDropdown
           showSearchDropdown={showSearchDropdown}

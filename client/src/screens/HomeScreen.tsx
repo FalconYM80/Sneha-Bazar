@@ -67,11 +67,6 @@ export const HomeScreen = ({
   onNavigateToAllProducts,
   isMobile = true
 }: HomeScreenProps) => {
-  const featured = [
-    ...products.filter(p => p.originalPrice),
-    ...products.filter(p => !p.originalPrice).slice(0, 3),
-  ].slice(0, 6)
-
   // Helper to detect if an image is a placeholder
   const isPlaceholderImage = (image: string | undefined): boolean => {
     if (!image || image.trim() === '') return true
@@ -81,6 +76,35 @@ export const HomeScreen = ({
            lowerImage === '/placeholder-product.svg' ||
            lowerImage === '/placeholder-product.png'
   }
+
+  const popularProducts = useMemo(() => {
+    if (!products || products.length === 0) return []
+
+    // 1. Separate products with valid real images from products with placeholders/missing images
+    const withRealImages: Product[] = []
+    const withoutRealImages: Product[] = []
+
+    for (const p of products) {
+      if (p.image && p.image.trim() !== '' && !isPlaceholderImage(p.image)) {
+        withRealImages.push(p)
+      } else {
+        withoutRealImages.push(p)
+      }
+    }
+
+    // 2. Prioritize discounted/special items while keeping ordering stable
+    const sortPriority = (list: Product[]) => {
+      const discounted = list.filter(p => p.originalPrice && p.originalPrice > p.price)
+      const regular = list.filter(p => !p.originalPrice || p.originalPrice <= p.price)
+      return [...discounted, ...regular]
+    }
+
+    const sortedWithImages = sortPriority(withRealImages)
+    const sortedWithoutImages = sortPriority(withoutRealImages)
+
+    // 3. Fill up to 12 items (preferring real images first)
+    return [...sortedWithImages, ...sortedWithoutImages].slice(0, 12)
+  }, [products])
   
   // Select ALL products with REAL images (not placeholders) - search through entire available product collection
   const productsWithRealImages = products.filter(p => {
@@ -686,21 +710,54 @@ export const HomeScreen = ({
             }} className="text-gray-600 text-sm font-semibold hover:text-gray-900 transition-colors">View all →</button>
           </div>
           {isLoadingProducts ? (
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {[...Array(6)].map((_, i) => (
-                <ProductSkeleton key={i} />
-              ))}
-            </div>
+            isMobile ? (
+              <div
+                className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+              >
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="flex-shrink-0 w-36 sm:w-44">
+                    <ProductSkeleton />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                {[...Array(12)].map((_, i) => (
+                  <ProductSkeleton key={i} />
+                ))}
+              </div>
+            )
           ) : productsError ? (
             <ErrorState message={productsError} />
-          ) : featured.length === 0 ? (
+          ) : popularProducts.length === 0 ? (
             <EmptyState 
               icon="🛒"
               title="No products available"
             />
+          ) : isMobile ? (
+            <div
+              className="flex gap-3 overflow-x-auto pb-3 -mx-4 px-4 scroll-smooth"
+              style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+            >
+              {popularProducts.map((product, index) => (
+                <div
+                  key={product.id}
+                  className={`flex-shrink-0 w-36 sm:w-44 animate-card-in stagger-${Math.min(index + 1, 8)}`}
+                >
+                  <ProductCard 
+                    product={product} 
+                    cart={cart}
+                    onAddToCart={addToCart}
+                    onUpdateQuantity={updateQuantity}
+                    onProductClick={openProduct}
+                  />
+                </div>
+              ))}
+            </div>
           ) : (
-            <div className="grid gap-4 grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-              {featured.map((product, index) => (
+            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+              {popularProducts.map((product, index) => (
                 <div key={product.id} className={`animate-card-in stagger-${Math.min(index + 1, 8)}`}>
                   <ProductCard 
                     product={product} 

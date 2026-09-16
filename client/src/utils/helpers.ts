@@ -1,3 +1,5 @@
+import type { Screen } from '../types/app'
+
 export const calculatePickupMinutes = (totalItems: number): number => {
   if (totalItems <= 6) return 15
   if (totalItems <= 10) return 25
@@ -23,6 +25,96 @@ export const isValidScreen = (value: string): value is string => {
   ]
   return validScreens.includes(value)
 }
+
+/**
+ * Maps an internal Screen state to an authoritative SPA URL path
+ */
+export const screenToPath = (screen: Screen, productId?: string): string => {
+  switch (screen) {
+    case 'home':
+      return '/'
+    case 'product-list':
+      return '/browse'
+    case 'product-detail':
+      return productId ? `/product/${productId}` : '/browse'
+    case 'cart':
+      return '/cart'
+    case 'checkout':
+      return '/checkout'
+    case 'orders':
+      return '/orders'
+    case 'order-tracking':
+      return '/orders/track'
+    case 'order-confirm':
+      return '/order-confirm'
+    case 'profile':
+      return '/profile'
+    case 'login':
+      return '/login'
+    case 'register':
+      return '/register'
+    case 'forgot-password':
+      return '/forgot-password'
+    case 'reset-password':
+      return '/reset-password'
+    default:
+      return '/'
+  }
+}
+
+/**
+ * Resolves a browser URL pathname into an internal Screen state and optional product ID
+ */
+export const pathToScreen = (pathname: string): { screen: Screen; productId?: string } => {
+  const cleanPath = pathname.replace(/\/+$/, '') || '/'
+
+  if (cleanPath === '/' || cleanPath === '/home') {
+    return { screen: 'home' }
+  }
+  if (cleanPath === '/browse' || cleanPath === '/products' || cleanPath === '/categories') {
+    return { screen: 'product-list' }
+  }
+  if (cleanPath.startsWith('/product/')) {
+    const id = cleanPath.replace('/product/', '').split('/')[0]
+    return { screen: 'product-detail', productId: id }
+  }
+  if (cleanPath === '/product' || cleanPath === '/product-detail') {
+    return { screen: 'product-detail' }
+  }
+  if (cleanPath === '/cart') {
+    return { screen: 'cart' }
+  }
+  if (cleanPath === '/checkout') {
+    return { screen: 'checkout' }
+  }
+  if (cleanPath === '/orders') {
+    return { screen: 'orders' }
+  }
+  if (cleanPath === '/orders/track' || cleanPath === '/order-tracking') {
+    return { screen: 'order-tracking' }
+  }
+  if (cleanPath === '/order-confirm') {
+    return { screen: 'order-confirm' }
+  }
+  if (cleanPath === '/profile') {
+    return { screen: 'profile' }
+  }
+  if (cleanPath === '/login') {
+    return { screen: 'login' }
+  }
+  if (cleanPath === '/register') {
+    return { screen: 'register' }
+  }
+  if (cleanPath === '/forgot-password') {
+    return { screen: 'forgot-password' }
+  }
+  if (cleanPath.startsWith('/reset-password')) {
+    return { screen: 'reset-password' }
+  }
+
+  return { screen: 'home' }
+}
+
 
 /**
  * Fisher-Yates shuffle algorithm for unbiased array randomization
