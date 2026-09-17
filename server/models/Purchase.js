@@ -7,6 +7,20 @@ const purchaseSchema = new mongoose.Schema(
       required: [true, "Item name is required"],
       trim: true,
     },
+    supplier: {
+      type: String,
+      trim: true,
+    },
+    quantityPurchased: {
+      type: Number,
+      min: [1, "Quantity purchased must be at least 1"],
+      validate: {
+        validator: function (v) {
+          return v === undefined || v === null || (Number.isInteger(v) && v >= 1);
+        },
+        message: "Quantity purchased must be a positive integer (minimum 1)",
+      },
+    },
     purchaseAmount: {
       type: Number,
       required: [true, "Purchase amount is required"],

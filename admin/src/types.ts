@@ -66,6 +66,8 @@ export interface Product {
 export interface Purchase {
   _id: string;
   itemName: string;
+  supplier?: string;
+  quantityPurchased?: number;
   purchaseAmount: number;
   mrp: number;
   purchaseDate: string;

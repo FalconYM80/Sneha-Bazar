@@ -38,6 +38,8 @@ function AddPurchaseModal({
 }) {
   const [f, setF] = useState({
     itemName: "",
+    supplier: "",
+    quantityPurchased: "",
     purchaseAmount: "",
     mrp: "",
     purchaseDate: getLocalDate(),
@@ -47,7 +49,19 @@ function AddPurchaseModal({
   const [showSuggestions, setShowSuggestions] = useState(false);
   const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
-  const valid = f.itemName.trim() && f.purchaseAmount && f.mrp;
+  const qty = Number(f.quantityPurchased);
+  const valid = 
+    f.itemName.trim() !== "" && 
+    f.supplier.trim() !== "" && 
+    f.quantityPurchased !== "" && 
+    Number.isInteger(qty) && 
+    qty >= 1 && 
+    f.purchaseAmount !== "" && 
+    !isNaN(Number(f.purchaseAmount)) && 
+    Number(f.purchaseAmount) >= 0 && 
+    f.mrp !== "" && 
+    !isNaN(Number(f.mrp)) && 
+    Number(f.mrp) >= 0;
 
   const filteredSuggestions = productNames
     .filter(name => name.toLowerCase().includes(f.itemName.toLowerCase()))
@@ -62,6 +76,8 @@ function AddPurchaseModal({
     try {
       const response = await api.post("/purchases", {
         itemName: f.itemName.trim(),
+        supplier: f.supplier.trim(),
+        quantityPurchased: qty,
         purchaseAmount: Number(f.purchaseAmount),
         mrp: Number(f.mrp),
         purchaseDate: f.purchaseDate,
@@ -130,13 +146,36 @@ function AddPurchaseModal({
               </div>
             )}
           </div>
+
+          <div className="sm:col-span-2">
+            <FormField label="Supplier *">
+              <TextInput 
+                placeholder="e.g. ABC Distributors" 
+                value={f.supplier} 
+                onChange={set("supplier")} 
+              />
+            </FormField>
+          </div>
+
+          <div className="sm:col-span-2">
+            <FormField label="Quantity Purchased *">
+              <TextInput 
+                placeholder="e.g. 50" 
+                type="number" 
+                min="1"
+                step="1"
+                value={f.quantityPurchased} 
+                onChange={set("quantityPurchased")} 
+              />
+            </FormField>
+          </div>
           
           <FormField label="Purchase Amount (₹) *">
-            <TextInput placeholder="0.00" type="number" value={f.purchaseAmount} onChange={set("purchaseAmount")} />
+            <TextInput placeholder="0.00" type="number" min="0" value={f.purchaseAmount} onChange={set("purchaseAmount")} />
           </FormField>
           
           <FormField label="MRP (₹) *">
-            <TextInput placeholder="0.00" type="number" value={f.mrp} onChange={set("mrp")} />
+            <TextInput placeholder="0.00" type="number" min="0" value={f.mrp} onChange={set("mrp")} />
           </FormField>
           
           <div className="sm:col-span-2">
@@ -177,17 +216,31 @@ function EditPurchaseModal({
   productNames: string[];
 }) {
   const [f, setF] = useState({
-    itemName: purchase.itemName,
-    purchaseAmount: purchase.purchaseAmount.toString(),
-    mrp: purchase.mrp.toString(),
-    purchaseDate: purchase.purchaseDate.split('T')[0],
+    itemName: purchase.itemName || "",
+    supplier: purchase.supplier || "",
+    quantityPurchased: purchase.quantityPurchased !== undefined && purchase.quantityPurchased !== null ? purchase.quantityPurchased.toString() : "",
+    purchaseAmount: purchase.purchaseAmount !== undefined ? purchase.purchaseAmount.toString() : "",
+    mrp: purchase.mrp !== undefined ? purchase.mrp.toString() : "",
+    purchaseDate: purchase.purchaseDate ? purchase.purchaseDate.split('T')[0] : getLocalDate(),
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
 
-  const valid = f.itemName.trim() && f.purchaseAmount && f.mrp;
+  const qty = Number(f.quantityPurchased);
+  const valid = 
+    f.itemName.trim() !== "" && 
+    f.supplier.trim() !== "" && 
+    f.quantityPurchased !== "" && 
+    Number.isInteger(qty) && 
+    qty >= 1 && 
+    f.purchaseAmount !== "" && 
+    !isNaN(Number(f.purchaseAmount)) && 
+    Number(f.purchaseAmount) >= 0 && 
+    f.mrp !== "" && 
+    !isNaN(Number(f.mrp)) && 
+    Number(f.mrp) >= 0;
 
   const filteredSuggestions = productNames
     .filter(name => name.toLowerCase().includes(f.itemName.toLowerCase()))
@@ -201,10 +254,12 @@ function EditPurchaseModal({
     
     try {
       const response = await api.put(`/purchases/${purchase._id}`, {
-        ...(f.itemName !== purchase.itemName && { itemName: f.itemName.trim() }),
-        ...(f.purchaseAmount !== purchase.purchaseAmount.toString() && { purchaseAmount: Number(f.purchaseAmount) }),
-        ...(f.mrp !== purchase.mrp.toString() && { mrp: Number(f.mrp) }),
-        ...(f.purchaseDate !== purchase.purchaseDate.split('T')[0] && { purchaseDate: f.purchaseDate }),
+        itemName: f.itemName.trim(),
+        supplier: f.supplier.trim(),
+        quantityPurchased: qty,
+        purchaseAmount: Number(f.purchaseAmount),
+        mrp: Number(f.mrp),
+        purchaseDate: f.purchaseDate,
       });
       
       onUpdate(response.data);
@@ -262,13 +317,36 @@ function EditPurchaseModal({
               </div>
             )}
           </div>
+
+          <div className="sm:col-span-2">
+            <FormField label="Supplier *">
+              <TextInput 
+                placeholder="e.g. ABC Distributors" 
+                value={f.supplier} 
+                onChange={set("supplier")} 
+              />
+            </FormField>
+          </div>
+
+          <div className="sm:col-span-2">
+            <FormField label="Quantity Purchased *">
+              <TextInput 
+                placeholder="e.g. 50" 
+                type="number" 
+                min="1"
+                step="1"
+                value={f.quantityPurchased} 
+                onChange={set("quantityPurchased")} 
+              />
+            </FormField>
+          </div>
           
           <FormField label="Purchase Amount (₹) *">
-            <TextInput placeholder="0.00" type="number" value={f.purchaseAmount} onChange={set("purchaseAmount")} />
+            <TextInput placeholder="0.00" type="number" min="0" value={f.purchaseAmount} onChange={set("purchaseAmount")} />
           </FormField>
           
           <FormField label="MRP (₹) *">
-            <TextInput placeholder="0.00" type="number" value={f.mrp} onChange={set("mrp")} />
+            <TextInput placeholder="0.00" type="number" min="0" value={f.mrp} onChange={set("mrp")} />
           </FormField>
           
           <div className="sm:col-span-2">
@@ -336,9 +414,12 @@ export default function Purchases() {
     fetchProductNames();
   }, []);
 
-  const filtered = purchases.filter(
-    (p) => p.itemName.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = purchases.filter((p) => {
+    const term = search.toLowerCase();
+    const nameMatch = p.itemName.toLowerCase().includes(term);
+    const supplierMatch = p.supplier ? p.supplier.toLowerCase().includes(term) : false;
+    return nameMatch || supplierMatch;
+  });
 
   const totalPurchases = purchases.length;
   const currentMonth = new Date().getMonth();
@@ -430,7 +511,7 @@ export default function Purchases() {
             {/* Filters */}
             <div className="bg-white rounded-2xl card-shadow border border-gray-100 p-3.5 sm:p-4 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
               <div className="w-full sm:w-72">
-                <SearchInput placeholder="Search by item name…" value={search} onChange={setSearch} />
+                <SearchInput placeholder="Search by item name or supplier…" value={search} onChange={setSearch} />
               </div>
               <button className="flex items-center justify-center gap-2 border border-gray-200 rounded-xl px-3.5 py-2.5 text-sm font-medium text-gray-600 hover:border-gray-400 hover:text-gray-800 transition-colors bg-white">
                 <IconCalendar size={14} />
@@ -471,7 +552,16 @@ export default function Purchases() {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-between text-xs bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                      <div className="text-xs text-gray-600 font-medium bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 flex items-center gap-1.5">
+                        <span className="text-gray-400">Supplier:</span>
+                        <span className="text-gray-800 font-semibold">{p.supplier || "—"}</span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-2 text-xs bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
+                        <div>
+                          <span className="text-gray-400 block mb-0.5">Qty</span>
+                          <span className="font-mono-data font-bold text-sm text-gray-900">{p.quantityPurchased ?? "—"}</span>
+                        </div>
                         <div>
                           <span className="text-gray-400 block mb-0.5">Purchase Amount</span>
                           <span className="font-mono-data font-bold text-sm text-gray-900">{INR(p.purchaseAmount)}</span>
@@ -486,12 +576,12 @@ export default function Purchases() {
                 )}
               </div>
 
-              {/* Desktop Table View (Visible on >= md: exactly preserved) */}
+              {/* Desktop Table View (Visible on >= md) */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/60">
-                      {["Date", "Item Name", "Purchase Amount", "MRP", "Actions"].map((h) => (
+                      {["Date", "Item Name", "Supplier", "Qty", "Purchase Amount", "MRP", "Actions"].map((h) => (
                         <th key={h} className="text-left px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
                           {h}
                         </th>
@@ -501,7 +591,7 @@ export default function Purchases() {
                   <tbody className="divide-y divide-gray-50">
                     {filtered.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="px-6 py-16 text-center text-sm text-gray-400">No purchases found.</td>
+                        <td colSpan={7} className="px-6 py-16 text-center text-sm text-gray-400">No purchases found.</td>
                       </tr>
                     ) : (
                       filtered.map((p) => (
@@ -511,6 +601,12 @@ export default function Purchases() {
                           </td>
                           <td className="px-6 py-4">
                             <p className="text-sm font-semibold text-gray-800">{p.itemName}</p>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="text-sm text-gray-700 font-medium">{p.supplier || "—"}</span>
+                          </td>
+                          <td className="px-6 py-4">
+                            <span className="font-mono-data text-sm font-semibold text-gray-800">{p.quantityPurchased ?? "—"}</span>
                           </td>
                           <td className="px-6 py-4">
                             <span className="font-mono-data text-sm font-bold text-gray-900">{INR(p.purchaseAmount)}</span>

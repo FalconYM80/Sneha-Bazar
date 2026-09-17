@@ -4,24 +4,46 @@ import Purchase from "../models/Purchase.js";
 // Create a new purchase record
 export const createPurchase = async (req, res) => {
   try {
-    const { itemName, purchaseAmount, mrp, purchaseDate } = req.body;
+    const { itemName, supplier, quantityPurchased, purchaseAmount, mrp, purchaseDate } = req.body;
 
     // Validate required fields
-    if (!itemName || itemName.trim() === "") {
+    if (!itemName || typeof itemName !== "string" || itemName.trim() === "") {
       return res.status(400).json({
         success: false,
         message: "Item name is required",
       });
     }
 
-    if (purchaseAmount === undefined || purchaseAmount === null) {
+    if (!supplier || typeof supplier !== "string" || supplier.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Supplier is required",
+      });
+    }
+
+    if (quantityPurchased === undefined || quantityPurchased === null || quantityPurchased === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity purchased is required",
+      });
+    }
+
+    const qty = Number(quantityPurchased);
+    if (!Number.isInteger(qty) || qty < 1) {
+      return res.status(400).json({
+        success: false,
+        message: "Quantity purchased must be a positive integer (minimum 1)",
+      });
+    }
+
+    if (purchaseAmount === undefined || purchaseAmount === null || purchaseAmount === "") {
       return res.status(400).json({
         success: false,
         message: "Purchase amount is required",
       });
     }
 
-    if (mrp === undefined || mrp === null) {
+    if (mrp === undefined || mrp === null || mrp === "") {
       return res.status(400).json({
         success: false,
         message: "MRP is required",
@@ -29,25 +51,30 @@ export const createPurchase = async (req, res) => {
     }
 
     // Validate numeric values
-    if (purchaseAmount < 0) {
+    const parsedPurchaseAmount = Number(purchaseAmount);
+    const parsedMrp = Number(mrp);
+
+    if (isNaN(parsedPurchaseAmount) || parsedPurchaseAmount < 0) {
       return res.status(400).json({
         success: false,
         message: "Purchase amount cannot be negative",
       });
     }
 
-    if (mrp < 0) {
+    if (isNaN(parsedMrp) || parsedMrp < 0) {
       return res.status(400).json({
         success: false,
         message: "MRP cannot be negative",
       });
     }
 
-    // Create purchase record
+    // Create purchase record (Note: independent ledger record, does NOT modify inventory/stock)
     const purchase = await Purchase.create({
       itemName: itemName.trim(),
-      purchaseAmount,
-      mrp,
+      supplier: supplier.trim(),
+      quantityPurchased: qty,
+      purchaseAmount: parsedPurchaseAmount,
+      mrp: parsedMrp,
       purchaseDate: purchaseDate || Date.now(),
     });
 
@@ -64,7 +91,7 @@ export const createPurchase = async (req, res) => {
   }
 };
 
-// Get all purchase records with optional search
+// Get all purchase records with optional search across item name and supplier
 export const getPurchases = async (req, res) => {
   try {
     const { search } = req.query;
@@ -72,10 +99,14 @@ export const getPurchases = async (req, res) => {
     // Build query
     let query = Purchase.find();
 
-    // If search is provided, filter by itemName using case-insensitive regex
-    if (search) {
-      const searchRegex = new RegExp(search, "i");
-      query = query.where("itemName").regex(searchRegex);
+    // If search is provided, filter by itemName or supplier using case-insensitive regex
+    if (search && search.trim() !== "") {
+      const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapeRegex(search.trim()), "i");
+      query = query.or([
+        { itemName: searchRegex },
+        { supplier: searchRegex },
+      ]);
     }
 
     // Get purchases sorted by purchaseDate descending
@@ -133,7 +164,7 @@ export const getPurchaseById = async (req, res) => {
 export const updatePurchase = async (req, res) => {
   try {
     const { id } = req.params;
-    const { itemName, purchaseAmount, mrp, purchaseDate } = req.body;
+    const { itemName, supplier, quantityPurchased, purchaseAmount, mrp, purchaseDate } = req.body;
 
     // Check if ID is valid MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -153,37 +184,67 @@ export const updatePurchase = async (req, res) => {
     }
 
     // Validate itemName if provided
-    if (itemName !== undefined && itemName.trim() === "") {
+    if (itemName !== undefined && (typeof itemName !== "string" || itemName.trim() === "")) {
       return res.status(400).json({
         success: false,
         message: "Item name cannot be empty",
       });
     }
 
+    // Validate supplier if provided
+    if (supplier !== undefined && (typeof supplier !== "string" || supplier.trim() === "")) {
+      return res.status(400).json({
+        success: false,
+        message: "Supplier cannot be empty",
+      });
+    }
+
+    // Validate quantityPurchased if provided
+    let qty;
+    if (quantityPurchased !== undefined) {
+      qty = Number(quantityPurchased);
+      if (!Number.isInteger(qty) || qty < 1) {
+        return res.status(400).json({
+          success: false,
+          message: "Quantity purchased must be a positive integer (minimum 1)",
+        });
+      }
+    }
+
     // Validate numeric values if provided
-    if (purchaseAmount !== undefined && purchaseAmount < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Purchase amount cannot be negative",
-      });
+    if (purchaseAmount !== undefined) {
+      const parsedAmount = Number(purchaseAmount);
+      if (isNaN(parsedAmount) || parsedAmount < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Purchase amount cannot be negative",
+        });
+      }
     }
 
-    if (mrp !== undefined && mrp < 0) {
-      return res.status(400).json({
-        success: false,
-        message: "MRP cannot be negative",
-      });
+    if (mrp !== undefined) {
+      const parsedMrp = Number(mrp);
+      if (isNaN(parsedMrp) || parsedMrp < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "MRP cannot be negative",
+        });
+      }
     }
 
-    // Update purchase
+    // Update purchase (does NOT modify inventory/stock)
+    const updatePayload = {
+      ...(itemName !== undefined && { itemName: itemName.trim() }),
+      ...(supplier !== undefined && { supplier: supplier.trim() }),
+      ...(qty !== undefined && { quantityPurchased: qty }),
+      ...(purchaseAmount !== undefined && { purchaseAmount: Number(purchaseAmount) }),
+      ...(mrp !== undefined && { mrp: Number(mrp) }),
+      ...(purchaseDate !== undefined && { purchaseDate }),
+    };
+
     const updatedPurchase = await Purchase.findByIdAndUpdate(
       id,
-      {
-        ...(itemName !== undefined && { itemName: itemName.trim() }),
-        ...(purchaseAmount !== undefined && { purchaseAmount }),
-        ...(mrp !== undefined && { mrp }),
-        ...(purchaseDate !== undefined && { purchaseDate }),
-      },
+      updatePayload,
       { new: true, runValidators: true }
     );
 
