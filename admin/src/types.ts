@@ -69,6 +69,7 @@ export interface Purchase {
   supplier?: string;
   quantityPurchased?: number;
   purchaseAmount: number;
+  sellingPrice?: number;
   mrp: number;
   purchaseDate: string;
   createdAt: string;

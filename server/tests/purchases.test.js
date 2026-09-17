@@ -26,9 +26,9 @@ function createMockRes() {
   };
 }
 
-describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
+describe("Purchases Module (Supplier, Quantity, Selling Price & Inventory Separation)", () => {
   describe("1. Create Purchase Validation", () => {
-    it("successfully creates a purchase record with product, supplier, quantity, amount, mrp", async () => {
+    it("successfully creates a purchase record with product, supplier, quantity, purchaseAmount, sellingPrice, mrp", async () => {
       const origCreate = Purchase.create;
       let createdDoc = null;
 
@@ -49,6 +49,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
             supplier: "ABC Distributors",
             quantityPurchased: 50,
             purchaseAmount: 50,
+            sellingPrice: 55,
             mrp: 60,
             purchaseDate: "2026-09-17",
           },
@@ -63,6 +64,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         assert.strictEqual(res.body.data.supplier, "ABC Distributors");
         assert.strictEqual(res.body.data.quantityPurchased, 50);
         assert.strictEqual(res.body.data.purchaseAmount, 50);
+        assert.strictEqual(res.body.data.sellingPrice, 55);
         assert.strictEqual(res.body.data.mrp, 60);
       } finally {
         Purchase.create = origCreate;
@@ -76,6 +78,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
           supplier: "ABC Distributors",
           quantityPurchased: 50,
           purchaseAmount: 50,
+          sellingPrice: 55,
           mrp: 60,
         },
       };
@@ -95,6 +98,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
           supplier: "   ",
           quantityPurchased: 50,
           purchaseAmount: 50,
+          sellingPrice: 55,
           mrp: 60,
         },
       };
@@ -117,6 +121,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
             supplier: "ABC Distributors",
             quantityPurchased: invalidQty,
             purchaseAmount: 50,
+            sellingPrice: 55,
             mrp: 60,
           },
         };
@@ -130,6 +135,30 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
       }
     });
 
+    it("rejects creation when sellingPrice is missing, non-numeric, or negative", async () => {
+      const invalidSellingPrices = [undefined, null, "", -1, -10.5, "abc"];
+
+      for (const invalidSP of invalidSellingPrices) {
+        const req = {
+          body: {
+            itemName: "Tata Salt 1 kg",
+            supplier: "ABC Distributors",
+            quantityPurchased: 50,
+            purchaseAmount: 50,
+            sellingPrice: invalidSP,
+            mrp: 60,
+          },
+        };
+        const res = createMockRes();
+
+        await createPurchase(req, res);
+
+        assert.strictEqual(res.statusCode, 400);
+        assert.strictEqual(res.body.success, false);
+        assert.match(res.body.message, /Selling price/i);
+      }
+    });
+
     it("rejects creation when purchaseAmount or mrp is negative", async () => {
       const req = {
         body: {
@@ -137,6 +166,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
           supplier: "ABC Distributors",
           quantityPurchased: 50,
           purchaseAmount: -10,
+          sellingPrice: 55,
           mrp: 60,
         },
       };
@@ -150,22 +180,32 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
     });
   });
 
-  describe("2. Inventory Separation Confirmation", () => {
-    it("confirm purchase creation does NOT modify product stock", async () => {
+  describe("2. Inventory & Product Price Isolation Confirmation", () => {
+    it("confirm purchase creation does NOT modify product stock or product selling price", async () => {
       const initialStock = 20;
+      const initialProductSellingPrice = 52;
       let productStock = initialStock;
+      let productSellingPrice = initialProductSellingPrice;
 
       const origCreate = Purchase.create;
       const origProductFindById = Product.findById;
       const origProductUpdate = Product.findByIdAndUpdate;
 
       // Mock Product to track any unwanted mutations
-      Product.findById = async () => ({ _id: "prod1", name: "Tata Salt 1 kg", stockQuantity: productStock });
+      Product.findById = async () => ({
+        _id: "prod1",
+        name: "Tata Salt 1 kg",
+        stockQuantity: productStock,
+        sellingPrice: productSellingPrice,
+      });
       Product.findByIdAndUpdate = async (_id, update) => {
         if (update.stockQuantity !== undefined) {
           productStock = update.stockQuantity;
         }
-        return { _id: "prod1", stockQuantity: productStock };
+        if (update.sellingPrice !== undefined) {
+          productSellingPrice = update.sellingPrice;
+        }
+        return { _id: "prod1", stockQuantity: productStock, sellingPrice: productSellingPrice };
       };
 
       Purchase.create = async (doc) => ({
@@ -180,6 +220,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
             supplier: "ABC Distributors",
             quantityPurchased: 50,
             purchaseAmount: 50,
+            sellingPrice: 55,
             mrp: 60,
           },
         };
@@ -188,8 +229,9 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         await createPurchase(req, res);
 
         assert.strictEqual(res.statusCode, 201);
-        // Product stock MUST remain strictly 20
+        // Product stock & product selling price MUST remain strictly unchanged
         assert.strictEqual(productStock, initialStock, "Product stock was modified by purchase creation!");
+        assert.strictEqual(productSellingPrice, initialProductSellingPrice, "Product selling price was modified by purchase creation!");
       } finally {
         Purchase.create = origCreate;
         Product.findById = origProductFindById;
@@ -197,10 +239,12 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
       }
     });
 
-    it("confirm purchase update (e.g. 50 -> 60) does NOT modify product stock", async () => {
+    it("confirm purchase update (e.g. sellingPrice ₹55 -> ₹57, qty 50 -> 60) does NOT modify product stock or product price", async () => {
       const testId = new mongoose.Types.ObjectId().toString();
       const initialStock = 20;
+      const initialProductSellingPrice = 52;
       let productStock = initialStock;
+      let productSellingPrice = initialProductSellingPrice;
 
       const origFindById = Purchase.findById;
       const origFindByIdAndUpdate = Purchase.findByIdAndUpdate;
@@ -213,6 +257,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
             supplier: "ABC Distributors",
             quantityPurchased: 50,
             purchaseAmount: 50,
+            sellingPrice: 55,
             mrp: 60,
           };
         }
@@ -223,8 +268,9 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         _id: id,
         itemName: "Tata Salt 1 kg",
         supplier: "ABC Distributors",
-        quantityPurchased: update.quantityPurchased,
+        quantityPurchased: update.quantityPurchased || 50,
         purchaseAmount: 50,
+        sellingPrice: update.sellingPrice !== undefined ? update.sellingPrice : 55,
         mrp: 60,
       });
 
@@ -232,6 +278,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         const req = {
           params: { id: testId },
           body: {
+            sellingPrice: 57,
             quantityPurchased: 60,
           },
         };
@@ -240,15 +287,17 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         await updatePurchase(req, res);
 
         assert.strictEqual(res.statusCode, 200);
+        assert.strictEqual(res.body.data.sellingPrice, 57);
         assert.strictEqual(res.body.data.quantityPurchased, 60);
         assert.strictEqual(productStock, initialStock, "Product stock was modified by purchase update!");
+        assert.strictEqual(productSellingPrice, initialProductSellingPrice, "Product selling price was modified by purchase update!");
       } finally {
         Purchase.findById = origFindById;
         Purchase.findByIdAndUpdate = origFindByIdAndUpdate;
       }
     });
 
-    it("confirm purchase delete does NOT modify product stock", async () => {
+    it("confirm purchase delete does NOT modify product stock or product price", async () => {
       const testId = new mongoose.Types.ObjectId().toString();
       const initialStock = 20;
       let productStock = initialStock;
@@ -261,6 +310,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         itemName: "Tata Salt 1 kg",
         supplier: "ABC Distributors",
         quantityPurchased: 50,
+        sellingPrice: 55,
       });
 
       Purchase.findByIdAndDelete = async (id) => ({ _id: id });
@@ -281,7 +331,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
   });
 
   describe("3. Update Purchase Validation", () => {
-    it("updates supplier and quantity correctly", async () => {
+    it("updates sellingPrice and supplier correctly", async () => {
       const testId = new mongoose.Types.ObjectId().toString();
       const origFindById = Purchase.findById;
       const origFindByIdAndUpdate = Purchase.findByIdAndUpdate;
@@ -292,6 +342,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         supplier: "ABC Distributors",
         quantityPurchased: 50,
         purchaseAmount: 50,
+        sellingPrice: 55,
         mrp: 60,
       });
 
@@ -301,6 +352,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         supplier: update.supplier || "ABC Distributors",
         quantityPurchased: update.quantityPurchased || 50,
         purchaseAmount: update.purchaseAmount || 50,
+        sellingPrice: update.sellingPrice !== undefined ? update.sellingPrice : 55,
         mrp: update.mrp || 60,
       });
 
@@ -309,7 +361,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
           params: { id: testId },
           body: {
             supplier: "XYZ Traders",
-            quantityPurchased: 40,
+            sellingPrice: 57,
           },
         };
         const res = createMockRes();
@@ -318,14 +370,14 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
 
         assert.strictEqual(res.statusCode, 200);
         assert.strictEqual(res.body.data.supplier, "XYZ Traders");
-        assert.strictEqual(res.body.data.quantityPurchased, 40);
+        assert.strictEqual(res.body.data.sellingPrice, 57);
       } finally {
         Purchase.findById = origFindById;
         Purchase.findByIdAndUpdate = origFindByIdAndUpdate;
       }
     });
 
-    it("rejects invalid quantity update", async () => {
+    it("rejects invalid sellingPrice update", async () => {
       const testId = new mongoose.Types.ObjectId().toString();
       const origFindById = Purchase.findById;
 
@@ -338,7 +390,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         const req = {
           params: { id: testId },
           body: {
-            quantityPurchased: -5,
+            sellingPrice: -5,
           },
         };
         const res = createMockRes();
@@ -346,7 +398,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         await updatePurchase(req, res);
 
         assert.strictEqual(res.statusCode, 400);
-        assert.match(res.body.message, /Quantity purchased must be a positive integer/i);
+        assert.match(res.body.message, /Selling price cannot be negative/i);
       } finally {
         Purchase.findById = origFindById;
       }
@@ -372,6 +424,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
                 supplier: "ABC Distributors",
                 quantityPurchased: 50,
                 purchaseAmount: 50,
+                sellingPrice: 55,
                 mrp: 60,
               },
             ];
@@ -393,6 +446,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         assert.strictEqual(res.statusCode, 200);
         assert.strictEqual(res.body.data.length, 1);
         assert.strictEqual(res.body.data[0].supplier, "ABC Distributors");
+        assert.strictEqual(res.body.data[0].sellingPrice, 55);
       } finally {
         Purchase.find = origFind;
       }
@@ -400,11 +454,11 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
   });
 
   describe("5. Backward Compatibility for Existing Records", () => {
-    it("handles legacy purchase records without supplier or quantityPurchased without throwing", async () => {
+    it("handles legacy purchase records without supplier, quantityPurchased, or sellingPrice without throwing", async () => {
       const testId = new mongoose.Types.ObjectId().toString();
       const origFindById = Purchase.findById;
 
-      // Old record missing supplier and quantityPurchased
+      // Old record missing supplier, quantityPurchased, and sellingPrice
       Purchase.findById = async (id) => ({
         _id: id,
         itemName: "Old Legacy Item",
@@ -423,6 +477,7 @@ describe("Purchases Module (Supplier, Quantity & Inventory Separation)", () => {
         assert.strictEqual(res.body.data.itemName, "Old Legacy Item");
         assert.strictEqual(res.body.data.supplier, undefined);
         assert.strictEqual(res.body.data.quantityPurchased, undefined);
+        assert.strictEqual(res.body.data.sellingPrice, undefined);
       } finally {
         Purchase.findById = origFindById;
       }

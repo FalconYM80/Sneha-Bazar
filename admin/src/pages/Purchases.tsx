@@ -41,6 +41,7 @@ function AddPurchaseModal({
     supplier: "",
     quantityPurchased: "",
     purchaseAmount: "",
+    sellingPrice: "",
     mrp: "",
     purchaseDate: getLocalDate(),
   });
@@ -59,6 +60,9 @@ function AddPurchaseModal({
     f.purchaseAmount !== "" && 
     !isNaN(Number(f.purchaseAmount)) && 
     Number(f.purchaseAmount) >= 0 && 
+    f.sellingPrice !== "" && 
+    !isNaN(Number(f.sellingPrice)) && 
+    Number(f.sellingPrice) >= 0 && 
     f.mrp !== "" && 
     !isNaN(Number(f.mrp)) && 
     Number(f.mrp) >= 0;
@@ -79,6 +83,7 @@ function AddPurchaseModal({
         supplier: f.supplier.trim(),
         quantityPurchased: qty,
         purchaseAmount: Number(f.purchaseAmount),
+        sellingPrice: Number(f.sellingPrice),
         mrp: Number(f.mrp),
         purchaseDate: f.purchaseDate,
       });
@@ -173,16 +178,18 @@ function AddPurchaseModal({
           <FormField label="Purchase Amount (₹) *">
             <TextInput placeholder="0.00" type="number" min="0" value={f.purchaseAmount} onChange={set("purchaseAmount")} />
           </FormField>
+
+          <FormField label="Selling Price (₹) *">
+            <TextInput placeholder="0.00" type="number" min="0" value={f.sellingPrice} onChange={set("sellingPrice")} />
+          </FormField>
           
           <FormField label="MRP (₹) *">
             <TextInput placeholder="0.00" type="number" min="0" value={f.mrp} onChange={set("mrp")} />
           </FormField>
           
-          <div className="sm:col-span-2">
-            <FormField label="Purchase Date">
-              <TextInput type="date" value={f.purchaseDate} onChange={set("purchaseDate")} />
-            </FormField>
-          </div>
+          <FormField label="Purchase Date">
+            <TextInput type="date" value={f.purchaseDate} onChange={set("purchaseDate")} />
+          </FormField>
         </div>
 
         {error && (
@@ -220,6 +227,7 @@ function EditPurchaseModal({
     supplier: purchase.supplier || "",
     quantityPurchased: purchase.quantityPurchased !== undefined && purchase.quantityPurchased !== null ? purchase.quantityPurchased.toString() : "",
     purchaseAmount: purchase.purchaseAmount !== undefined ? purchase.purchaseAmount.toString() : "",
+    sellingPrice: purchase.sellingPrice !== undefined && purchase.sellingPrice !== null ? purchase.sellingPrice.toString() : "",
     mrp: purchase.mrp !== undefined ? purchase.mrp.toString() : "",
     purchaseDate: purchase.purchaseDate ? purchase.purchaseDate.split('T')[0] : getLocalDate(),
   });
@@ -238,6 +246,9 @@ function EditPurchaseModal({
     f.purchaseAmount !== "" && 
     !isNaN(Number(f.purchaseAmount)) && 
     Number(f.purchaseAmount) >= 0 && 
+    f.sellingPrice !== "" && 
+    !isNaN(Number(f.sellingPrice)) && 
+    Number(f.sellingPrice) >= 0 && 
     f.mrp !== "" && 
     !isNaN(Number(f.mrp)) && 
     Number(f.mrp) >= 0;
@@ -258,6 +269,7 @@ function EditPurchaseModal({
         supplier: f.supplier.trim(),
         quantityPurchased: qty,
         purchaseAmount: Number(f.purchaseAmount),
+        sellingPrice: Number(f.sellingPrice),
         mrp: Number(f.mrp),
         purchaseDate: f.purchaseDate,
       });
@@ -344,16 +356,18 @@ function EditPurchaseModal({
           <FormField label="Purchase Amount (₹) *">
             <TextInput placeholder="0.00" type="number" min="0" value={f.purchaseAmount} onChange={set("purchaseAmount")} />
           </FormField>
+
+          <FormField label="Selling Price (₹) *">
+            <TextInput placeholder="0.00" type="number" min="0" value={f.sellingPrice} onChange={set("sellingPrice")} />
+          </FormField>
           
           <FormField label="MRP (₹) *">
             <TextInput placeholder="0.00" type="number" min="0" value={f.mrp} onChange={set("mrp")} />
           </FormField>
           
-          <div className="sm:col-span-2">
-            <FormField label="Purchase Date">
-              <TextInput type="date" value={f.purchaseDate} onChange={set("purchaseDate")} />
-            </FormField>
-          </div>
+          <FormField label="Purchase Date">
+            <TextInput type="date" value={f.purchaseDate} onChange={set("purchaseDate")} />
+          </FormField>
         </div>
 
         {error && (
@@ -529,46 +543,61 @@ export default function Purchases() {
                 ) : (
                   filtered.map((p) => (
                     <div key={p._id} className="p-4 space-y-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900 leading-tight">{p.itemName}</p>
+                      {/* Header: Item Name + Date on left, Edit/Delete on right */}
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold text-gray-900 leading-tight truncate">{p.itemName}</p>
                           <span className="text-xs text-gray-400 font-medium mt-0.5 block">{formatDate(p.purchaseDate)}</span>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
                           <button 
                             onClick={() => setEditing(p)}
                             aria-label="Edit purchase"
-                            className="w-8 h-8 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-colors border border-gray-200"
+                            className="w-8 h-8 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 flex items-center justify-center transition-colors border border-gray-200 bg-white"
                           >
                             <IconEdit size={14} />
                           </button>
                           <button 
                             onClick={() => handleDelete(p)}
                             aria-label="Delete purchase"
-                            className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors border border-gray-200"
+                            className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors border border-gray-200 bg-white"
                           >
                             <IconTrash size={14} />
                           </button>
                         </div>
                       </div>
 
-                      <div className="text-xs text-gray-600 font-medium bg-gray-50 px-3 py-1.5 rounded-lg border border-gray-100 flex items-center gap-1.5">
-                        <span className="text-gray-400">Supplier:</span>
-                        <span className="text-gray-800 font-semibold">{p.supplier || "—"}</span>
+                      {/* Full-width Supplier row */}
+                      <div className="text-xs text-gray-600 font-medium bg-gray-50 px-3 py-2 rounded-xl border border-gray-100 flex items-center gap-1.5 w-full">
+                        <span className="text-gray-400 flex-shrink-0">Supplier:</span>
+                        <span className="text-gray-900 font-semibold truncate">{p.supplier || "—"}</span>
                       </div>
 
-                      <div className="grid grid-cols-3 gap-2 text-xs bg-gray-50/70 p-2.5 rounded-xl border border-gray-100">
-                        <div>
-                          <span className="text-gray-400 block mb-0.5">Qty</span>
-                          <span className="font-mono-data font-bold text-sm text-gray-900">{p.quantityPurchased ?? "—"}</span>
+                      {/* 2-Column Equal Grid for Qty, Purchase Amount, Selling Price, MRP */}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-3 bg-gray-50/70 p-3 rounded-xl border border-gray-100">
+                        <div className="min-w-0">
+                          <span className="text-xs text-gray-400 font-medium block mb-0.5">Qty</span>
+                          <span className="font-mono-data font-bold text-sm text-gray-900 block truncate">
+                            {p.quantityPurchased ?? "—"}
+                          </span>
                         </div>
-                        <div>
-                          <span className="text-gray-400 block mb-0.5">Purchase Amount</span>
-                          <span className="font-mono-data font-bold text-sm text-gray-900">{INR(p.purchaseAmount)}</span>
+                        <div className="min-w-0">
+                          <span className="text-xs text-gray-400 font-medium block mb-0.5">Purchase Amount</span>
+                          <span className="font-mono-data font-bold text-sm text-gray-900 block truncate">
+                            {INR(p.purchaseAmount)}
+                          </span>
                         </div>
-                        <div className="text-right">
-                          <span className="text-gray-400 block mb-0.5">MRP</span>
-                          <span className="font-mono-data font-semibold text-sm text-gray-700">{INR(p.mrp)}</span>
+                        <div className="min-w-0">
+                          <span className="text-xs text-gray-400 font-medium block mb-0.5">Selling Price</span>
+                          <span className="font-mono-data font-bold text-sm text-gray-900 block truncate">
+                            {p.sellingPrice !== undefined && p.sellingPrice !== null ? INR(p.sellingPrice) : "—"}
+                          </span>
+                        </div>
+                        <div className="min-w-0">
+                          <span className="text-xs text-gray-400 font-medium block mb-0.5">MRP</span>
+                          <span className="font-mono-data font-bold text-sm text-gray-900 block truncate">
+                            {INR(p.mrp)}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -581,8 +610,8 @@ export default function Purchases() {
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-gray-100 bg-gray-50/60">
-                      {["Date", "Item Name", "Supplier", "Qty", "Purchase Amount", "MRP", "Actions"].map((h) => (
-                        <th key={h} className="text-left px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
+                      {["Date", "Item Name", "Supplier", "Qty", "Purchase Amount", "Selling Price", "MRP", "Actions"].map((h) => (
+                        <th key={h} className="text-left px-5 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide whitespace-nowrap">
                           {h}
                         </th>
                       ))}
@@ -591,30 +620,35 @@ export default function Purchases() {
                   <tbody className="divide-y divide-gray-50">
                     {filtered.length === 0 ? (
                       <tr>
-                        <td colSpan={7} className="px-6 py-16 text-center text-sm text-gray-400">No purchases found.</td>
+                        <td colSpan={8} className="px-6 py-16 text-center text-sm text-gray-400">No purchases found.</td>
                       </tr>
                     ) : (
                       filtered.map((p) => (
                         <tr key={p._id} className="hover:bg-gray-50/50 transition-colors group">
-                          <td className="px-6 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="text-xs text-gray-500 font-medium">{formatDate(p.purchaseDate)}</span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-5 py-4">
                             <p className="text-sm font-semibold text-gray-800">{p.itemName}</p>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="text-sm text-gray-700 font-medium">{p.supplier || "—"}</span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="font-mono-data text-sm font-semibold text-gray-800">{p.quantityPurchased ?? "—"}</span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="font-mono-data text-sm font-bold text-gray-900">{INR(p.purchaseAmount)}</span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
+                            <span className="font-mono-data text-sm font-semibold text-gray-800">
+                              {p.sellingPrice !== undefined && p.sellingPrice !== null ? INR(p.sellingPrice) : "—"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <span className="font-mono-data text-sm font-semibold text-gray-700">{INR(p.mrp)}</span>
                           </td>
-                          <td className="px-6 py-4">
+                          <td className="px-5 py-4 whitespace-nowrap">
                             <div className="flex items-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                               <button 
                                 onClick={() => setEditing(p)}

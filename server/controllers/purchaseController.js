@@ -4,7 +4,7 @@ import Purchase from "../models/Purchase.js";
 // Create a new purchase record
 export const createPurchase = async (req, res) => {
   try {
-    const { itemName, supplier, quantityPurchased, purchaseAmount, mrp, purchaseDate } = req.body;
+    const { itemName, supplier, quantityPurchased, purchaseAmount, sellingPrice, mrp, purchaseDate } = req.body;
 
     // Validate required fields
     if (!itemName || typeof itemName !== "string" || itemName.trim() === "") {
@@ -43,6 +43,13 @@ export const createPurchase = async (req, res) => {
       });
     }
 
+    if (sellingPrice === undefined || sellingPrice === null || sellingPrice === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Selling price is required",
+      });
+    }
+
     if (mrp === undefined || mrp === null || mrp === "") {
       return res.status(400).json({
         success: false,
@@ -52,12 +59,20 @@ export const createPurchase = async (req, res) => {
 
     // Validate numeric values
     const parsedPurchaseAmount = Number(purchaseAmount);
+    const parsedSellingPrice = Number(sellingPrice);
     const parsedMrp = Number(mrp);
 
     if (isNaN(parsedPurchaseAmount) || parsedPurchaseAmount < 0) {
       return res.status(400).json({
         success: false,
         message: "Purchase amount cannot be negative",
+      });
+    }
+
+    if (isNaN(parsedSellingPrice) || parsedSellingPrice < 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Selling price cannot be negative",
       });
     }
 
@@ -74,6 +89,7 @@ export const createPurchase = async (req, res) => {
       supplier: supplier.trim(),
       quantityPurchased: qty,
       purchaseAmount: parsedPurchaseAmount,
+      sellingPrice: parsedSellingPrice,
       mrp: parsedMrp,
       purchaseDate: purchaseDate || Date.now(),
     });
@@ -164,7 +180,7 @@ export const getPurchaseById = async (req, res) => {
 export const updatePurchase = async (req, res) => {
   try {
     const { id } = req.params;
-    const { itemName, supplier, quantityPurchased, purchaseAmount, mrp, purchaseDate } = req.body;
+    const { itemName, supplier, quantityPurchased, purchaseAmount, sellingPrice, mrp, purchaseDate } = req.body;
 
     // Check if ID is valid MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -222,6 +238,16 @@ export const updatePurchase = async (req, res) => {
       }
     }
 
+    if (sellingPrice !== undefined) {
+      const parsedSellingPrice = Number(sellingPrice);
+      if (isNaN(parsedSellingPrice) || parsedSellingPrice < 0) {
+        return res.status(400).json({
+          success: false,
+          message: "Selling price cannot be negative",
+        });
+      }
+    }
+
     if (mrp !== undefined) {
       const parsedMrp = Number(mrp);
       if (isNaN(parsedMrp) || parsedMrp < 0) {
@@ -238,6 +264,7 @@ export const updatePurchase = async (req, res) => {
       ...(supplier !== undefined && { supplier: supplier.trim() }),
       ...(qty !== undefined && { quantityPurchased: qty }),
       ...(purchaseAmount !== undefined && { purchaseAmount: Number(purchaseAmount) }),
+      ...(sellingPrice !== undefined && { sellingPrice: Number(sellingPrice) }),
       ...(mrp !== undefined && { mrp: Number(mrp) }),
       ...(purchaseDate !== undefined && { purchaseDate }),
     };

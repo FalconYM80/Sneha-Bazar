@@ -26,6 +26,10 @@ const purchaseSchema = new mongoose.Schema(
       required: [true, "Purchase amount is required"],
       min: [0, "Purchase amount cannot be negative"],
     },
+    sellingPrice: {
+      type: Number,
+      min: [0, "Selling price cannot be negative"],
+    },
     mrp: {
       type: Number,
       required: [true, "MRP is required"],
