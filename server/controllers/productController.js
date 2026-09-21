@@ -8,6 +8,7 @@ export const createProduct = async (req, res) => {
   try {
     const {
       itemCode,
+      barcode,
       name,
       company,
       category,
@@ -112,6 +113,20 @@ export const createProduct = async (req, res) => {
       }
     }
 
+    // Check for duplicate barcode if provided
+    const trimmedBarcode = typeof barcode === 'string' && barcode.trim() !== '' ? barcode.trim() : null;
+    if (trimmedBarcode) {
+      const existingBarcodeProduct = await Product.findOne({
+        barcode: trimmedBarcode,
+      });
+      if (existingBarcodeProduct) {
+        return res.status(400).json({
+          success: false,
+          message: `Barcode ${trimmedBarcode} is already assigned to ${existingBarcodeProduct.name}`,
+        });
+      }
+    }
+
     // Validate unit if provided
     const allowedUnits = ["pcs", "kg", "g", "litre", "ml", "pack", "packet", "box", "bottle", "dozen"];
     if (unit && !allowedUnits.includes(unit)) {
@@ -123,7 +138,8 @@ export const createProduct = async (req, res) => {
 
     // Create new product
     const product = await Product.create({
-      itemCode: itemCode?.trim(),
+      itemCode: itemCode?.trim() || undefined,
+      barcode: trimmedBarcode || undefined,
       name: name.trim(),
       company: company?.trim(),
       category,
@@ -148,6 +164,15 @@ export const createProduct = async (req, res) => {
       data: populatedProduct,
     });
   } catch (error) {
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0] || "field";
+      return res.status(400).json({
+        success: false,
+        message: field === "barcode"
+          ? "Barcode is already assigned to another product"
+          : `Product with this ${field} already exists`,
+      });
+    }
     res.status(500).json({
       success: false,
       message: error.message || "Error creating product",
@@ -186,13 +211,14 @@ export const getProducts = async (req, res) => {
       filter.category = category;
     }
 
-    // Search by name, company, or itemCode if search term provided
+    // Search by name, company, itemCode, or barcode if search term provided
     if (trimmedSearch) {
       const searchRegex = new RegExp(trimmedSearch.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), "i");
       filter.$or = [
         { name: searchRegex },
         { company: searchRegex },
         { itemCode: searchRegex },
+        { barcode: searchRegex },
       ];
     }
 
@@ -332,12 +358,52 @@ export const getProductById = async (req, res) => {
   }
 };
 
+// Get a product by barcode
+export const getProductByBarcode = async (req, res) => {
+  try {
+    const { barcode } = req.params;
+
+    if (!barcode || typeof barcode !== "string" || barcode.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Barcode parameter is required",
+      });
+    }
+
+    const normalizedBarcode = barcode.trim();
+
+    const product = await Product.findOne({
+      barcode: normalizedBarcode,
+      isActive: true,
+    }).populate("category", "name description image");
+
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found for this barcode",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Product retrieved successfully",
+      data: product,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error retrieving product by barcode",
+    });
+  }
+};
+
 // Update a product
 export const updateProduct = async (req, res) => {
   try {
     const { id } = req.params;
     const {
       itemCode,
+      barcode,
       name,
       company,
       category,
@@ -406,7 +472,7 @@ export const updateProduct = async (req, res) => {
 
     // If itemCode is being updated, check for duplicates
     if (itemCode !== undefined) {
-      const trimmedItemCode = itemCode.trim();
+      const trimmedItemCode = typeof itemCode === 'string' ? itemCode.trim() : '';
       if (trimmedItemCode && trimmedItemCode !== product.itemCode) {
         const existingProduct = await Product.findOne({
           itemCode: trimmedItemCode,
@@ -416,6 +482,24 @@ export const updateProduct = async (req, res) => {
           return res.status(400).json({
             success: false,
             message: "Product with this item code already exists",
+          });
+        }
+      }
+    }
+
+    // If barcode is being updated, check for duplicates
+    let trimmedBarcode = undefined;
+    if (barcode !== undefined) {
+      trimmedBarcode = typeof barcode === 'string' && barcode.trim() !== '' ? barcode.trim() : null;
+      if (trimmedBarcode && trimmedBarcode !== product.barcode) {
+        const existingBarcodeProduct = await Product.findOne({
+          barcode: trimmedBarcode,
+          _id: { $ne: id },
+        });
+        if (existingBarcodeProduct) {
+          return res.status(400).json({
+            success: false,
+            message: `Barcode ${trimmedBarcode} is already assigned to ${existingBarcodeProduct.name}`,
           });
         }
       }
@@ -477,7 +561,8 @@ export const updateProduct = async (req, res) => {
 
     // Update product
     const updateData = {
-      ...(itemCode !== undefined && { itemCode: itemCode.trim() }),
+      ...(itemCode !== undefined && { itemCode: typeof itemCode === 'string' ? itemCode.trim() : itemCode }),
+      ...(barcode !== undefined && { barcode: trimmedBarcode }),
       ...(name && { name: name.trim() }),
       ...(company !== undefined && { company: company?.trim() }),
       ...(category && { category }),
@@ -507,6 +592,15 @@ export const updateProduct = async (req, res) => {
       data: updatedProduct,
     });
   } catch (error) {
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern || {})[0] || "field";
+      return res.status(400).json({
+        success: false,
+        message: field === "barcode"
+          ? "Barcode is already assigned to another product"
+          : `Product with this ${field} already exists`,
+      });
+    }
     res.status(500).json({
       success: false,
       message: error.message || "Error updating product",

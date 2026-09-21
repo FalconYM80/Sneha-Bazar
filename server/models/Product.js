@@ -8,6 +8,12 @@ const productSchema = new mongoose.Schema(
       unique: true,
       sparse: true, // Allows multiple documents to have no value for this field
     },
+    barcode: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true, // Allows multiple documents to have no value for this field
+    },
     name: {
       type: String,
       required: [true, "Product name is required"],

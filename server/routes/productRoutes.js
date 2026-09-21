@@ -7,6 +7,7 @@ import {
   updateProduct,
   deleteProduct,
   getLowStockProducts,
+  getProductByBarcode,
 } from "../controllers/productController.js";
 
 const router = express.Router();
@@ -16,6 +17,9 @@ router.post("/", upload.single("image"), createProduct);
 
 // Get low stock products for dashboard (must come before /:id)
 router.get("/low-stock", getLowStockProducts);
+
+// Get product by barcode (must come before /:id)
+router.get("/barcode/:barcode", getProductByBarcode);
 
 // Get all active products with optional filters
 router.get("/", getProducts);

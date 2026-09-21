@@ -21,6 +21,7 @@ interface BackendCategory {
 interface BackendProduct {
   _id: string;
   itemCode?: string;
+  barcode?: string;
   name: string;
   company?: string;
   category: BackendCategory;
@@ -47,6 +48,7 @@ const mapProduct = (product: BackendProduct, threshold: number): UIProduct => ({
   status: getStockStatus(product.stockQuantity, threshold),
   emoji: "📦",
   itemCode: product.itemCode,
+  barcode: product.barcode,
   company: product.company,
   image: product.image,
   imagePublicId: product.imagePublicId,
@@ -180,6 +182,7 @@ function AddProductModal({
     stockQuantity: "", 
     unit: "pack", 
     itemCode: "", 
+    barcode: "",
     company: "" 
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -261,7 +264,8 @@ function AddProductModal({
       formData.append("unit", f.unit);
       
       if (f.mrp) formData.append("mrp", f.mrp);
-      if (f.itemCode) formData.append("itemCode", f.itemCode);
+      if (f.itemCode) formData.append("itemCode", f.itemCode.trim());
+      if (f.barcode) formData.append("barcode", f.barcode.trim());
       if (f.company) formData.append("company", f.company);
       if (imageFile) formData.append("image", imageFile);
 
@@ -328,6 +332,9 @@ function AddProductModal({
                 </option>
               ))}
             </select>
+          </FormField>
+          <FormField label="Barcode">
+            <TextInput placeholder="e.g. 8901234567890" value={f.barcode} onChange={set("barcode")} />
           </FormField>
           <FormField label="Item Code / SKU">
             <TextInput placeholder="e.g. TATA-001" value={f.itemCode} onChange={set("itemCode")} />
@@ -408,11 +415,12 @@ function EditProductModal({
     name: product.name, 
     category: product.categoryId, 
     sellingPrice: product.price.toString(), 
-    mrp: "", 
+    mrp: product.mrp ? product.mrp.toString() : "", 
     stockQuantity: product.stock.toString(), 
     unit: product.unit, 
-    itemCode: "", 
-    company: "" 
+    itemCode: product.itemCode || "", 
+    barcode: product.barcode || "",
+    company: product.company || "" 
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>(product.image || "");
@@ -427,11 +435,12 @@ function EditProductModal({
       name: product.name,
       category: product.categoryId,
       sellingPrice: product.price.toString(),
-      mrp: "",
+      mrp: product.mrp ? product.mrp.toString() : "",
       stockQuantity: product.stock.toString(),
       unit: product.unit || "pack",
-      itemCode: "",
-      company: "",
+      itemCode: product.itemCode || "",
+      barcode: product.barcode || "",
+      company: product.company || "",
     });
     setImagePreview(product.image || "");
     setImageFile(null);
@@ -508,8 +517,9 @@ function EditProductModal({
       formData.append("unit", f.unit);
       
       if (f.mrp) formData.append("mrp", f.mrp);
-      if (f.itemCode) formData.append("itemCode", f.itemCode);
-      if (f.company) formData.append("company", f.company);
+      if (f.itemCode !== undefined) formData.append("itemCode", f.itemCode.trim());
+      if (f.barcode !== undefined) formData.append("barcode", f.barcode.trim());
+      if (f.company !== undefined) formData.append("company", f.company.trim());
       if (imageFile) formData.append("image", imageFile);
 
       await api.putFormData(`/products/${product.id}`, formData);
@@ -575,6 +585,9 @@ function EditProductModal({
                 </option>
               ))}
             </select>
+          </FormField>
+          <FormField label="Barcode">
+            <TextInput placeholder="e.g. 8901234567890" value={f.barcode} onChange={set("barcode")} />
           </FormField>
           <FormField label="Item Code / SKU">
             <TextInput placeholder="e.g. TATA-001" value={f.itemCode} onChange={set("itemCode")} />
@@ -926,7 +939,7 @@ export default function Inventory() {
             <table className="w-full">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50/60">
-                  {["Product", "Category", "Price", "Stock", "Status", "Actions"].map((h) => (
+                  {["Product", "Barcode", "Category", "Price", "Stock", "Status", "Actions"].map((h) => (
                     <th key={h} className="text-left px-6 py-3.5 text-[11px] font-semibold text-gray-400 uppercase tracking-wide">
                       {h}
                     </th>
@@ -936,11 +949,11 @@ export default function Inventory() {
               <tbody className="divide-y divide-gray-50">
                 {loading ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center text-sm text-gray-400">Loading...</td>
+                    <td colSpan={7} className="px-6 py-16 text-center text-sm text-gray-400">Loading...</td>
                   </tr>
                 ) : error ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center">
+                    <td colSpan={7} className="px-6 py-16 text-center">
                       <p className="text-sm text-red-600 mb-3">{error}</p>
                       <button onClick={fetchInventoryData} className="text-sm font-semibold text-green-700 hover:text-green-800">
                         Retry
@@ -949,7 +962,7 @@ export default function Inventory() {
                   </tr>
                 ) : products.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-6 py-16 text-center text-sm text-gray-400">No products match your filters.</td>
+                    <td colSpan={7} className="px-6 py-16 text-center text-sm text-gray-400">No products match your filters.</td>
                   </tr>
                 ) : (
                   products.map((p) => (
@@ -968,6 +981,11 @@ export default function Inventory() {
                             <p className="text-xs text-gray-400 font-mono-data">{p.id}</p>
                           </div>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="font-mono-data text-xs text-gray-700 bg-gray-100 border border-gray-200 px-2.5 py-1 rounded-md">
+                          {p.barcode || "—"}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <span className="text-xs font-semibold bg-gray-100 text-gray-600 px-2.5 py-1 rounded-full">

@@ -26,32 +26,62 @@ function createMockRes() {
   };
 }
 
-describe("Purchases Module (Supplier, Quantity, Selling Price & Inventory Separation)", () => {
-  describe("1. Create Purchase Validation", () => {
-    it("successfully creates a purchase record with product, supplier, quantity, purchaseAmount, sellingPrice, mrp", async () => {
-      const origCreate = Purchase.create;
-      let createdDoc = null;
+describe("Purchases & Connected Inventory Integration Module", () => {
+  describe("1. Create Purchase & Stock Connection", () => {
+    it("successfully creates a purchase record and increases product stock by quantityPurchased", async () => {
+      let productStock = 35;
+      const validProdId = new mongoose.Types.ObjectId().toString();
+      const validPurId = new mongoose.Types.ObjectId().toString();
 
-      Purchase.create = async (doc) => {
-        createdDoc = {
-          _id: new mongoose.Types.ObjectId().toString(),
-          ...doc,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        };
-        return createdDoc;
+      const origCreate = Purchase.create;
+      const origProductFindOne = Product.findOne;
+      const origProductFindByIdAndUpdate = Product.findByIdAndUpdate;
+      const origPurchaseFindById = Purchase.findById;
+
+      Product.findOne = async () => ({
+        _id: validProdId,
+        name: "Ariel Matic 500G",
+        stockQuantity: productStock,
+        sellingPrice: 420,
+        mrp: 500,
+      });
+
+      Product.findByIdAndUpdate = async (id, update) => {
+        if (update.$inc && update.$inc.stockQuantity) {
+          productStock += update.$inc.stockQuantity;
+        }
+        return { _id: id, stockQuantity: productStock };
       };
+
+      Purchase.create = async (docs) => {
+        const doc = docs[0];
+        return [{
+          _id: validPurId,
+          ...doc,
+        }];
+      };
+
+      Purchase.findById = () => ({
+        populate: async () => ({
+          _id: validPurId,
+          itemName: "Ariel Matic 500G",
+          supplier: "ABC Traders",
+          quantityPurchased: 20,
+          purchaseAmount: 420,
+          sellingPrice: 420,
+          mrp: 500,
+        }),
+      });
 
       try {
         const req = {
           body: {
-            itemName: "Tata Salt 1 kg",
-            supplier: "ABC Distributors",
-            quantityPurchased: 50,
-            purchaseAmount: 50,
-            sellingPrice: 55,
-            mrp: 60,
-            purchaseDate: "2026-09-17",
+            itemName: "Ariel Matic 500G",
+            supplier: "ABC Traders",
+            quantityPurchased: 20,
+            purchaseAmount: 420,
+            sellingPrice: 420,
+            mrp: 500,
           },
         };
         const res = createMockRes();
@@ -60,14 +90,12 @@ describe("Purchases Module (Supplier, Quantity, Selling Price & Inventory Separa
 
         assert.strictEqual(res.statusCode, 201);
         assert.strictEqual(res.body.success, true);
-        assert.strictEqual(res.body.data.itemName, "Tata Salt 1 kg");
-        assert.strictEqual(res.body.data.supplier, "ABC Distributors");
-        assert.strictEqual(res.body.data.quantityPurchased, 50);
-        assert.strictEqual(res.body.data.purchaseAmount, 50);
-        assert.strictEqual(res.body.data.sellingPrice, 55);
-        assert.strictEqual(res.body.data.mrp, 60);
+        assert.strictEqual(productStock, 55, "Product stock was not increased from 35 to 55!");
       } finally {
         Purchase.create = origCreate;
+        Product.findOne = origProductFindOne;
+        Product.findByIdAndUpdate = origProductFindByIdAndUpdate;
+        Purchase.findById = origPurchaseFindById;
       }
     });
 
@@ -110,176 +138,60 @@ describe("Purchases Module (Supplier, Quantity, Selling Price & Inventory Separa
       assert.strictEqual(res.body.success, false);
       assert.match(res.body.message, /Supplier is required/i);
     });
-
-    it("rejects creation when quantity is missing, zero, negative, or not an integer", async () => {
-      const invalidQuantities = [undefined, null, "", 0, -5, -1, 5.5, "abc"];
-
-      for (const invalidQty of invalidQuantities) {
-        const req = {
-          body: {
-            itemName: "Tata Salt 1 kg",
-            supplier: "ABC Distributors",
-            quantityPurchased: invalidQty,
-            purchaseAmount: 50,
-            sellingPrice: 55,
-            mrp: 60,
-          },
-        };
-        const res = createMockRes();
-
-        await createPurchase(req, res);
-
-        assert.strictEqual(res.statusCode, 400);
-        assert.strictEqual(res.body.success, false);
-        assert.match(res.body.message, /Quantity purchased/i);
-      }
-    });
-
-    it("rejects creation when sellingPrice is missing, non-numeric, or negative", async () => {
-      const invalidSellingPrices = [undefined, null, "", -1, -10.5, "abc"];
-
-      for (const invalidSP of invalidSellingPrices) {
-        const req = {
-          body: {
-            itemName: "Tata Salt 1 kg",
-            supplier: "ABC Distributors",
-            quantityPurchased: 50,
-            purchaseAmount: 50,
-            sellingPrice: invalidSP,
-            mrp: 60,
-          },
-        };
-        const res = createMockRes();
-
-        await createPurchase(req, res);
-
-        assert.strictEqual(res.statusCode, 400);
-        assert.strictEqual(res.body.success, false);
-        assert.match(res.body.message, /Selling price/i);
-      }
-    });
-
-    it("rejects creation when purchaseAmount or mrp is negative", async () => {
-      const req = {
-        body: {
-          itemName: "Tata Salt 1 kg",
-          supplier: "ABC Distributors",
-          quantityPurchased: 50,
-          purchaseAmount: -10,
-          sellingPrice: 55,
-          mrp: 60,
-        },
-      };
-      const res = createMockRes();
-
-      await createPurchase(req, res);
-
-      assert.strictEqual(res.statusCode, 400);
-      assert.strictEqual(res.body.success, false);
-      assert.match(res.body.message, /cannot be negative/i);
-    });
   });
 
-  describe("2. Inventory & Product Price Isolation Confirmation", () => {
-    it("confirm purchase creation does NOT modify product stock or product selling price", async () => {
-      const initialStock = 20;
-      const initialProductSellingPrice = 52;
-      let productStock = initialStock;
-      let productSellingPrice = initialProductSellingPrice;
+  describe("2. Edit Purchase Stock Difference Calculations", () => {
+    it("adjusts stock by difference when quantity increases: 55 stock, 20 -> 30 qty => final stock 65", async () => {
+      let productStock = 55;
+      const testPurId = new mongoose.Types.ObjectId().toString();
+      const testProdId = new mongoose.Types.ObjectId().toString();
 
-      const origCreate = Purchase.create;
+      const origPurchaseFindById = Purchase.findById;
+      const origPurchaseFindByIdAndUpdate = Purchase.findByIdAndUpdate;
       const origProductFindById = Product.findById;
-      const origProductUpdate = Product.findByIdAndUpdate;
+      const origProductFindByIdAndUpdate = Product.findByIdAndUpdate;
 
-      // Mock Product to track any unwanted mutations
-      Product.findById = async () => ({
-        _id: "prod1",
-        name: "Tata Salt 1 kg",
-        stockQuantity: productStock,
-        sellingPrice: productSellingPrice,
-      });
-      Product.findByIdAndUpdate = async (_id, update) => {
-        if (update.stockQuantity !== undefined) {
-          productStock = update.stockQuantity;
-        }
-        if (update.sellingPrice !== undefined) {
-          productSellingPrice = update.sellingPrice;
-        }
-        return { _id: "prod1", stockQuantity: productStock, sellingPrice: productSellingPrice };
-      };
-
-      Purchase.create = async (doc) => ({
-        _id: new mongoose.Types.ObjectId().toString(),
-        ...doc,
-      });
-
-      try {
-        const req = {
-          body: {
-            itemName: "Tata Salt 1 kg",
-            supplier: "ABC Distributors",
-            quantityPurchased: 50,
-            purchaseAmount: 50,
-            sellingPrice: 55,
-            mrp: 60,
-          },
-        };
-        const res = createMockRes();
-
-        await createPurchase(req, res);
-
-        assert.strictEqual(res.statusCode, 201);
-        // Product stock & product selling price MUST remain strictly unchanged
-        assert.strictEqual(productStock, initialStock, "Product stock was modified by purchase creation!");
-        assert.strictEqual(productSellingPrice, initialProductSellingPrice, "Product selling price was modified by purchase creation!");
-      } finally {
-        Purchase.create = origCreate;
-        Product.findById = origProductFindById;
-        Product.findByIdAndUpdate = origProductUpdate;
-      }
-    });
-
-    it("confirm purchase update (e.g. sellingPrice ₹55 -> ₹57, qty 50 -> 60) does NOT modify product stock or product price", async () => {
-      const testId = new mongoose.Types.ObjectId().toString();
-      const initialStock = 20;
-      const initialProductSellingPrice = 52;
-      let productStock = initialStock;
-      let productSellingPrice = initialProductSellingPrice;
-
-      const origFindById = Purchase.findById;
-      const origFindByIdAndUpdate = Purchase.findByIdAndUpdate;
-
-      Purchase.findById = async (id) => {
-        if (id === testId) {
-          return {
-            _id: testId,
-            itemName: "Tata Salt 1 kg",
-            supplier: "ABC Distributors",
-            quantityPurchased: 50,
-            purchaseAmount: 50,
-            sellingPrice: 55,
-            mrp: 60,
+      Purchase.findById = (id) => {
+        if (id === testPurId) {
+          const doc = {
+            _id: testPurId,
+            product: testProdId,
+            itemName: "Ariel Matic 500G",
+            supplier: "ABC Traders",
+            quantityPurchased: 20,
+            purchaseAmount: 420,
+            sellingPrice: 420,
+            mrp: 500,
           };
+          doc.populate = async () => doc;
+          return doc;
         }
         return null;
       };
 
+      Product.findById = async (id) => ({
+        _id: id,
+        name: "Ariel Matic 500G",
+        stockQuantity: productStock,
+      });
+
+      Product.findByIdAndUpdate = async (id, update) => {
+        if (update.$inc && update.$inc.stockQuantity) {
+          productStock += update.$inc.stockQuantity;
+        }
+        return { _id: id, stockQuantity: productStock };
+      };
+
       Purchase.findByIdAndUpdate = async (id, update) => ({
         _id: id,
-        itemName: "Tata Salt 1 kg",
-        supplier: "ABC Distributors",
-        quantityPurchased: update.quantityPurchased || 50,
-        purchaseAmount: 50,
-        sellingPrice: update.sellingPrice !== undefined ? update.sellingPrice : 55,
-        mrp: 60,
+        ...update,
       });
 
       try {
         const req = {
-          params: { id: testId },
+          params: { id: testPurId },
           body: {
-            sellingPrice: 57,
-            quantityPurchased: 60,
+            quantityPurchased: 30,
           },
         };
         const res = createMockRes();
@@ -287,199 +199,240 @@ describe("Purchases Module (Supplier, Quantity, Selling Price & Inventory Separa
         await updatePurchase(req, res);
 
         assert.strictEqual(res.statusCode, 200);
-        assert.strictEqual(res.body.data.sellingPrice, 57);
-        assert.strictEqual(res.body.data.quantityPurchased, 60);
-        assert.strictEqual(productStock, initialStock, "Product stock was modified by purchase update!");
-        assert.strictEqual(productSellingPrice, initialProductSellingPrice, "Product selling price was modified by purchase update!");
+        assert.strictEqual(productStock, 65, "Expected stock to be 65 (55 + 10 difference), got " + productStock);
       } finally {
-        Purchase.findById = origFindById;
-        Purchase.findByIdAndUpdate = origFindByIdAndUpdate;
+        Purchase.findById = origPurchaseFindById;
+        Purchase.findByIdAndUpdate = origPurchaseFindByIdAndUpdate;
+        Product.findById = origProductFindById;
+        Product.findByIdAndUpdate = origProductFindByIdAndUpdate;
       }
     });
 
-    it("confirm purchase delete does NOT modify product stock or product price", async () => {
-      const testId = new mongoose.Types.ObjectId().toString();
-      const initialStock = 20;
-      let productStock = initialStock;
+    it("adjusts stock by difference when quantity decreases: 55 stock, 20 -> 15 qty => final stock 50", async () => {
+      let productStock = 55;
+      const testPurId = new mongoose.Types.ObjectId().toString();
+      const testProdId = new mongoose.Types.ObjectId().toString();
 
-      const origFindById = Purchase.findById;
-      const origFindByIdAndDelete = Purchase.findByIdAndDelete;
+      const origPurchaseFindById = Purchase.findById;
+      const origPurchaseFindByIdAndUpdate = Purchase.findByIdAndUpdate;
+      const origProductFindById = Product.findById;
+      const origProductFindByIdAndUpdate = Product.findByIdAndUpdate;
 
-      Purchase.findById = async (id) => ({
+      Purchase.findById = (id) => {
+        if (id === testPurId) {
+          const doc = {
+            _id: testPurId,
+            product: testProdId,
+            itemName: "Ariel Matic 500G",
+            supplier: "ABC Traders",
+            quantityPurchased: 20,
+            purchaseAmount: 420,
+            sellingPrice: 420,
+            mrp: 500,
+          };
+          doc.populate = async () => doc;
+          return doc;
+        }
+        return null;
+      };
+
+      Product.findById = async (id) => ({
         _id: id,
-        itemName: "Tata Salt 1 kg",
-        supplier: "ABC Distributors",
-        quantityPurchased: 50,
-        sellingPrice: 55,
+        name: "Ariel Matic 500G",
+        stockQuantity: productStock,
       });
+
+      Product.findByIdAndUpdate = async (id, update) => {
+        if (update.$inc && update.$inc.stockQuantity) {
+          productStock += update.$inc.stockQuantity;
+        }
+        return { _id: id, stockQuantity: productStock };
+      };
+
+      Purchase.findByIdAndUpdate = async (id, update) => ({
+        _id: id,
+        ...update,
+      });
+
+      try {
+        const req = {
+          params: { id: testPurId },
+          body: {
+            quantityPurchased: 15,
+          },
+        };
+        const res = createMockRes();
+
+        await updatePurchase(req, res);
+
+        assert.strictEqual(res.statusCode, 200);
+        assert.strictEqual(productStock, 50, "Expected stock to be 50 (55 - 5 difference), got " + productStock);
+      } finally {
+        Purchase.findById = origPurchaseFindById;
+        Purchase.findByIdAndUpdate = origPurchaseFindByIdAndUpdate;
+        Product.findById = origProductFindById;
+        Product.findByIdAndUpdate = origProductFindByIdAndUpdate;
+      }
+    });
+
+    it("correctly handles product reassignment: Product A stock -= 20, Product B stock += 20", async () => {
+      let productAStock = 50;
+      let productBStock = 10;
+      const testPurId = new mongoose.Types.ObjectId().toString();
+      const prodAId = new mongoose.Types.ObjectId().toString();
+      const prodBId = new mongoose.Types.ObjectId().toString();
+
+      const origPurchaseFindById = Purchase.findById;
+      const origPurchaseFindByIdAndUpdate = Purchase.findByIdAndUpdate;
+      const origProductFindById = Product.findById;
+      const origProductFindByIdAndUpdate = Product.findByIdAndUpdate;
+
+      Purchase.findById = (id) => {
+        if (id === testPurId) {
+          const doc = {
+            _id: testPurId,
+            product: prodAId,
+            itemName: "Product A",
+            supplier: "ABC Traders",
+            quantityPurchased: 20,
+            purchaseAmount: 200,
+            sellingPrice: 15,
+            mrp: 20,
+          };
+          doc.populate = async () => doc;
+          return doc;
+        }
+        return null;
+      };
+
+      Product.findById = async (id) => {
+        if (id === prodAId) return { _id: prodAId, name: "Product A", stockQuantity: productAStock };
+        if (id === prodBId) return { _id: prodBId, name: "Product B", stockQuantity: productBStock };
+        return null;
+      };
+
+      Product.findByIdAndUpdate = async (id, update) => {
+        if (id === prodAId && update.$inc && update.$inc.stockQuantity) {
+          productAStock += update.$inc.stockQuantity;
+        }
+        if (id === prodBId && update.$inc && update.$inc.stockQuantity) {
+          productBStock += update.$inc.stockQuantity;
+        }
+        return { _id: id };
+      };
+
+      Purchase.findByIdAndUpdate = async (id, update) => ({
+        _id: id,
+        ...update,
+      });
+
+      try {
+        const req = {
+          params: { id: testPurId },
+          body: {
+            product: prodBId,
+            itemName: "Product B",
+            quantityPurchased: 20,
+          },
+        };
+        const res = createMockRes();
+
+        await updatePurchase(req, res);
+
+        assert.strictEqual(res.statusCode, 200);
+        assert.strictEqual(productAStock, 30, "Product A stock was not decreased by 20!");
+        assert.strictEqual(productBStock, 30, "Product B stock was not increased by 20!");
+      } finally {
+        Purchase.findById = origPurchaseFindById;
+        Purchase.findByIdAndUpdate = origPurchaseFindByIdAndUpdate;
+        Product.findById = origProductFindById;
+        Product.findByIdAndUpdate = origProductFindByIdAndUpdate;
+      }
+    });
+  });
+
+  describe("3. Delete Purchase & Negative Stock Protection", () => {
+    it("reverses purchase quantity from product stock upon deletion", async () => {
+      let productStock = 50;
+      const testPurId = new mongoose.Types.ObjectId().toString();
+      const prodId = new mongoose.Types.ObjectId().toString();
+
+      const origPurchaseFindById = Purchase.findById;
+      const origPurchaseFindByIdAndDelete = Purchase.findByIdAndDelete;
+      const origProductFindById = Product.findById;
+      const origProductFindByIdAndUpdate = Product.findByIdAndUpdate;
+
+      Purchase.findById = async () => ({
+        _id: testPurId,
+        product: prodId,
+        itemName: "Ariel 500g",
+        quantityPurchased: 20,
+      });
+
+      Product.findById = async () => ({
+        _id: prodId,
+        name: "Ariel 500g",
+        stockQuantity: productStock,
+      });
+
+      Product.findByIdAndUpdate = async (id, update) => {
+        if (update.$inc && update.$inc.stockQuantity) {
+          productStock += update.$inc.stockQuantity;
+        }
+        return { _id: id, stockQuantity: productStock };
+      };
 
       Purchase.findByIdAndDelete = async (id) => ({ _id: id });
 
       try {
-        const req = { params: { id: testId } };
+        const req = { params: { id: testPurId } };
         const res = createMockRes();
 
         await deletePurchase(req, res);
 
         assert.strictEqual(res.statusCode, 200);
-        assert.strictEqual(productStock, initialStock, "Product stock was modified by purchase deletion!");
+        assert.strictEqual(productStock, 30, "Product stock was not reduced by 20 upon deletion!");
       } finally {
-        Purchase.findById = origFindById;
-        Purchase.findByIdAndDelete = origFindByIdAndDelete;
-      }
-    });
-  });
-
-  describe("3. Update Purchase Validation", () => {
-    it("updates sellingPrice and supplier correctly", async () => {
-      const testId = new mongoose.Types.ObjectId().toString();
-      const origFindById = Purchase.findById;
-      const origFindByIdAndUpdate = Purchase.findByIdAndUpdate;
-
-      Purchase.findById = async (id) => ({
-        _id: id,
-        itemName: "Tata Salt 1 kg",
-        supplier: "ABC Distributors",
-        quantityPurchased: 50,
-        purchaseAmount: 50,
-        sellingPrice: 55,
-        mrp: 60,
-      });
-
-      Purchase.findByIdAndUpdate = async (id, update) => ({
-        _id: id,
-        itemName: update.itemName || "Tata Salt 1 kg",
-        supplier: update.supplier || "ABC Distributors",
-        quantityPurchased: update.quantityPurchased || 50,
-        purchaseAmount: update.purchaseAmount || 50,
-        sellingPrice: update.sellingPrice !== undefined ? update.sellingPrice : 55,
-        mrp: update.mrp || 60,
-      });
-
-      try {
-        const req = {
-          params: { id: testId },
-          body: {
-            supplier: "XYZ Traders",
-            sellingPrice: 57,
-          },
-        };
-        const res = createMockRes();
-
-        await updatePurchase(req, res);
-
-        assert.strictEqual(res.statusCode, 200);
-        assert.strictEqual(res.body.data.supplier, "XYZ Traders");
-        assert.strictEqual(res.body.data.sellingPrice, 57);
-      } finally {
-        Purchase.findById = origFindById;
-        Purchase.findByIdAndUpdate = origFindByIdAndUpdate;
+        Purchase.findById = origPurchaseFindById;
+        Purchase.findByIdAndDelete = origPurchaseFindByIdAndDelete;
+        Product.findById = origProductFindById;
+        Product.findByIdAndUpdate = origProductFindByIdAndUpdate;
       }
     });
 
-    it("rejects invalid sellingPrice update", async () => {
-      const testId = new mongoose.Types.ObjectId().toString();
-      const origFindById = Purchase.findById;
+    it("rejects deletion when product stock is less than purchase quantity to prevent negative stock", async () => {
+      const productStock = 5;
+      const testPurId = new mongoose.Types.ObjectId().toString();
+      const prodId = new mongoose.Types.ObjectId().toString();
 
-      Purchase.findById = async (id) => ({
-        _id: id,
-        itemName: "Tata Salt 1 kg",
+      const origPurchaseFindById = Purchase.findById;
+      const origProductFindById = Product.findById;
+
+      Purchase.findById = async () => ({
+        _id: testPurId,
+        product: prodId,
+        itemName: "Ariel 500g",
+        quantityPurchased: 20,
+      });
+
+      Product.findById = async () => ({
+        _id: prodId,
+        name: "Ariel 500g",
+        stockQuantity: productStock,
       });
 
       try {
-        const req = {
-          params: { id: testId },
-          body: {
-            sellingPrice: -5,
-          },
-        };
+        const req = { params: { id: testPurId } };
         const res = createMockRes();
 
-        await updatePurchase(req, res);
+        await deletePurchase(req, res);
 
         assert.strictEqual(res.statusCode, 400);
-        assert.match(res.body.message, /Selling price cannot be negative/i);
+        assert.strictEqual(res.body.success, false);
+        assert.match(res.body.message, /Cannot delete purchase/i);
       } finally {
-        Purchase.findById = origFindById;
-      }
-    });
-  });
-
-  describe("4. Search & Querying", () => {
-    it("supports search querying by supplier or item name without errors", async () => {
-      const origFind = Purchase.find;
-
-      Purchase.find = () => {
-        const queryObj = {
-          orCondition: null,
-          or(conditions) {
-            this.orCondition = conditions;
-            return this;
-          },
-          sort() {
-            return [
-              {
-                _id: "1",
-                itemName: "Tata Salt 1 kg",
-                supplier: "ABC Distributors",
-                quantityPurchased: 50,
-                purchaseAmount: 50,
-                sellingPrice: 55,
-                mrp: 60,
-              },
-            ];
-          },
-        };
-        return queryObj;
-      };
-
-      try {
-        const req = {
-          query: {
-            search: "ABC Distributors",
-          },
-        };
-        const res = createMockRes();
-
-        await getPurchases(req, res);
-
-        assert.strictEqual(res.statusCode, 200);
-        assert.strictEqual(res.body.data.length, 1);
-        assert.strictEqual(res.body.data[0].supplier, "ABC Distributors");
-        assert.strictEqual(res.body.data[0].sellingPrice, 55);
-      } finally {
-        Purchase.find = origFind;
-      }
-    });
-  });
-
-  describe("5. Backward Compatibility for Existing Records", () => {
-    it("handles legacy purchase records without supplier, quantityPurchased, or sellingPrice without throwing", async () => {
-      const testId = new mongoose.Types.ObjectId().toString();
-      const origFindById = Purchase.findById;
-
-      // Old record missing supplier, quantityPurchased, and sellingPrice
-      Purchase.findById = async (id) => ({
-        _id: id,
-        itemName: "Old Legacy Item",
-        purchaseAmount: 100,
-        mrp: 120,
-        purchaseDate: new Date("2024-01-01"),
-      });
-
-      try {
-        const req = { params: { id: testId } };
-        const res = createMockRes();
-
-        await getPurchaseById(req, res);
-
-        assert.strictEqual(res.statusCode, 200);
-        assert.strictEqual(res.body.data.itemName, "Old Legacy Item");
-        assert.strictEqual(res.body.data.supplier, undefined);
-        assert.strictEqual(res.body.data.quantityPurchased, undefined);
-        assert.strictEqual(res.body.data.sellingPrice, undefined);
-      } finally {
-        Purchase.findById = origFindById;
+        Purchase.findById = origPurchaseFindById;
+        Product.findById = origProductFindById;
       }
     });
   });

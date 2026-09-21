@@ -2,6 +2,14 @@ import mongoose from "mongoose";
 
 const purchaseSchema = new mongoose.Schema(
   {
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+    },
+    barcode: {
+      type: String,
+      trim: true,
+    },
     itemName: {
       type: String,
       required: [true, "Item name is required"],

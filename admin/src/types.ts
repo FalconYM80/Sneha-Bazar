@@ -22,6 +22,7 @@ export interface UIProduct {
   status: StockStatus;
   emoji: string;
   itemCode?: string;
+  barcode?: string;
   company?: string;
   image?: string;
   imagePublicId?: string;
@@ -42,6 +43,7 @@ export interface Category {
 export interface Product {
   _id: string;
   itemCode?: string;
+  barcode?: string;
   name: string;
   company?: string;
 
@@ -65,6 +67,8 @@ export interface Product {
 
 export interface Purchase {
   _id: string;
+  product?: Product | string;
+  barcode?: string;
   itemName: string;
   supplier?: string;
   quantityPurchased?: number;
