@@ -178,46 +178,92 @@ export const createOrder = async (req, res) => {
   }
 };
 
-// Get all orders with optional filters
+// Get all orders with multi-field historical search, date range filtering, and server-side pagination
 export const getOrders = async (req, res) => {
   try {
-    const { status, search } = req.query;
+    const { status, search, startDate, fromDate, endDate, toDate, page, limit } = req.query;
 
-    // Build query
-    let query = Order.find();
+    const filter = {};
 
     // Filter by status if provided
-    if (status) {
+    if (status && status !== "all" && status !== "All") {
       const validStatuses = ["pending", "confirmed", "preparing", "ready", "completed", "cancelled"];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid status value",
-        });
+      if (validStatuses.includes(status.toLowerCase())) {
+        filter.status = status.toLowerCase();
       }
-      query = query.where("status").equals(status);
     }
 
-    // Search by orderNumber, customer name, or customer phone
-    if (search) {
-      const searchRegex = new RegExp(search, "i");
-      query = query.or([
+    // Filter by date range (createdAt timestamp)
+    const from = startDate || fromDate;
+    const to = endDate || toDate;
+
+    if (from || to) {
+      filter.createdAt = {};
+      if (from) {
+        const start = new Date(from);
+        start.setHours(0, 0, 0, 0);
+        filter.createdAt.$gte = start;
+      }
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        filter.createdAt.$lte = end;
+      }
+    }
+
+    // Multi-field historical search
+    if (search && typeof search === "string" && search.trim() !== "") {
+      const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapeRegex(search.trim()), "i");
+
+      // Check for product barcode match
+      const matchingProducts = await Product.find({
+        $or: [{ barcode: search.trim() }, { barcode: searchRegex }],
+      }).select("_id");
+      const matchingProductIds = matchingProducts.map((p) => p._id);
+
+      const orConditions = [
         { orderNumber: searchRegex },
         { customerName: searchRegex },
         { customerPhone: searchRegex },
-      ]);
+        { "items.productName": searchRegex },
+      ];
+
+      if (matchingProductIds.length > 0) {
+        orConditions.push({ "items.product": { $in: matchingProductIds } });
+      }
+
+      filter.$or = orConditions;
     }
 
-    // Get orders with product and customer populated, sorted by createdAt descending
-    const orders = await query
+    // Pagination
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 20);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Count total matching orders before pagination
+    const total = await Order.countDocuments(filter);
+    const totalPages = Math.ceil(total / limitNum) || 1;
+
+    // Get paginated orders sorted by createdAt descending
+    const orders = await Order.find(filter)
       .populate("customer", "name phone email")
-      .populate("items.product", "name itemCode company image")
-      .sort({ createdAt: -1 });
+      .populate("items.product", "name itemCode company image barcode")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNum);
 
     res.status(200).json({
       success: true,
       message: "Orders retrieved successfully",
       data: orders,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages,
+        hasMore: pageNum < totalPages,
+      },
     });
   } catch (error) {
     res.status(500).json({

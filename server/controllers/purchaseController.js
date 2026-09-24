@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import Purchase from "../models/Purchase.js";
 import Product from "../models/Product.js";
+import Category from "../models/Category.js";
 
 // Helper function to safely execute transaction or fallback
 const runTransaction = async (workFn) => {
@@ -37,10 +38,157 @@ const runTransaction = async (workFn) => {
   }
 };
 
-// Create a new purchase record and update inventory stock
+// Create a new purchase record or batch multi-item invoice purchases and update inventory stock
 export const createPurchase = async (req, res) => {
   try {
-    const { product: productIdInput, barcode, itemName, supplier, quantityPurchased, purchaseAmount, sellingPrice, mrp, purchaseDate } = req.body;
+    const { items, invoiceNumber, distributor, supplier, purchaseDate } = req.body;
+
+    // Handle batch multi-item invoice entry workflow
+    if (Array.isArray(items)) {
+      const invNum = invoiceNumber ? invoiceNumber.trim() : "";
+      const supplierName = (distributor || supplier || "").trim();
+
+      if (!invNum) {
+        return res.status(400).json({
+          success: false,
+          message: "Invoice number is required",
+        });
+      }
+
+      if (!supplierName) {
+        return res.status(400).json({
+          success: false,
+          message: "Distributor / Supplier is required",
+        });
+      }
+
+      if (items.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: "At least one product item is required for purchase invoice",
+        });
+      }
+
+      // Validate each item before transaction
+      const preparedItems = [];
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        const { product: productIdInput, barcode, itemName, quantityPurchased, quantity, purchaseAmount, sellingPrice, mrp } = item;
+        const itemQty = Number(quantityPurchased !== undefined ? quantityPurchased : quantity);
+
+        const nameStr = itemName ? String(itemName).trim() : "";
+        if (!nameStr) {
+          return res.status(400).json({
+            success: false,
+            message: `Item name is required for item #${i + 1}`,
+          });
+        }
+
+        if (isNaN(itemQty) || !Number.isInteger(itemQty) || itemQty < 1) {
+          return res.status(400).json({
+            success: false,
+            message: `Quantity for "${nameStr}" must be a positive integer (minimum 1)`,
+          });
+        }
+
+        const parsedPurchaseAmount = Number(purchaseAmount);
+        const parsedSellingPrice = Number(sellingPrice);
+        const parsedMrp = Number(mrp);
+
+        if (isNaN(parsedPurchaseAmount) || parsedPurchaseAmount < 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Purchase amount for "${nameStr}" cannot be negative`,
+          });
+        }
+
+        if (isNaN(parsedSellingPrice) || parsedSellingPrice < 0) {
+          return res.status(400).json({
+            success: false,
+            message: `Selling price for "${nameStr}" cannot be negative`,
+          });
+        }
+
+        if (isNaN(parsedMrp) || parsedMrp < 0) {
+          return res.status(400).json({
+            success: false,
+            message: `MRP for "${nameStr}" cannot be negative`,
+          });
+        }
+
+        preparedItems.push({
+          productIdInput,
+          barcode,
+          itemName: nameStr,
+          quantityPurchased: itemQty,
+          purchaseAmount: parsedPurchaseAmount,
+          sellingPrice: parsedSellingPrice,
+          mrp: parsedMrp,
+        });
+      }
+
+      // Execute batch save in transaction
+      const createdPurchases = await runTransaction(async (session) => {
+        const opts = session ? { session } : {};
+        const createdDocs = [];
+
+        for (const item of preparedItems) {
+          let targetProduct = null;
+          if (item.productIdInput && mongoose.Types.ObjectId.isValid(item.productIdInput)) {
+            targetProduct = await Product.findById(item.productIdInput).session(session || null);
+          } else if (item.barcode && typeof item.barcode === "string" && item.barcode.trim() !== "") {
+            targetProduct = await Product.findOne({ barcode: item.barcode.trim(), isActive: true }).session(session || null);
+          } else if (item.itemName) {
+            targetProduct = await Product.findOne({ name: item.itemName, isActive: true }).session(session || null);
+          }
+
+          const finalBarcode = item.barcode && typeof item.barcode === "string" && item.barcode.trim() !== ""
+            ? item.barcode.trim()
+            : (targetProduct ? targetProduct.barcode : undefined);
+
+          const purchasePayload = {
+            invoiceNumber: invNum,
+            product: targetProduct ? targetProduct._id : undefined,
+            barcode: finalBarcode,
+            itemName: item.itemName,
+            supplier: supplierName,
+            quantityPurchased: item.quantityPurchased,
+            purchaseAmount: item.purchaseAmount,
+            sellingPrice: item.sellingPrice,
+            mrp: item.mrp,
+            purchaseDate: purchaseDate || Date.now(),
+          };
+
+          const docs = await Purchase.create([purchasePayload], opts);
+          const purchaseDoc = docs[0];
+
+          if (targetProduct) {
+            await Product.findByIdAndUpdate(
+              targetProduct._id,
+              { $inc: { stockQuantity: item.quantityPurchased } },
+              { new: true, ...opts }
+            );
+          }
+
+          createdDocs.push(purchaseDoc);
+        }
+
+        return createdDocs;
+      });
+
+      const populatedPurchases = await Purchase.find({
+        _id: { $in: createdPurchases.map((doc) => doc._id) },
+      }).populate("product", "name company barcode sellingPrice mrp stockQuantity unit image");
+
+      return res.status(201).json({
+        success: true,
+        message: "Invoice purchase records created successfully",
+        data: populatedPurchases,
+      });
+    }
+
+    // Handle single item purchase workflow (compatibility)
+    const { product: productIdInput, barcode, itemName, supplier: singleSupplier, quantityPurchased, purchaseAmount, sellingPrice, mrp, purchaseDate: singlePurchaseDate } = req.body;
 
     // Validate required fields
     if (!itemName || typeof itemName !== "string" || itemName.trim() === "") {
@@ -50,7 +198,8 @@ export const createPurchase = async (req, res) => {
       });
     }
 
-    if (!supplier || typeof supplier !== "string" || supplier.trim() === "") {
+    const supplierName = (singleSupplier || distributor || supplier || "").trim();
+    if (!supplierName) {
       return res.status(400).json({
         success: false,
         message: "Supplier is required",
@@ -135,15 +284,16 @@ export const createPurchase = async (req, res) => {
       : (targetProduct ? targetProduct.barcode : undefined);
 
     const purchasePayload = {
+      invoiceNumber: invoiceNumber ? invoiceNumber.trim() : undefined,
       product: targetProduct ? targetProduct._id : undefined,
       barcode: finalBarcode,
       itemName: itemName.trim(),
-      supplier: supplier.trim(),
+      supplier: supplierName,
       quantityPurchased: qty,
       purchaseAmount: parsedPurchaseAmount,
       sellingPrice: parsedSellingPrice,
       mrp: parsedMrp,
-      purchaseDate: purchaseDate || Date.now(),
+      purchaseDate: singlePurchaseDate || Date.now(),
     };
 
     const createdPurchase = await runTransaction(async (session) => {
@@ -180,28 +330,135 @@ export const createPurchase = async (req, res) => {
   }
 };
 
-// Get all purchase records with optional search across item name, supplier, and barcode
+// Get filter options (suppliers and active categories) for admin purchases page
+export const getPurchaseFilterOptions = async (req, res) => {
+  try {
+    const suppliers = await Purchase.distinct("supplier");
+    const validSuppliers = suppliers
+      .filter((s) => s && typeof s === "string" && s.trim() !== "")
+      .sort((a, b) => a.localeCompare(b));
+
+    const categories = await Category.find({ isActive: true }).select("_id name").sort({ name: 1 });
+
+    res.status(200).json({
+      success: true,
+      message: "Filter options retrieved successfully",
+      data: {
+        suppliers: validSuppliers,
+        categories,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error retrieving filter options",
+    });
+  }
+};
+
+// Get all purchase records with server-side filters and invoice group integrity
 export const getPurchases = async (req, res) => {
   try {
-    const { search } = req.query;
+    const { search, supplier, distributor, startDate, fromDate, endDate, toDate, category, product } = req.query;
 
-    // Build query
-    let query = Purchase.find();
+    const filter = {};
+    const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-    // If search is provided, filter by itemName, supplier, or barcode
-    if (search && search.trim() !== "") {
-      const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    // Supplier / Distributor filter
+    const supp = (supplier || distributor || "").trim();
+    if (supp && supp !== "all" && supp !== "All") {
+      filter.supplier = new RegExp("^" + escapeRegex(supp) + "$", "i");
+    }
+
+    // Purchase Date Range filter (uses persisted purchaseDate)
+    const from = startDate || fromDate;
+    const to = endDate || toDate;
+
+    if (from || to) {
+      filter.purchaseDate = {};
+      if (from) {
+        const start = new Date(from);
+        start.setHours(0, 0, 0, 0);
+        filter.purchaseDate.$gte = start;
+      }
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        filter.purchaseDate.$lte = end;
+      }
+    }
+
+    // Category filter
+    if (category && category.trim() !== "" && category !== "all" && category !== "All") {
+      let catProductIds = [];
+      if (mongoose.Types.ObjectId.isValid(category.trim())) {
+        const prods = await Product.find({ category: category.trim() }).select("_id");
+        catProductIds = prods.map((p) => p._id);
+      } else {
+        const catDoc = await Category.findOne({ name: new RegExp("^" + escapeRegex(category.trim()) + "$", "i") });
+        if (catDoc) {
+          const prods = await Product.find({ category: catDoc._id }).select("_id");
+          catProductIds = prods.map((p) => p._id);
+        }
+      }
+      if (catProductIds.length > 0) {
+        filter.product = { $in: catProductIds };
+      } else {
+        filter._id = null; // No matching products found for this category
+      }
+    }
+
+    // Specific product filter
+    if (product && product.trim() !== "" && product !== "all" && product !== "All") {
+      if (mongoose.Types.ObjectId.isValid(product.trim())) {
+        filter.product = product.trim();
+      }
+    }
+
+    // Search filter across invoiceNumber, itemName, supplier, barcode, or product name
+    if (search && typeof search === "string" && search.trim() !== "") {
       const searchRegex = new RegExp(escapeRegex(search.trim()), "i");
-      query = query.or([
+
+      const matchingProducts = await Product.find({
+        $or: [{ barcode: search.trim() }, { barcode: searchRegex }, { name: searchRegex }],
+      }).select("_id");
+      const matchingProductIds = matchingProducts.map((p) => p._id);
+
+      const searchConditions = [
+        { invoiceNumber: searchRegex },
         { itemName: searchRegex },
         { supplier: searchRegex },
         { barcode: searchRegex },
-      ]);
+      ];
+
+      if (matchingProductIds.length > 0) {
+        searchConditions.push({ product: { $in: matchingProductIds } });
+      }
+
+      filter.$or = searchConditions;
     }
 
-    // Get purchases sorted by purchaseDate descending
-    const purchases = await query
-      .populate("product", "name company barcode sellingPrice mrp stockQuantity unit image")
+    // Invoice Grouping Integrity (Requirement #10):
+    // Find matching invoiceNumbers so full invoice groups are preserved intact
+    const isFiltered = Object.keys(filter).length > 0;
+    let finalQueryFilter = filter;
+
+    if (isFiltered) {
+      const matchingInvoiceNumbers = await Purchase.distinct("invoiceNumber", filter);
+      const validInvoiceNumbers = matchingInvoiceNumbers.filter((n) => n && typeof n === "string" && n.trim() !== "");
+
+      if (validInvoiceNumbers.length > 0) {
+        finalQueryFilter = {
+          $or: [
+            { invoiceNumber: { $in: validInvoiceNumbers } },
+            filter,
+          ],
+        };
+      }
+    }
+
+    const purchases = await Purchase.find(finalQueryFilter)
+      .populate("product", "name company barcode sellingPrice mrp stockQuantity unit image category")
       .sort({ purchaseDate: -1 });
 
     res.status(200).json({
@@ -259,7 +516,8 @@ export const getPurchaseById = async (req, res) => {
 export const updatePurchase = async (req, res) => {
   try {
     const { id } = req.params;
-    const { product: productIdInput, barcode, itemName, supplier, quantityPurchased, purchaseAmount, sellingPrice, mrp, purchaseDate } = req.body;
+    const { invoiceNumber, distributor, product: productIdInput, barcode, itemName, supplier, quantityPurchased, purchaseAmount, sellingPrice, mrp, purchaseDate } = req.body;
+    const suppName = supplier !== undefined ? supplier : distributor;
 
     // Check if ID is valid MongoDB ObjectId
     if (!mongoose.Types.ObjectId.isValid(id)) {
@@ -287,7 +545,7 @@ export const updatePurchase = async (req, res) => {
     }
 
     // Validate supplier if provided
-    if (supplier !== undefined && (typeof supplier !== "string" || supplier.trim() === "")) {
+    if (suppName !== undefined && (typeof suppName !== "string" || suppName.trim() === "")) {
       return res.status(400).json({
         success: false,
         message: "Supplier cannot be empty",
@@ -384,10 +642,11 @@ export const updatePurchase = async (req, res) => {
       : (newTargetProduct ? newTargetProduct.barcode : purchase.barcode);
 
     const updatePayload = {
+      ...(invoiceNumber !== undefined && { invoiceNumber: invoiceNumber.trim() }),
       ...(newTargetProduct && { product: newTargetProduct._id }),
       ...(finalBarcode && { barcode: finalBarcode }),
       ...(itemName !== undefined && { itemName: itemName.trim() }),
-      ...(supplier !== undefined && { supplier: supplier.trim() }),
+      ...(suppName !== undefined && { supplier: suppName.trim() }),
       ...(qty !== undefined && { quantityPurchased: qty }),
       ...(purchaseAmount !== undefined && { purchaseAmount: Number(purchaseAmount) }),
       ...(sellingPrice !== undefined && { sellingPrice: Number(sellingPrice) }),

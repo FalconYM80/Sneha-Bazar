@@ -203,6 +203,14 @@ export function IconInfo({ size = 15 }: { size?: number }) {
   );
 }
 
+export function IconBarcode({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={`${base} ${cap}`}>
+      <path d="M3 5v14M7 5v14M11 5v14M15 5v14M19 5v14M21 5v14M5 5v14M13 5v14M17 5v14" />
+    </svg>
+  );
+}
+
 // ── Shared components ────────────────────────────────────────────────────────
 
 const ORDER_STATUS_STYLES: Record<"Pending" | "Preparing" | "Ready for Pickup" | "Picked Up" | "Cancelled", { pill: string; dot: string }> = {

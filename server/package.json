@@ -13,7 +13,7 @@
     "prices:update": "node scripts/updateProductPrices.js",
     "prices:zero-rate:dry-run": "node scripts/updateProductPrices.js --zero-rate --dry-run",
     "prices:zero-rate:update": "node scripts/updateProductPrices.js --zero-rate",
-    "test": "node --test tests/phoneUtils.test.js tests/customerAuth.test.js tests/pickupTime.test.js tests/purchases.test.js"
+    "test": "node --test tests/phoneUtils.test.js tests/customerAuth.test.js tests/pickupTime.test.js tests/purchases.test.js tests/ordersHistoricalSearch.test.js"
   },
   "keywords": [],
   "author": "",

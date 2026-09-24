@@ -138,6 +138,70 @@ describe("Purchases & Connected Inventory Integration Module", () => {
       assert.strictEqual(res.body.success, false);
       assert.match(res.body.message, /Supplier is required/i);
     });
+
+    it("successfully creates multi-item invoice and increases stock for all items", async () => {
+      let productAStock = 10;
+      let productBStock = 5;
+      const prodAId = new mongoose.Types.ObjectId().toString();
+      const prodBId = new mongoose.Types.ObjectId().toString();
+
+      const origCreate = Purchase.create;
+      const origProductFindById = Product.findById;
+      const origProductFindByIdAndUpdate = Product.findByIdAndUpdate;
+      const origPurchaseFind = Purchase.find;
+
+      Product.findById = (id) => ({
+        session: () => ({
+          _id: id,
+          name: id === prodAId ? "Ariel 500g" : "Surf 1kg",
+          barcode: id === prodAId ? "89011" : "89022",
+        }),
+      });
+
+      Product.findByIdAndUpdate = async (id, update) => {
+        if (id === prodAId) productAStock += update.$inc.stockQuantity;
+        if (id === prodBId) productBStock += update.$inc.stockQuantity;
+        return { _id: id };
+      };
+
+      Purchase.create = async (docs) => {
+        return docs.map((doc) => ({ _id: new mongoose.Types.ObjectId().toString(), ...doc }));
+      };
+
+      Purchase.find = () => ({
+        populate: async () => [
+          { invoiceNumber: "INV-4582", supplier: "ABC Traders", itemName: "Ariel 500g", quantityPurchased: 10 },
+          { invoiceNumber: "INV-4582", supplier: "ABC Traders", itemName: "Surf 1kg", quantityPurchased: 5 },
+        ],
+      });
+
+      try {
+        const req = {
+          body: {
+            invoiceNumber: "INV-4582",
+            distributor: "ABC Traders",
+            purchaseDate: "2026-09-24",
+            items: [
+              { product: prodAId, itemName: "Ariel 500g", barcode: "89011", quantityPurchased: 10, purchaseAmount: 120, sellingPrice: 167, mrp: 209 },
+              { product: prodBId, itemName: "Surf 1kg", barcode: "89022", quantityPurchased: 5, purchaseAmount: 390, sellingPrice: 450, mrp: 470 },
+            ],
+          },
+        };
+        const res = createMockRes();
+
+        await createPurchase(req, res);
+
+        assert.strictEqual(res.statusCode, 201);
+        assert.strictEqual(res.body.success, true);
+        assert.strictEqual(productAStock, 20, "Product A stock was not increased by 10");
+        assert.strictEqual(productBStock, 10, "Product B stock was not increased by 5");
+      } finally {
+        Purchase.create = origCreate;
+        Product.findById = origProductFindById;
+        Product.findByIdAndUpdate = origProductFindByIdAndUpdate;
+        Purchase.find = origPurchaseFind;
+      }
+    });
   });
 
   describe("2. Edit Purchase Stock Difference Calculations", () => {

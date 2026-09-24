@@ -67,6 +67,7 @@ export interface Product {
 
 export interface Purchase {
   _id: string;
+  invoiceNumber?: string;
   product?: Product | string;
   barcode?: string;
   itemName: string;
@@ -129,9 +130,11 @@ export interface UIOrder {
     qty: number;
     price: number;
   }>;
-  orderTime: string;
-  pickupTime: string;
+  orderDate: string;   // e.g. "24 Sep 2026"
+  orderTime: string;   // e.g. "02:05 PM"
+  pickupTime: string;  // e.g. "02:20 PM"
   status: "Pending" | "Preparing" | "Ready for Pickup" | "Picked Up" | "Cancelled";
+  createdAt: string;
 }
 
 // Backend order status to UI status mapping
@@ -173,6 +176,15 @@ const formatTime = (dateString: string): string => {
   }
 };
 
+export const formatDate = (dateString: string): string => {
+  try {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  } catch {
+    return dateString;
+  }
+};
+
 // Map backend Order to UIOrder
 export const mapOrder = (order: Order): UIOrder => {
   return {
@@ -185,9 +197,11 @@ export const mapOrder = (order: Order): UIOrder => {
       qty: item.quantity,
       price: item.price,
     })),
+    orderDate: formatDate(order.createdAt),
     orderTime: formatTime(order.createdAt),
     pickupTime: formatTime(order.estimatedPickupTime),
     status: mapOrderStatus(order.status),
+    createdAt: order.createdAt,
   };
 };
 

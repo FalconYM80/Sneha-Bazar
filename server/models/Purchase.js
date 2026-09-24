@@ -2,6 +2,10 @@ import mongoose from "mongoose";
 
 const purchaseSchema = new mongoose.Schema(
   {
+    invoiceNumber: {
+      type: String,
+      trim: true,
+    },
     product: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Product",
@@ -52,6 +56,14 @@ const purchaseSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+// Indexes for fast server-side filtering, search, and invoice grouping
+purchaseSchema.index({ invoiceNumber: 1 });
+purchaseSchema.index({ supplier: 1 });
+purchaseSchema.index({ purchaseDate: -1 });
+purchaseSchema.index({ product: 1 });
+purchaseSchema.index({ barcode: 1 });
+purchaseSchema.index({ itemName: 1 });
 
 const Purchase = mongoose.model("Purchase", purchaseSchema);
 
