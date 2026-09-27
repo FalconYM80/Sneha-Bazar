@@ -6,15 +6,17 @@ import Dashboard from "./pages/Dashboard";
 import Inventory from "./pages/Inventory";
 import Orders from "./pages/Orders";
 import Purchases from "./pages/Purchases";
+import PurchaseEntryWorkspace from "./pages/PurchaseEntryWorkspace";
 import { FormField, TextInput, Btn } from "./components/ui";
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from "./settings";
 
 const META: Record<Page, { title: string; subtitle: string }> = {
-  dashboard:  { title: "Dashboard",   subtitle: "Overview of your store today" },
-  inventory:  { title: "Inventory",   subtitle: "Manage products and stock levels" },
-  orders:     { title: "Orders",      subtitle: "Manage customer pickup orders" },
-  purchases:  { title: "Purchases",   subtitle: "Track purchases and supplier expenses" },
-  settings:   { title: "Settings",    subtitle: "Configure your store" },
+  dashboard:       { title: "Dashboard",        subtitle: "Overview of your store today" },
+  inventory:       { title: "Inventory",        subtitle: "Manage products and stock levels" },
+  orders:          { title: "Orders",           subtitle: "Manage customer pickup orders" },
+  purchases:       { title: "Purchases",        subtitle: "Track purchases and supplier expenses" },
+  "purchases/new": { title: "Add Purchase",     subtitle: "Multi-item invoice entry & scanner workspace" },
+  settings:        { title: "Settings",         subtitle: "Configure your store" },
 };
 
 function SettingsPage() {
@@ -164,11 +166,12 @@ export default function App() {
           subtitle={META[page].subtitle}
           onToggle={handleToggle}
         />
-        {page === "dashboard"  && <Dashboard onNavigate={setPage} />}
-        {page === "inventory"  && <Inventory />}
-        {page === "orders"     && <Orders />}
-        {page === "purchases"  && <Purchases />}
-        {page === "settings"   && <SettingsPage />}
+        {page === "dashboard"       && <Dashboard onNavigate={setPage} />}
+        {page === "inventory"       && <Inventory />}
+        {page === "orders"          && <Orders />}
+        {page === "purchases"       && <Purchases onNavigate={setPage} />}
+        {page === "purchases/new"   && <PurchaseEntryWorkspace onBack={() => setPage("purchases")} onSaved={() => setPage("purchases")} />}
+        {page === "settings"        && <SettingsPage />}
       </div>
     </div>
   );

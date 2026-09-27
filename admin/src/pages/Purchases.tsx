@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { api } from "../services/api";
-import type { Purchase, Product, Category } from "../types";
+import type { Purchase, Product, Category, Page } from "../types";
+import ProductTransactionHistory from "../components/ProductTransactionHistory";
 import {
   ModalBackdrop, ModalCard, FormField, TextInput,
-  Btn, SearchInput, IconPlus, IconX, IconTrash, IconEdit, IconCalendar, IconBarcode, IconChevronRight,
+  Btn, SearchInput, IconPlus, IconX, IconTrash, IconEdit, IconCalendar, IconBarcode, IconChevronRight, IconHistory,
 } from "../components/ui";
 
 const INR = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
@@ -889,7 +890,7 @@ interface GroupedInvoice {
   totalAmount: number;
 }
 
-export default function Purchases() {
+export default function Purchases({ onNavigate }: { onNavigate?: (page: Page) => void }) {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<string[]>([]);
@@ -908,6 +909,7 @@ export default function Purchases() {
 
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Purchase | null>(null);
+  const [viewTransactionsProductId, setViewTransactionsProductId] = useState<string | null>(null);
 
   // Accordion view state
   const [expandedInvoices, setExpandedInvoices] = useState<Record<string, boolean>>({});
@@ -1102,6 +1104,12 @@ export default function Purchases() {
               allProducts={allProducts}
             />
           )}
+          {viewTransactionsProductId && (
+            <ProductTransactionHistory
+              productId={viewTransactionsProductId}
+              onClose={() => setViewTransactionsProductId(null)}
+            />
+          )}
         </>
       )}
 
@@ -1115,7 +1123,7 @@ export default function Purchases() {
               Multi-item invoice entry, server-side filtering & automated stock management
             </p>
           </div>
-          <Btn variant="primary" onClick={() => setAdding(true)} className="self-start sm:self-auto shadow-sm">
+          <Btn variant="primary" onClick={() => onNavigate ? onNavigate("purchases/new") : setAdding(true)} className="self-start sm:self-auto shadow-sm">
             <IconPlus size={15} /> Add Purchase
           </Btn>
         </div>

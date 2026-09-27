@@ -3,8 +3,9 @@ import { api } from "../services/api";
 import type { UIProduct, StockStatus } from "../types";
 import {
   StockStatusBadge, ModalBackdrop, ModalCard, FormField, TextInput,
-  Btn, SearchInput, IconPlus, IconMinus, IconX, IconTrash, IconEdit,
+  Btn, SearchInput, IconPlus, IconMinus, IconX, IconTrash, IconEdit, IconHistory,
 } from "../components/ui";
+import ProductTransactionHistory from "../components/ProductTransactionHistory";
 import { getStockStatus, loadSettings } from "../settings";
 
 const INR = (n: number) => "₹" + n.toLocaleString("en-IN");
@@ -665,6 +666,7 @@ export default function Inventory() {
   const [updating, setUpdating] = useState<UIProduct | null>(null);
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<UIProduct | null>(null);
+  const [viewTransactionsProductId, setViewTransactionsProductId] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(25);
   const [pagination, setPagination] = useState({
@@ -772,6 +774,12 @@ export default function Inventory() {
       {updating && <UpdateStockModal product={updating} onClose={() => setUpdating(null)} onSave={handleSaveStock} />}
       {adding && <AddProductModal onClose={() => setAdding(false)} categories={categories} onSuccess={fetchInventoryData} />}
       {editing && <EditProductModal onClose={() => setEditing(null)} product={editing} categories={categories} onSuccess={fetchInventoryData} />}
+      {viewTransactionsProductId && (
+        <ProductTransactionHistory
+          productId={viewTransactionsProductId}
+          onClose={() => setViewTransactionsProductId(null)}
+        />
+      )}
 
       <div className="max-w-[1400px] mx-auto px-4 py-5 sm:px-6 sm:py-7 space-y-4 sm:space-y-5">
 
@@ -915,6 +923,14 @@ export default function Inventory() {
                       Update Stock
                     </button>
                     <button
+                      onClick={() => setViewTransactionsProductId(p.id)}
+                      aria-label="View Transactions"
+                      title="View Transactions"
+                      className="w-10 h-10 rounded-xl text-gray-600 hover:text-green-700 hover:bg-green-50 border border-gray-200 flex items-center justify-center transition-colors"
+                    >
+                      <IconHistory size={16} />
+                    </button>
+                    <button
                       onClick={() => setEditing(p)}
                       aria-label="Edit product"
                       className="w-10 h-10 rounded-xl text-gray-500 hover:text-blue-600 hover:bg-blue-50 border border-gray-200 flex items-center justify-center transition-colors"
@@ -1023,13 +1039,22 @@ export default function Inventory() {
                             Update Stock
                           </button>
                           <button 
+                            onClick={() => setViewTransactionsProductId(p.id)}
+                            title="View Transactions"
+                            className="p-2 rounded-lg text-gray-400 hover:text-green-700 hover:bg-green-50 transition-colors"
+                          >
+                            <IconHistory size={14} />
+                          </button>
+                          <button 
                             onClick={() => setEditing(p)}
+                            title="Edit product"
                             className="p-2 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
                           >
                             <IconEdit size={14} />
                           </button>
                           <button 
                             onClick={() => handleDelete(p)}
+                            title="Delete product"
                             className="p-2 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
                           >
                             <IconTrash size={14} />

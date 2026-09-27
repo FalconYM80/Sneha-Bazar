@@ -8,6 +8,7 @@ import {
   deleteProduct,
   getLowStockProducts,
   getProductByBarcode,
+  getProductTransactions,
 } from "../controllers/productController.js";
 
 const router = express.Router();
@@ -23,6 +24,9 @@ router.get("/barcode/:barcode", getProductByBarcode);
 
 // Get all active products with optional filters
 router.get("/", getProducts);
+
+// Get product transaction history (must come before /:id)
+router.get("/:id/transactions", getProductTransactions);
 
 // Get a single product by ID
 router.get("/:id", getProductById);

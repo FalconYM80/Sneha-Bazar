@@ -69,7 +69,7 @@ export default function Sidebar({
         <nav className="flex-1 overflow-y-auto py-3 px-3 space-y-1">
           <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pb-1 pt-1">Main Menu</p>
           {NAV.map(({ id, label, Icon }) => {
-            const active = activePage === id;
+            const active = activePage === id || (id === "purchases" && activePage === "purchases/new");
             return (
               <button
                 key={id}
@@ -125,7 +125,7 @@ export default function Sidebar({
             <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider px-3 pb-1 pt-1">Main Menu</p>
           )}
           {NAV.map(({ id, label, Icon }) => {
-            const active = activePage === id;
+            const active = activePage === id || (id === "purchases" && activePage === "purchases/new");
             return (
               <button
                 key={id}

@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import Product from "../models/Product.js";
 import Category from "../models/Category.js";
+import Purchase from "../models/Purchase.js";
+import Order from "../models/Order.js";
 import { uploadToCloudinary, deleteFromCloudinary, isCloudinaryUrl, extractPublicIdFromUrl } from "../config/cloudinaryConfig.js";
 
 // Create a new product
@@ -654,3 +656,211 @@ export const deleteProduct = async (req, res) => {
     });
   }
 };
+
+// Get transaction history (inbound supplier purchases & outbound customer orders) for a specific product
+export const getProductTransactions = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { type, search, fromDate, startDate, toDate, endDate, page = 1, limit = 25 } = req.query;
+
+    // Check if ID is valid MongoDB ObjectId
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
+
+    const product = await Product.findById(id).populate("category", "name description image");
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    const productIdStr = product._id.toString();
+    const escapeRegex = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+    // Build Purchase query filter
+    const purchaseFilter = { product: product._id };
+
+    const from = startDate || fromDate;
+    const to = endDate || toDate;
+
+    if (from || to) {
+      purchaseFilter.purchaseDate = {};
+      if (from) {
+        const start = new Date(from);
+        start.setHours(0, 0, 0, 0);
+        purchaseFilter.purchaseDate.$gte = start;
+      }
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        purchaseFilter.purchaseDate.$lte = end;
+      }
+    }
+
+    if (search && typeof search === "string" && search.trim() !== "") {
+      const searchRegex = new RegExp(escapeRegex(search.trim()), "i");
+      purchaseFilter.$or = [
+        { invoiceNumber: searchRegex },
+        { supplier: searchRegex },
+        { itemName: searchRegex },
+        { barcode: searchRegex },
+      ];
+    }
+
+    // Build Order query filter (items containing this product, excluding cancelled orders)
+    const orderFilter = {
+      "items.product": product._id,
+      status: { $ne: "cancelled" },
+    };
+
+    if (from || to) {
+      orderFilter.createdAt = {};
+      if (from) {
+        const start = new Date(from);
+        start.setHours(0, 0, 0, 0);
+        orderFilter.createdAt.$gte = start;
+      }
+      if (to) {
+        const end = new Date(to);
+        end.setHours(23, 59, 59, 999);
+        orderFilter.createdAt.$lte = end;
+      }
+    }
+
+    if (search && typeof search === "string" && search.trim() !== "") {
+      const searchRegex = new RegExp(escapeRegex(search.trim()), "i");
+      orderFilter.$or = [
+        { orderNumber: searchRegex },
+        { customerName: searchRegex },
+        { customerPhone: searchRegex },
+        { "items.productName": searchRegex },
+      ];
+    }
+
+    const typeUpper = (type || "").toUpperCase().trim();
+
+    let purchaseDocs = [];
+    if (typeUpper !== "ORDER" && typeUpper !== "ORDERS" && typeUpper !== "OUT") {
+      purchaseDocs = await Purchase.find(purchaseFilter).sort({ purchaseDate: -1, createdAt: -1 });
+    }
+
+    let orderDocs = [];
+    if (typeUpper !== "PURCHASE" && typeUpper !== "PURCHASES" && typeUpper !== "IN") {
+      orderDocs = await Order.find(orderFilter).populate("customer", "name phone email").sort({ createdAt: -1 });
+    }
+
+    // Map Purchase docs to unified transaction structure
+    const purchaseTxList = purchaseDocs.map((p) => {
+      const qty = p.quantityPurchased || 1;
+      const unitPrice = p.purchaseAmount || 0;
+      const totalAmount = unitPrice * qty;
+      return {
+        _id: p._id.toString(),
+        type: "PURCHASE",
+        date: p.purchaseDate || p.createdAt,
+        reference: p.invoiceNumber && p.invoiceNumber.trim() ? p.invoiceNumber.trim() : "Single Entry",
+        party: p.supplier && p.supplier.trim() ? p.supplier.trim() : "Supplier Not Specified",
+        quantity: qty,
+        unitPrice,
+        totalAmount,
+        sellingPrice: p.sellingPrice,
+        mrp: p.mrp,
+        barcode: p.barcode,
+        itemName: p.itemName,
+      };
+    });
+
+    // Map Order docs to unified transaction structure
+    const orderTxList = orderDocs.map((o) => {
+      const matchedItem = (o.items || []).find(
+        (item) => item.product && item.product.toString() === productIdStr
+      );
+      const qty = matchedItem ? matchedItem.quantity : 0;
+      const unitPrice = matchedItem ? matchedItem.price : 0;
+      const totalAmount = matchedItem ? matchedItem.subtotal : unitPrice * qty;
+
+      return {
+        _id: `${o._id.toString()}_${productIdStr}`,
+        type: "ORDER",
+        date: o.createdAt,
+        reference: o.orderNumber ? o.orderNumber.trim() : "—",
+        party: o.customerName ? o.customerName.trim() : "Customer",
+        customerPhone: o.customerPhone,
+        status: o.status,
+        quantity: -qty,
+        unitPrice,
+        totalAmount,
+        itemName: matchedItem ? matchedItem.productName : product.name,
+      };
+    });
+
+    // Combine all transactions
+    let allTransactions = [...purchaseTxList, ...orderTxList];
+
+    // Sort all transactions chronologically descending (newest first)
+    allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+    // Calculate running stock balance starting backward from current product stock quantity
+    let currentStock = product.stockQuantity;
+    for (let i = 0; i < allTransactions.length; i++) {
+      const tx = allTransactions[i];
+      tx.runningBalance = currentStock;
+      // Subtract this transaction's net quantity change to determine the stock before this transaction
+      currentStock = currentStock - tx.quantity;
+    }
+
+    // Pagination
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.max(1, parseInt(limit, 10) || 25);
+    const total = allTransactions.length;
+    const totalPages = Math.ceil(total / limitNum) || 1;
+    const skip = (pageNum - 1) * limitNum;
+
+    const paginatedTransactions = allTransactions.slice(skip, skip + limitNum);
+
+    res.status(200).json({
+      success: true,
+      message: "Product transaction history retrieved successfully",
+      data: {
+        product: {
+          _id: product._id,
+          name: product.name,
+          company: product.company,
+          barcode: product.barcode,
+          itemCode: product.itemCode,
+          stockQuantity: product.stockQuantity,
+          unit: product.unit || "pack",
+          sellingPrice: product.sellingPrice,
+          mrp: product.mrp,
+          category: product.category,
+          image: product.image,
+        },
+        transactions: paginatedTransactions,
+        summary: {
+          totalTransactions: total,
+          totalPurchases: purchaseTxList.length,
+          totalOrders: orderTxList.length,
+          currentStock: product.stockQuantity,
+        },
+      },
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages,
+        hasMore: pageNum < totalPages,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error retrieving product transaction history",
+    });
+  }
+};
+

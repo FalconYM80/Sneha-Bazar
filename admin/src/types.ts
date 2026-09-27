@@ -3,9 +3,51 @@ export type Page =
   | "inventory"
   | "orders"
   | "purchases"
+  | "purchases/new"
   | "settings";
 
 export type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
+
+export interface ProductTransaction {
+  _id: string;
+  type: "PURCHASE" | "ORDER";
+  date: string;
+  reference: string;
+  party: string;
+  quantity: number; // positive for PURCHASE, negative for ORDER
+  unitPrice: number;
+  totalAmount: number;
+  runningBalance?: number;
+  sellingPrice?: number;
+  mrp?: number;
+  barcode?: string;
+  itemName?: string;
+  customerPhone?: string;
+  status?: string;
+}
+
+export interface ProductTransactionResponse {
+  product: {
+    _id: string;
+    name: string;
+    company?: string;
+    barcode?: string;
+    itemCode?: string;
+    stockQuantity: number;
+    unit?: string;
+    sellingPrice: number;
+    mrp?: number;
+    category?: any;
+    image?: string;
+  };
+  transactions: ProductTransaction[];
+  summary: {
+    totalTransactions: number;
+    totalPurchases: number;
+    totalOrders: number;
+    currentStock: number;
+  };
+}
 
 // ==================== UI TYPES ====================
 

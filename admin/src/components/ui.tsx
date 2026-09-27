@@ -211,6 +211,43 @@ export function IconBarcode({ size = 16 }: { size?: number }) {
   );
 }
 
+export function IconArrowDownRight({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={`${base} ${cap}`}>
+      <line x1="7" y1="7" x2="17" y2="17" />
+      <polyline points="17 7 17 17 7 17" />
+    </svg>
+  );
+}
+
+export function IconArrowUpRight({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={`${base} ${cap}`}>
+      <line x1="7" y1="17" x2="17" y2="7" />
+      <polyline points="7 7 17 7 17 17" />
+    </svg>
+  );
+}
+
+export function IconArrowLeft({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={`${base} ${cap}`}>
+      <line x1="19" y1="12" x2="5" y2="12" />
+      <polyline points="12 19 5 12 12 5" />
+    </svg>
+  );
+}
+
+export function IconHistory({ size = 16 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" className={`${base} ${cap}`}>
+      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+      <path d="M3 3v5h5" />
+      <polyline points="12 7 12 12 15 15" />
+    </svg>
+  );
+}
+
 // ── Shared components ────────────────────────────────────────────────────────
 
 const ORDER_STATUS_STYLES: Record<"Pending" | "Preparing" | "Ready for Pickup" | "Picked Up" | "Cancelled", { pill: string; dot: string }> = {
