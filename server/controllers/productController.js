@@ -53,21 +53,24 @@ export const createProduct = async (req, res) => {
       });
     }
 
-    if (sellingPrice === undefined || sellingPrice === null) {
+    if (sellingPrice === undefined || sellingPrice === null || sellingPrice === "") {
       return res.status(400).json({
         success: false,
         message: "Selling price is required",
       });
     }
 
-    if (sellingPrice < 0) {
+    const sellingPriceNum = Number(sellingPrice);
+    const mrpNum = (mrp !== undefined && mrp !== null && mrp !== "") ? Number(mrp) : undefined;
+
+    if (isNaN(sellingPriceNum) || sellingPriceNum < 0) {
       return res.status(400).json({
         success: false,
         message: "Selling price cannot be negative",
       });
     }
 
-    if (sellingPrice === 0) {
+    if (sellingPriceNum === 0) {
       return res.status(400).json({
         success: false,
         message: "Selling price must be greater than 0",
@@ -75,7 +78,7 @@ export const createProduct = async (req, res) => {
     }
 
     // Validate MRP if provided
-    if (mrp !== undefined && mrp < 0) {
+    if (mrpNum !== undefined && (isNaN(mrpNum) || mrpNum < 0)) {
       return res.status(400).json({
         success: false,
         message: "MRP cannot be negative",
@@ -83,7 +86,12 @@ export const createProduct = async (req, res) => {
     }
 
     // Validate that selling price is not greater than MRP when MRP is provided
-    if (mrp !== undefined && sellingPrice > mrp) {
+    if (
+      mrpNum !== undefined &&
+      Number.isFinite(sellingPriceNum) &&
+      Number.isFinite(mrpNum) &&
+      sellingPriceNum > mrpNum
+    ) {
       return res.status(400).json({
         success: false,
         message: "Selling price cannot be greater than MRP",
@@ -145,9 +153,9 @@ export const createProduct = async (req, res) => {
       name: name.trim(),
       company: company?.trim(),
       category,
-      sellingPrice,
-      mrp,
-      stockQuantity: stockQuantity || 0,
+      sellingPrice: sellingPriceNum,
+      mrp: mrpNum,
+      stockQuantity: stockQuantity ? Number(stockQuantity) : 0,
       unit: unit?.trim(),
       image: imageUrl,
       imagePublicId,
@@ -507,15 +515,19 @@ export const updateProduct = async (req, res) => {
       }
     }
 
+    // Normalize selling price and mrp to numeric values if provided
+    const sellingPriceNum = (sellingPrice !== undefined && sellingPrice !== null && sellingPrice !== "") ? Number(sellingPrice) : undefined;
+    const mrpNum = (mrp !== undefined && mrp !== null && mrp !== "") ? Number(mrp) : undefined;
+
     // Validate selling price if provided
-    if (sellingPrice !== undefined && sellingPrice < 0) {
+    if (sellingPriceNum !== undefined && (isNaN(sellingPriceNum) || sellingPriceNum < 0)) {
       return res.status(400).json({
         success: false,
         message: "Selling price cannot be negative",
       });
     }
 
-    if (sellingPrice !== undefined && sellingPrice === 0) {
+    if (sellingPriceNum !== undefined && sellingPriceNum === 0) {
       return res.status(400).json({
         success: false,
         message: "Selling price must be greater than 0",
@@ -523,15 +535,24 @@ export const updateProduct = async (req, res) => {
     }
 
     // Validate mrp if provided
-    if (mrp !== undefined && mrp < 0) {
+    if (mrpNum !== undefined && (isNaN(mrpNum) || mrpNum < 0)) {
       return res.status(400).json({
         success: false,
         message: "MRP cannot be negative",
       });
     }
 
-    // Validate that selling price is not greater than MRP when both are provided
-    if (sellingPrice !== undefined && mrp !== undefined && sellingPrice > mrp) {
+    // Validate that selling price is not greater than MRP
+    const effectiveSellingPrice = sellingPriceNum !== undefined ? sellingPriceNum : product.sellingPrice;
+    const effectiveMrp = mrpNum !== undefined ? mrpNum : (mrp === "" || mrp === null ? undefined : product.mrp);
+
+    if (
+      effectiveSellingPrice !== undefined &&
+      effectiveMrp !== undefined &&
+      Number.isFinite(effectiveSellingPrice) &&
+      Number.isFinite(effectiveMrp) &&
+      effectiveSellingPrice > effectiveMrp
+    ) {
       return res.status(400).json({
         success: false,
         message: "Selling price cannot be greater than MRP",
@@ -568,9 +589,9 @@ export const updateProduct = async (req, res) => {
       ...(name && { name: name.trim() }),
       ...(company !== undefined && { company: company?.trim() }),
       ...(category && { category }),
-      ...(sellingPrice !== undefined && { sellingPrice }),
-      ...(mrp !== undefined && { mrp }),
-      ...(stockQuantity !== undefined && { stockQuantity }),
+      ...(sellingPriceNum !== undefined && { sellingPrice: sellingPriceNum }),
+      ...(mrp !== undefined && { mrp: mrpNum }),
+      ...(stockQuantity !== undefined && { stockQuantity: Number(stockQuantity) }),
       ...(unit !== undefined && { unit: unit?.trim() }),
       ...(isAvailable !== undefined && { isAvailable }),
       ...(isActive !== undefined && { isActive }),
@@ -761,10 +782,16 @@ export const getProductTransactions = async (req, res) => {
       const totalAmount = unitPrice * qty;
       return {
         _id: p._id.toString(),
+        purchaseId: p._id.toString(),
+        productId: product._id.toString(),
+        productName: product.name,
+        productItemCode: product.itemCode,
         type: "PURCHASE",
         date: p.purchaseDate || p.createdAt,
         reference: p.invoiceNumber && p.invoiceNumber.trim() ? p.invoiceNumber.trim() : "Single Entry",
+        invoiceNumber: p.invoiceNumber,
         party: p.supplier && p.supplier.trim() ? p.supplier.trim() : "Supplier Not Specified",
+        supplier: p.supplier,
         quantity: qty,
         unitPrice,
         totalAmount,
@@ -772,6 +799,8 @@ export const getProductTransactions = async (req, res) => {
         mrp: p.mrp,
         barcode: p.barcode,
         itemName: p.itemName,
+        sourceType: "PURCHASE",
+        sourceId: p._id.toString(),
       };
     });
 
@@ -786,16 +815,30 @@ export const getProductTransactions = async (req, res) => {
 
       return {
         _id: `${o._id.toString()}_${productIdStr}`,
+        orderId: o._id.toString(),
+        productId: product._id.toString(),
+        productName: product.name,
+        productItemCode: product.itemCode,
         type: "ORDER",
         date: o.createdAt,
         reference: o.orderNumber ? o.orderNumber.trim() : "—",
+        orderNumber: o.orderNumber,
         party: o.customerName ? o.customerName.trim() : "Customer",
+        customerName: o.customerName,
         customerPhone: o.customerPhone,
         status: o.status,
         quantity: -qty,
+        orderQuantity: qty,
         unitPrice,
         totalAmount,
         itemName: matchedItem ? matchedItem.productName : product.name,
+        barcode: matchedItem ? matchedItem.barcode : undefined,
+        totalOrderAmount: o.totalAmount,
+        totalItemCount: o.totalItemCount,
+        preparationMinutes: o.preparationMinutes,
+        estimatedPickupTime: o.estimatedPickupTime,
+        sourceType: "ORDER",
+        sourceId: o._id.toString(),
       };
     });
 
@@ -860,6 +903,123 @@ export const getProductTransactions = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || "Error retrieving product transaction history",
+    });
+  }
+};
+
+// Get single transaction detail for a product
+export const getProductTransactionDetail = async (req, res) => {
+  try {
+    const { id, txId } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid product ID",
+      });
+    }
+
+    const product = await Product.findById(id);
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: "Product not found",
+      });
+    }
+
+    const productIdStr = product._id.toString();
+
+    let purchaseDoc = null;
+    let orderDoc = null;
+
+    if (mongoose.Types.ObjectId.isValid(txId)) {
+      purchaseDoc = await Purchase.findById(txId);
+      if (!purchaseDoc) {
+        orderDoc = await Order.findById(txId);
+      }
+    } else if (txId && txId.includes("_")) {
+      const orderIdPart = txId.split("_")[0];
+      if (mongoose.Types.ObjectId.isValid(orderIdPart)) {
+        orderDoc = await Order.findById(orderIdPart);
+      }
+    }
+
+    if (purchaseDoc) {
+      const qty = purchaseDoc.quantityPurchased || 1;
+      const unitPrice = purchaseDoc.purchaseAmount || 0;
+      const totalAmount = unitPrice * qty;
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          _id: purchaseDoc._id.toString(),
+          purchaseId: purchaseDoc._id.toString(),
+          productId: product._id.toString(),
+          productName: product.name,
+          productItemCode: product.itemCode,
+          type: "PURCHASE",
+          date: purchaseDoc.purchaseDate || purchaseDoc.createdAt,
+          reference: purchaseDoc.invoiceNumber && purchaseDoc.invoiceNumber.trim() ? purchaseDoc.invoiceNumber.trim() : "Single Entry",
+          invoiceNumber: purchaseDoc.invoiceNumber,
+          party: purchaseDoc.supplier && purchaseDoc.supplier.trim() ? purchaseDoc.supplier.trim() : "Supplier Not Specified",
+          supplier: purchaseDoc.supplier,
+          quantity: qty,
+          unitPrice,
+          totalAmount,
+          sellingPrice: purchaseDoc.sellingPrice,
+          mrp: purchaseDoc.mrp,
+          barcode: purchaseDoc.barcode,
+          itemName: purchaseDoc.itemName,
+        },
+      });
+    }
+
+    if (orderDoc) {
+      const matchedItem = (orderDoc.items || []).find(
+        (item) => item.product && item.product.toString() === productIdStr
+      );
+      const qty = matchedItem ? matchedItem.quantity : 0;
+      const unitPrice = matchedItem ? matchedItem.price : 0;
+      const totalAmount = matchedItem ? matchedItem.subtotal : unitPrice * qty;
+
+      return res.status(200).json({
+        success: true,
+        data: {
+          _id: `${orderDoc._id.toString()}_${productIdStr}`,
+          orderId: orderDoc._id.toString(),
+          productId: product._id.toString(),
+          productName: product.name,
+          productItemCode: product.itemCode,
+          type: "ORDER",
+          date: orderDoc.createdAt,
+          reference: orderDoc.orderNumber ? orderDoc.orderNumber.trim() : "—",
+          orderNumber: orderDoc.orderNumber,
+          party: orderDoc.customerName ? orderDoc.customerName.trim() : "Customer",
+          customerName: orderDoc.customerName,
+          customerPhone: orderDoc.customerPhone,
+          status: orderDoc.status,
+          quantity: -qty,
+          orderQuantity: qty,
+          unitPrice,
+          totalAmount,
+          itemName: matchedItem ? matchedItem.productName : product.name,
+          barcode: matchedItem ? matchedItem.barcode : undefined,
+          totalOrderAmount: orderDoc.totalAmount,
+          totalItemCount: orderDoc.totalItemCount,
+          preparationMinutes: orderDoc.preparationMinutes,
+          estimatedPickupTime: orderDoc.estimatedPickupTime,
+        },
+      });
+    }
+
+    return res.status(404).json({
+      success: false,
+      message: "Transaction detail not found",
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Error retrieving transaction detail",
     });
   }
 };

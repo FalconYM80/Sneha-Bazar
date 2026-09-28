@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { Page } from "./types";
+import type { Page, NavigationTarget } from "./types";
 import Sidebar from "./components/Sidebar";
 import Header from "./components/Header";
 import Dashboard from "./pages/Dashboard";
@@ -140,8 +140,18 @@ function SettingsPage() {
 
 export default function App() {
   const [page, setPage] = useState<Page>("dashboard");
+  const [navigationTarget, setNavigationTarget] = useState<NavigationTarget | null>(null);
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  const handleNavigate = (targetPage: Page, target?: { search?: string; id?: string }) => {
+    setPage(targetPage);
+    if (target) {
+      setNavigationTarget({ page: targetPage, ...target });
+    } else {
+      setNavigationTarget(null);
+    }
+  };
 
   const handleToggle = () => {
     if (typeof window !== "undefined" && window.innerWidth < 1024) {
@@ -155,7 +165,7 @@ export default function App() {
     <div className="flex h-full overflow-hidden" style={{ background: "#f4f6f4" }}>
       <Sidebar 
         activePage={page} 
-        onNavigate={setPage} 
+        onNavigate={handleNavigate} 
         collapsed={collapsed} 
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
@@ -166,11 +176,23 @@ export default function App() {
           subtitle={META[page].subtitle}
           onToggle={handleToggle}
         />
-        {page === "dashboard"       && <Dashboard onNavigate={setPage} />}
-        {page === "inventory"       && <Inventory />}
-        {page === "orders"          && <Orders />}
-        {page === "purchases"       && <Purchases onNavigate={setPage} />}
-        {page === "purchases/new"   && <PurchaseEntryWorkspace onBack={() => setPage("purchases")} onSaved={() => setPage("purchases")} />}
+        {page === "dashboard"       && <Dashboard onNavigate={handleNavigate} />}
+        {page === "inventory"       && <Inventory onNavigate={handleNavigate} />}
+        {page === "orders"          && (
+          <Orders
+            onNavigate={handleNavigate}
+            initialTarget={navigationTarget?.page === "orders" ? navigationTarget : undefined}
+            onClearTarget={() => setNavigationTarget(null)}
+          />
+        )}
+        {page === "purchases"       && (
+          <Purchases
+            onNavigate={handleNavigate}
+            initialTarget={navigationTarget?.page === "purchases" ? navigationTarget : undefined}
+            onClearTarget={() => setNavigationTarget(null)}
+          />
+        )}
+        {page === "purchases/new"   && <PurchaseEntryWorkspace onBack={() => handleNavigate("purchases")} onSaved={() => handleNavigate("purchases")} />}
         {page === "settings"        && <SettingsPage />}
       </div>
     </div>

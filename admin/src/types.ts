@@ -8,9 +8,17 @@ export type Page =
 
 export type StockStatus = "In Stock" | "Low Stock" | "Out of Stock";
 
+export interface NavigationTarget {
+  page: Page;
+  search?: string;
+  id?: string;
+}
+
 export interface ProductTransaction {
   _id: string;
   type: "PURCHASE" | "ORDER";
+  sourceType?: "PURCHASE" | "ORDER";
+  sourceId?: string;
   date: string;
   reference: string;
   party: string;
@@ -23,7 +31,21 @@ export interface ProductTransaction {
   barcode?: string;
   itemName?: string;
   customerPhone?: string;
+  customerName?: string;
   status?: string;
+  purchaseId?: string;
+  orderId?: string;
+  productId?: string;
+  productName?: string;
+  productItemCode?: string;
+  invoiceNumber?: string;
+  supplier?: string;
+  orderNumber?: string;
+  totalOrderAmount?: number;
+  totalItemCount?: number;
+  preparationMinutes?: number;
+  estimatedPickupTime?: string;
+  orderQuantity?: number;
 }
 
 export interface ProductTransactionResponse {

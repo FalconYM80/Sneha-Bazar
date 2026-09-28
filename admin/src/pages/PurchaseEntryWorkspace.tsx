@@ -32,25 +32,75 @@ interface InvoiceItemRow {
 // ── Assign Barcode Modal ──────────────────────────────────────────────────────
 function AssignBarcodeModal({
   scannedBarcode,
-  allProducts,
   onClose,
   onAssigned,
 }: {
   scannedBarcode: string;
-  allProducts: Product[];
   onClose: () => void;
   onAssigned: (product: Product) => void;
 }) {
   const [selectedProductId, setSelectedProductId] = useState("");
   const [search, setSearch] = useState("");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const filteredProducts = allProducts.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.itemCode && p.itemCode.toLowerCase().includes(search.toLowerCase())) ||
-    (p.company && p.company.toLowerCase().includes(search.toLowerCase()))
-  );
+  useEffect(() => {
+    let isCurrent = true;
+    setLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const trimmed = search.trim();
+        const endpoint = trimmed
+          ? `/products?admin=true&search=${encodeURIComponent(trimmed)}&page=1&limit=20`
+          : `/products?admin=true&page=1&limit=20`;
+        const res: any = await api.get(endpoint);
+        if (isCurrent) {
+          setProducts(res.data || []);
+          setPage(1);
+          setHasMore(Boolean(res.pagination?.hasMore));
+        }
+      } catch (err) {
+        if (isCurrent) console.error("Failed to search products in AssignBarcodeModal:", err);
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    }, search ? 300 : 0);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [search]);
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    try {
+      const trimmed = search.trim();
+      const endpoint = trimmed
+        ? `/products?admin=true&search=${encodeURIComponent(trimmed)}&page=${nextPage}&limit=20`
+        : `/products?admin=true&page=${nextPage}&limit=20`;
+      const res: any = await api.get(endpoint);
+      const newProds: Product[] = res.data || [];
+      setProducts((prev) => {
+        const existingIds = new Set(prev.map((p) => p._id));
+        const filteredNew = newProds.filter((p) => !existingIds.has(p._id));
+        return [...prev, ...filteredNew];
+      });
+      setPage(nextPage);
+      setHasMore(Boolean(res.pagination?.hasMore));
+    } catch (err) {
+      console.error("Failed to load more products:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleAssign = async () => {
     if (!selectedProductId) {
@@ -62,7 +112,7 @@ function AssignBarcodeModal({
     setError("");
 
     try {
-      const res = await api.put(`/products/${selectedProductId}`, {
+      const res: any = await api.put(`/products/${selectedProductId}`, {
         barcode: scannedBarcode.trim(),
       });
       const updatedProduct: Product = res.data;
@@ -102,32 +152,48 @@ function AssignBarcodeModal({
           />
 
           <div className="max-h-56 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100 bg-white">
-            {filteredProducts.length === 0 ? (
+            {loading ? (
+              <p className="p-4 text-xs text-center text-gray-400">Searching products...</p>
+            ) : products.length === 0 ? (
               <p className="p-4 text-xs text-center text-gray-400">No products found</p>
             ) : (
-              filteredProducts.map((prod) => (
-                <label
-                  key={prod._id}
-                  className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 transition-colors ${
-                    selectedProductId === prod._id ? "bg-green-50/70" : ""
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="assignProduct"
-                    value={prod._id}
-                    checked={selectedProductId === prod._id}
-                    onChange={() => setSelectedProductId(prod._id)}
-                    className="text-green-600 focus:ring-green-500"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{prod.name}</p>
-                    <p className="text-xs text-gray-400">
-                      Stock: {prod.stockQuantity} | Price: ₹{prod.sellingPrice} {prod.barcode ? `| Barcode: ${prod.barcode}` : ""}
-                    </p>
+              <>
+                {products.map((prod) => (
+                  <label
+                    key={prod._id}
+                    className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 transition-colors ${
+                      selectedProductId === prod._id ? "bg-green-50/70" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="assignProduct"
+                      value={prod._id}
+                      checked={selectedProductId === prod._id}
+                      onChange={() => setSelectedProductId(prod._id)}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{prod.name}</p>
+                      <p className="text-xs text-gray-400">
+                        Stock: {prod.stockQuantity} | Price: ₹{prod.sellingPrice} {prod.barcode ? `| Barcode: ${prod.barcode}` : ""}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+                {hasMore && (
+                  <div className="p-2 text-center bg-gray-50">
+                    <button
+                      type="button"
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="text-xs font-semibold text-green-700 hover:text-green-800 disabled:opacity-50 px-3 py-1 rounded-lg hover:bg-green-100 transition-colors"
+                    >
+                      {loadingMore ? "Loading more..." : "Load More Products..."}
+                    </button>
                   </div>
-                </label>
-              ))
+                )}
+              </>
             )}
           </div>
 
@@ -157,19 +223,24 @@ export default function PurchaseEntryWorkspace({ onBack, onSaved }: PurchaseEntr
 
   const [barcodeInput, setBarcodeInput] = useState("");
   const [invoiceItems, setInvoiceItems] = useState<InvoiceItemRow[]>([]);
-  const [allProducts, setAllProducts] = useState<Product[]>([]);
   
   const [unknownBarcode, setUnknownBarcode] = useState<string | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [lookingUp, setLookingUp] = useState(false);
 
   const [manualSearch, setManualSearch] = useState("");
+  const [manualSearchResults, setManualSearchResults] = useState<Product[]>([]);
+  const [manualSearching, setManualSearching] = useState(false);
+  const [manualSearchPage, setManualSearchPage] = useState(1);
+  const [manualSearchHasMore, setManualSearchHasMore] = useState(false);
+  const [manualSearchLoadingMore, setManualSearchLoadingMore] = useState(false);
   const [showManualDropdown, setShowManualDropdown] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const manualDropdownRef = useRef<HTMLDivElement>(null);
 
   const focusBarcodeInput = () => {
     setTimeout(() => {
@@ -179,19 +250,68 @@ export default function PurchaseEntryWorkspace({ onBack, onSaved }: PurchaseEntr
 
   useEffect(() => {
     focusBarcodeInput();
+  }, []);
 
-    // Fetch all products for manual addition / assignment
-    const fetchProducts = async () => {
+  useEffect(() => {
+    const trimmed = manualSearch.trim();
+    if (!trimmed) {
+      setManualSearchResults([]);
+      setManualSearchHasMore(false);
+      setManualSearching(false);
+      return;
+    }
+
+    setManualSearching(true);
+    const timer = setTimeout(async () => {
       try {
-        const res = await api.get("/products?admin=true&limit=200");
-        const prods = Array.isArray(res) ? res : (res as any).data || [];
-        setAllProducts(prods);
+        const res: any = await api.get(`/products?admin=true&search=${encodeURIComponent(trimmed)}&page=1&limit=20`);
+        const prods: Product[] = res.data || [];
+        setManualSearchResults(prods);
+        setManualSearchPage(1);
+        setManualSearchHasMore(Boolean(res.pagination?.hasMore));
+        setShowManualDropdown(true);
       } catch (err) {
-        console.error("Failed to load products:", err);
+        console.error("Manual product search error:", err);
+        setManualSearchResults([]);
+      } finally {
+        setManualSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [manualSearch]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (manualDropdownRef.current && !manualDropdownRef.current.contains(e.target as Node)) {
+        setShowManualDropdown(false);
       }
     };
-    fetchProducts();
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  const handleLoadMoreManualResults = async () => {
+    if (manualSearchLoadingMore || !manualSearchHasMore) return;
+    setManualSearchLoadingMore(true);
+    const nextPage = manualSearchPage + 1;
+    try {
+      const trimmed = manualSearch.trim();
+      const res: any = await api.get(`/products?admin=true&search=${encodeURIComponent(trimmed)}&page=${nextPage}&limit=20`);
+      const newProds: Product[] = res.data || [];
+      setManualSearchResults((prev) => {
+        const existingIds = new Set(prev.map((p) => p._id));
+        const filteredNew = newProds.filter((p) => !existingIds.has(p._id));
+        return [...prev, ...filteredNew];
+      });
+      setManualSearchPage(nextPage);
+      setManualSearchHasMore(Boolean(res.pagination?.hasMore));
+    } catch (err) {
+      console.error("Failed to load more products:", err);
+    } finally {
+      setManualSearchLoadingMore(false);
+    }
+  };
 
   const addProductToInvoice = (prod: Product, scannedBarcodeCode?: string) => {
     const code = prod.barcode || scannedBarcodeCode || "";
@@ -257,6 +377,7 @@ export default function PurchaseEntryWorkspace({ onBack, onSaved }: PurchaseEntr
   const handleSelectManualProduct = (prod: Product) => {
     addProductToInvoice(prod);
     setManualSearch("");
+    setManualSearchResults([]);
     setShowManualDropdown(false);
     focusBarcodeInput();
   };
@@ -335,12 +456,6 @@ export default function PurchaseEntryWorkspace({ onBack, onSaved }: PurchaseEntr
     }
   };
 
-  const filteredManualProducts = allProducts
-    .filter((p) =>
-      p.name.toLowerCase().includes(manualSearch.toLowerCase()) ||
-      (p.barcode && p.barcode.toLowerCase().includes(manualSearch.toLowerCase()))
-    )
-    .slice(0, 8);
 
   return (
     <div className="flex-1 overflow-y-auto" style={{ background: "#f4f6f4" }}>
@@ -426,7 +541,7 @@ export default function PurchaseEntryWorkspace({ onBack, onSaved }: PurchaseEntr
             </div>
 
             {/* Manual Product Search */}
-            <div className="relative w-full sm:w-80">
+            <div className="relative w-full sm:w-80" ref={manualDropdownRef}>
               <SearchInput
                 placeholder="+ Search & Add Product Manually..."
                 value={manualSearch}
@@ -434,23 +549,50 @@ export default function PurchaseEntryWorkspace({ onBack, onSaved }: PurchaseEntr
                   setManualSearch(v);
                   setShowManualDropdown(true);
                 }}
+                onFocus={() => {
+                  if (manualSearchResults.length > 0) setShowManualDropdown(true);
+                }}
               />
-              {showManualDropdown && manualSearch && filteredManualProducts.length > 0 && (
-                <div className="absolute left-0 right-0 z-30 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-gray-100">
-                  {filteredManualProducts.map((prod) => (
-                    <button
-                      key={prod._id}
-                      type="button"
-                      onClick={() => handleSelectManualProduct(prod)}
-                      className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-green-50 transition-colors flex items-center justify-between"
-                    >
-                      <div>
-                        <p className="font-semibold text-gray-800">{prod.name}</p>
-                        {prod.barcode && <p className="text-[10px] font-mono-data text-gray-400">{prod.barcode}</p>}
-                      </div>
-                      <span className="text-[11px] font-medium text-gray-500">₹{prod.sellingPrice}</span>
-                    </button>
-                  ))}
+              {showManualDropdown && manualSearch.trim() !== "" && (
+                <div className="absolute left-0 right-0 z-30 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-64 overflow-y-auto divide-y divide-gray-100">
+                  {manualSearching ? (
+                    <div className="p-3.5 text-xs text-center text-gray-400 font-medium">Searching products...</div>
+                  ) : manualSearchResults.length === 0 ? (
+                    <div className="p-3.5 text-xs text-center text-gray-400 font-medium">No products found for "{manualSearch}"</div>
+                  ) : (
+                    <>
+                      {manualSearchResults.map((prod) => (
+                        <button
+                          key={prod._id}
+                          type="button"
+                          onClick={() => handleSelectManualProduct(prod)}
+                          className="w-full text-left px-3.5 py-2.5 text-xs hover:bg-green-50 transition-colors flex items-center justify-between"
+                        >
+                          <div>
+                            <p className="font-semibold text-gray-800">{prod.name}</p>
+                            <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono-data mt-0.5">
+                              {prod.barcode && <span>BC: {prod.barcode}</span>}
+                              {prod.itemCode && <span>Code: {prod.itemCode}</span>}
+                              {prod.company && <span>Brand: {prod.company}</span>}
+                            </div>
+                          </div>
+                          <span className="text-[11px] font-medium text-gray-500 flex-shrink-0 ml-2">₹{prod.sellingPrice}</span>
+                        </button>
+                      ))}
+                      {manualSearchHasMore && (
+                        <div className="p-2 text-center bg-gray-50">
+                          <button
+                            type="button"
+                            onClick={handleLoadMoreManualResults}
+                            disabled={manualSearchLoadingMore}
+                            className="text-xs font-semibold text-green-700 hover:text-green-800 disabled:opacity-50 px-3 py-1 rounded-lg hover:bg-green-100 transition-colors"
+                          >
+                            {manualSearchLoadingMore ? "Loading more..." : "Load More Results..."}
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -663,7 +805,6 @@ export default function PurchaseEntryWorkspace({ onBack, onSaved }: PurchaseEntr
       {showAssignModal && unknownBarcode && (
         <AssignBarcodeModal
           scannedBarcode={unknownBarcode}
-          allProducts={allProducts}
           onClose={() => {
             setShowAssignModal(false);
             focusBarcodeInput();

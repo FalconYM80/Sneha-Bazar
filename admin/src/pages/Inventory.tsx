@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../services/api";
-import type { UIProduct, StockStatus } from "../types";
+import type { UIProduct, StockStatus, Page } from "../types";
 import {
   StockStatusBadge, ModalBackdrop, ModalCard, FormField, TextInput,
   Btn, SearchInput, IconPlus, IconMinus, IconX, IconTrash, IconEdit, IconHistory,
@@ -230,8 +230,8 @@ function AddProductModal({
       return;
     }
 
-    const sellingPriceNum = parseFloat(f.sellingPrice);
-    const mrpNum = f.mrp ? parseFloat(f.mrp) : undefined;
+    const sellingPriceNum = Number(f.sellingPrice);
+    const mrpNum = f.mrp !== "" && f.mrp !== undefined && f.mrp !== null ? Number(f.mrp) : undefined;
 
     if (sellingPriceNum < 0 || Number(f.stockQuantity) < 0) {
       setError("Price and stock cannot be negative");
@@ -248,7 +248,12 @@ function AddProductModal({
       return;
     }
 
-    if (mrpNum !== undefined && sellingPriceNum > mrpNum) {
+    if (
+      mrpNum !== undefined &&
+      Number.isFinite(sellingPriceNum) &&
+      Number.isFinite(mrpNum) &&
+      sellingPriceNum > mrpNum
+    ) {
       setError("Selling price cannot be greater than MRP");
       return;
     }
@@ -483,8 +488,8 @@ function EditProductModal({
       return;
     }
 
-    const sellingPriceNum = parseFloat(f.sellingPrice);
-    const mrpNum = f.mrp ? parseFloat(f.mrp) : undefined;
+    const sellingPriceNum = Number(f.sellingPrice);
+    const mrpNum = f.mrp !== "" && f.mrp !== undefined && f.mrp !== null ? Number(f.mrp) : undefined;
 
     if (sellingPriceNum < 0 || Number(f.stockQuantity) < 0) {
       setError("Price and stock cannot be negative");
@@ -501,7 +506,12 @@ function EditProductModal({
       return;
     }
 
-    if (mrpNum !== undefined && sellingPriceNum > mrpNum) {
+    if (
+      mrpNum !== undefined &&
+      Number.isFinite(sellingPriceNum) &&
+      Number.isFinite(mrpNum) &&
+      sellingPriceNum > mrpNum
+    ) {
       setError("Selling price cannot be greater than MRP");
       return;
     }
@@ -654,7 +664,7 @@ function EditProductModal({
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export default function Inventory() {
+export default function Inventory({ onNavigate }: { onNavigate?: (page: Page, target?: { search?: string; id?: string }) => void }) {
   const [products, setProducts] = useState<UIProduct[]>([]);
   const [categories, setCategories] = useState<BackendCategory[]>([]);
   const [loading, setLoading] = useState(true);
@@ -778,6 +788,7 @@ export default function Inventory() {
         <ProductTransactionHistory
           productId={viewTransactionsProductId}
           onClose={() => setViewTransactionsProductId(null)}
+          onNavigate={onNavigate}
         />
       )}
 

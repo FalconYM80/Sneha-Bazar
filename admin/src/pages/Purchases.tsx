@@ -77,25 +77,75 @@ interface InvoiceItemRow {
 
 function AssignBarcodeModal({
   scannedBarcode,
-  allProducts,
   onClose,
   onAssigned,
 }: {
   scannedBarcode: string;
-  allProducts: Product[];
   onClose: () => void;
   onAssigned: (product: Product) => void;
 }) {
   const [selectedProductId, setSelectedProductId] = useState("");
   const [search, setSearch] = useState("");
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
-  const filteredProducts = allProducts.filter((p) =>
-    p.name.toLowerCase().includes(search.toLowerCase()) ||
-    (p.itemCode && p.itemCode.toLowerCase().includes(search.toLowerCase())) ||
-    (p.company && p.company.toLowerCase().includes(search.toLowerCase()))
-  );
+  useEffect(() => {
+    let isCurrent = true;
+    setLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const trimmed = search.trim();
+        const endpoint = trimmed
+          ? `/products?admin=true&search=${encodeURIComponent(trimmed)}&page=1&limit=20`
+          : `/products?admin=true&page=1&limit=20`;
+        const res: any = await api.get(endpoint);
+        if (isCurrent) {
+          setProducts(res.data || []);
+          setPage(1);
+          setHasMore(Boolean(res.pagination?.hasMore));
+        }
+      } catch (err) {
+        if (isCurrent) console.error("Failed to search products in AssignBarcodeModal:", err);
+      } finally {
+        if (isCurrent) setLoading(false);
+      }
+    }, search ? 300 : 0);
+
+    return () => {
+      isCurrent = false;
+      clearTimeout(timer);
+    };
+  }, [search]);
+
+  const handleLoadMore = async () => {
+    if (loadingMore || !hasMore) return;
+    setLoadingMore(true);
+    const nextPage = page + 1;
+    try {
+      const trimmed = search.trim();
+      const endpoint = trimmed
+        ? `/products?admin=true&search=${encodeURIComponent(trimmed)}&page=${nextPage}&limit=20`
+        : `/products?admin=true&page=${nextPage}&limit=20`;
+      const res: any = await api.get(endpoint);
+      const newProds: Product[] = res.data || [];
+      setProducts((prev) => {
+        const existingIds = new Set(prev.map((p) => p._id));
+        const filteredNew = newProds.filter((p) => !existingIds.has(p._id));
+        return [...prev, ...filteredNew];
+      });
+      setPage(nextPage);
+      setHasMore(Boolean(res.pagination?.hasMore));
+    } catch (err) {
+      console.error("Failed to load more products:", err);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const handleAssign = async () => {
     if (!selectedProductId) {
@@ -107,7 +157,7 @@ function AssignBarcodeModal({
     setError("");
 
     try {
-      const res = await api.put(`/products/${selectedProductId}`, {
+      const res: any = await api.put(`/products/${selectedProductId}`, {
         barcode: scannedBarcode.trim(),
       });
       const updatedProduct: Product = res.data;
@@ -147,32 +197,48 @@ function AssignBarcodeModal({
           />
 
           <div className="max-h-56 overflow-y-auto border border-gray-200 rounded-xl divide-y divide-gray-100 bg-white">
-            {filteredProducts.length === 0 ? (
+            {loading ? (
+              <p className="p-4 text-xs text-center text-gray-400">Searching products...</p>
+            ) : products.length === 0 ? (
               <p className="p-4 text-xs text-center text-gray-400">No products found</p>
             ) : (
-              filteredProducts.map((prod) => (
-                <label
-                  key={prod._id}
-                  className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 transition-colors ${
-                    selectedProductId === prod._id ? "bg-green-50/70" : ""
-                  }`}
-                >
-                  <input
-                    type="radio"
-                    name="assignProduct"
-                    value={prod._id}
-                    checked={selectedProductId === prod._id}
-                    onChange={() => setSelectedProductId(prod._id)}
-                    className="text-green-600 focus:ring-green-500"
-                  />
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-800 truncate">{prod.name}</p>
-                    <p className="text-xs text-gray-400">
-                      Stock: {prod.stockQuantity} | Price: ₹{prod.sellingPrice} {prod.barcode ? `| Barcode: ${prod.barcode}` : ""}
-                    </p>
+              <>
+                {products.map((prod) => (
+                  <label
+                    key={prod._id}
+                    className={`flex items-center gap-3 p-3 cursor-pointer hover:bg-gray-50 transition-colors ${
+                      selectedProductId === prod._id ? "bg-green-50/70" : ""
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="assignProduct"
+                      value={prod._id}
+                      checked={selectedProductId === prod._id}
+                      onChange={() => setSelectedProductId(prod._id)}
+                      className="text-green-600 focus:ring-green-500"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-800 truncate">{prod.name}</p>
+                      <p className="text-xs text-gray-400">
+                        Stock: {prod.stockQuantity} | Price: ₹{prod.sellingPrice} {prod.barcode ? `| Barcode: ${prod.barcode}` : ""}
+                      </p>
+                    </div>
+                  </label>
+                ))}
+                {hasMore && (
+                  <div className="p-2 text-center bg-gray-50">
+                    <button
+                      type="button"
+                      onClick={handleLoadMore}
+                      disabled={loadingMore}
+                      className="text-xs font-semibold text-green-700 hover:text-green-800 disabled:opacity-50 px-3 py-1 rounded-lg hover:bg-green-100 transition-colors"
+                    >
+                      {loadingMore ? "Loading more..." : "Load More Products..."}
+                    </button>
                   </div>
-                </label>
-              ))
+                )}
+              </>
             )}
           </div>
 
@@ -195,11 +261,9 @@ function AssignBarcodeModal({
 function AddPurchaseModal({ 
   onClose, 
   onAdd, 
-  allProducts 
 }: { 
   onClose: () => void; 
   onAdd: () => void;
-  allProducts: Product[];
 }) {
   const [invoiceNumber, setInvoiceNumber] = useState("");
   const [distributor, setDistributor] = useState("");
@@ -212,12 +276,18 @@ function AddPurchaseModal({
   const [lookingUp, setLookingUp] = useState(false);
 
   const [manualSearch, setManualSearch] = useState("");
+  const [manualSearchResults, setManualSearchResults] = useState<Product[]>([]);
+  const [manualSearching, setManualSearching] = useState(false);
+  const [manualSearchPage, setManualSearchPage] = useState(1);
+  const [manualSearchHasMore, setManualSearchHasMore] = useState(false);
+  const [manualSearchLoadingMore, setManualSearchLoadingMore] = useState(false);
   const [showManualDropdown, setShowManualDropdown] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const barcodeInputRef = useRef<HTMLInputElement>(null);
+  const manualDropdownRef = useRef<HTMLDivElement>(null);
 
   const focusBarcodeInput = () => {
     setTimeout(() => {
@@ -228,6 +298,67 @@ function AddPurchaseModal({
   useEffect(() => {
     focusBarcodeInput();
   }, []);
+
+  useEffect(() => {
+    const trimmed = manualSearch.trim();
+    if (!trimmed) {
+      setManualSearchResults([]);
+      setManualSearchHasMore(false);
+      setManualSearching(false);
+      return;
+    }
+
+    setManualSearching(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res: any = await api.get(`/products?admin=true&search=${encodeURIComponent(trimmed)}&page=1&limit=20`);
+        const prods: Product[] = res.data || [];
+        setManualSearchResults(prods);
+        setManualSearchPage(1);
+        setManualSearchHasMore(Boolean(res.pagination?.hasMore));
+        setShowManualDropdown(true);
+      } catch (err) {
+        console.error("Manual product search error:", err);
+        setManualSearchResults([]);
+      } finally {
+        setManualSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [manualSearch]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (manualDropdownRef.current && !manualDropdownRef.current.contains(e.target as Node)) {
+        setShowManualDropdown(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  const handleLoadMoreManualResults = async () => {
+    if (manualSearchLoadingMore || !manualSearchHasMore) return;
+    setManualSearchLoadingMore(true);
+    const nextPage = manualSearchPage + 1;
+    try {
+      const trimmed = manualSearch.trim();
+      const res: any = await api.get(`/products?admin=true&search=${encodeURIComponent(trimmed)}&page=${nextPage}&limit=20`);
+      const newProds: Product[] = res.data || [];
+      setManualSearchResults((prev) => {
+        const existingIds = new Set(prev.map((p) => p._id));
+        const filteredNew = newProds.filter((p) => !existingIds.has(p._id));
+        return [...prev, ...filteredNew];
+      });
+      setManualSearchPage(nextPage);
+      setManualSearchHasMore(Boolean(res.pagination?.hasMore));
+    } catch (err) {
+      console.error("Failed to load more products:", err);
+    } finally {
+      setManualSearchLoadingMore(false);
+    }
+  };
 
   const addProductToInvoice = (prod: Product, scannedBarcodeCode?: string) => {
     const code = prod.barcode || scannedBarcodeCode || "";
@@ -293,6 +424,7 @@ function AddPurchaseModal({
   const handleSelectManualProduct = (prod: Product) => {
     addProductToInvoice(prod);
     setManualSearch("");
+    setManualSearchResults([]);
     setShowManualDropdown(false);
     focusBarcodeInput();
   };
@@ -372,12 +504,6 @@ function AddPurchaseModal({
     }
   };
 
-  const filteredManualProducts = allProducts
-    .filter((p) =>
-      p.name.toLowerCase().includes(manualSearch.toLowerCase()) ||
-      (p.barcode && p.barcode.toLowerCase().includes(manualSearch.toLowerCase()))
-    )
-    .slice(0, 6);
 
   return (
     <>
@@ -438,7 +564,7 @@ function AddPurchaseModal({
                   <p className="text-[11px] text-gray-400">Supports USB barcode scanner</p>
                 </div>
                 
-                <div className="relative w-full sm:w-72">
+                <div className="relative w-full sm:w-72" ref={manualDropdownRef}>
                   <SearchInput
                     placeholder="+ Add Product Manually..."
                     value={manualSearch}
@@ -446,23 +572,50 @@ function AddPurchaseModal({
                       setManualSearch(v);
                       setShowManualDropdown(true);
                     }}
+                    onFocus={() => {
+                      if (manualSearchResults.length > 0) setShowManualDropdown(true);
+                    }}
                   />
-                  {showManualDropdown && manualSearch && filteredManualProducts.length > 0 && (
-                    <div className="absolute left-0 right-0 z-30 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-48 overflow-y-auto divide-y divide-gray-100">
-                      {filteredManualProducts.map((prod) => (
-                        <button
-                          key={prod._id}
-                          type="button"
-                          onClick={() => handleSelectManualProduct(prod)}
-                          className="w-full text-left px-3.5 py-2 text-xs hover:bg-green-50 transition-colors flex items-center justify-between"
-                        >
-                          <div>
-                            <p className="font-semibold text-gray-800">{prod.name}</p>
-                            {prod.barcode && <p className="text-[10px] font-mono-data text-gray-400">{prod.barcode}</p>}
-                          </div>
-                          <span className="text-[11px] font-medium text-gray-500">₹{prod.sellingPrice}</span>
-                        </button>
-                      ))}
+                  {showManualDropdown && manualSearch.trim() !== "" && (
+                    <div className="absolute left-0 right-0 z-30 mt-1 bg-white border border-gray-200 rounded-xl shadow-xl max-h-56 overflow-y-auto divide-y divide-gray-100">
+                      {manualSearching ? (
+                        <div className="p-3 text-xs text-center text-gray-400 font-medium">Searching products...</div>
+                      ) : manualSearchResults.length === 0 ? (
+                        <div className="p-3 text-xs text-center text-gray-400 font-medium">No products found for "{manualSearch}"</div>
+                      ) : (
+                        <>
+                          {manualSearchResults.map((prod) => (
+                            <button
+                              key={prod._id}
+                              type="button"
+                              onClick={() => handleSelectManualProduct(prod)}
+                              className="w-full text-left px-3.5 py-2 text-xs hover:bg-green-50 transition-colors flex items-center justify-between"
+                            >
+                              <div>
+                                <p className="font-semibold text-gray-800">{prod.name}</p>
+                                <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono-data mt-0.5">
+                                  {prod.barcode && <span>BC: {prod.barcode}</span>}
+                                  {prod.itemCode && <span>Code: {prod.itemCode}</span>}
+                                  {prod.company && <span>Brand: {prod.company}</span>}
+                                </div>
+                              </div>
+                              <span className="text-[11px] font-medium text-gray-500 flex-shrink-0 ml-2">₹{prod.sellingPrice}</span>
+                            </button>
+                          ))}
+                          {manualSearchHasMore && (
+                            <div className="p-2 text-center bg-gray-50">
+                              <button
+                                type="button"
+                                onClick={handleLoadMoreManualResults}
+                                disabled={manualSearchLoadingMore}
+                                className="text-xs font-semibold text-green-700 hover:text-green-800 disabled:opacity-50 px-3 py-1 rounded-lg hover:bg-green-100 transition-colors"
+                              >
+                                {manualSearchLoadingMore ? "Loading more..." : "Load More Results..."}
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   )}
                 </div>
@@ -664,7 +817,6 @@ function AddPurchaseModal({
       {showAssignModal && unknownBarcode && (
         <AssignBarcodeModal
           scannedBarcode={unknownBarcode}
-          allProducts={allProducts}
           onClose={() => {
             setShowAssignModal(false);
             focusBarcodeInput();
@@ -686,12 +838,10 @@ function EditPurchaseModal({
   onClose, 
   onUpdate, 
   purchase,
-  allProducts 
 }: { 
   onClose: () => void; 
   onUpdate: () => void;
   purchase: Purchase;
-  allProducts: Product[];
 }) {
   const initialProductId = typeof purchase.product === "object" && purchase.product ? purchase.product._id : (typeof purchase.product === "string" ? purchase.product : "");
   
@@ -710,7 +860,31 @@ function EditPurchaseModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<Product[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const set = (k: string) => (v: string) => setF((p) => ({ ...p, [k]: v }));
+
+  useEffect(() => {
+    const trimmed = f.itemName.trim();
+    if (!trimmed) {
+      setSuggestions([]);
+      return;
+    }
+
+    setLoadingSuggestions(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res: any = await api.get(`/products?admin=true&search=${encodeURIComponent(trimmed)}&page=1&limit=5`);
+        setSuggestions(res.data || []);
+      } catch (err) {
+        console.error("Edit purchase suggestion search failed:", err);
+      } finally {
+        setLoadingSuggestions(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [f.itemName]);
 
   const qty = Number(f.quantityPurchased);
   const valid = 
@@ -728,10 +902,6 @@ function EditPurchaseModal({
     f.mrp !== "" && 
     !isNaN(Number(f.mrp)) && 
     Number(f.mrp) >= 0;
-
-  const filteredSuggestions = allProducts
-    .filter(p => p.name.toLowerCase().includes(f.itemName.toLowerCase()))
-    .slice(0, 5);
 
   const handleSubmit = async () => {
     if (!valid) return;
@@ -803,27 +973,33 @@ function EditPurchaseModal({
               />
             </FormField>
             
-            {showSuggestions && f.itemName && filteredSuggestions.length > 0 && (
+            {showSuggestions && f.itemName && (loadingSuggestions || suggestions.length > 0) && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-40 overflow-y-auto divide-y divide-gray-100">
-                {filteredSuggestions.map((prod) => (
-                  <button
-                    key={prod._id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedProductId(prod._id);
-                      setF(prev => ({
-                        ...prev,
-                        itemName: prod.name,
-                        barcode: prod.barcode || prev.barcode,
-                      }));
-                      setShowSuggestions(false);
-                    }}
-                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between"
-                  >
-                    <span className="font-medium truncate">{prod.name}</span>
-                    <span className="text-xs text-gray-400 font-mono-data ml-2">Stock: {prod.stockQuantity}</span>
-                  </button>
-                ))}
+                {loadingSuggestions ? (
+                  <p className="p-3 text-xs text-gray-400 text-center font-medium">Searching...</p>
+                ) : (
+                  suggestions.map((prod) => (
+                    <button
+                      key={prod._id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedProductId(prod._id);
+                        setF(prev => ({
+                          ...prev,
+                          itemName: prod.name,
+                          barcode: prod.barcode || prev.barcode,
+                          sellingPrice: prod.sellingPrice?.toString() || prev.sellingPrice,
+                          mrp: (prod.mrp || prod.sellingPrice)?.toString() || prev.mrp,
+                        }));
+                        setShowSuggestions(false);
+                      }}
+                      className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition-colors flex items-center justify-between"
+                    >
+                      <span className="font-medium truncate">{prod.name}</span>
+                      <span className="text-xs text-gray-400 font-mono-data ml-2">Stock: {prod.stockQuantity}</span>
+                    </button>
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -890,7 +1066,13 @@ interface GroupedInvoice {
   totalAmount: number;
 }
 
-export default function Purchases({ onNavigate }: { onNavigate?: (page: Page) => void }) {
+interface PurchasesProps {
+  onNavigate?: (page: Page, target?: { search?: string; id?: string }) => void;
+  initialTarget?: { search?: string; id?: string };
+  onClearTarget?: () => void;
+}
+
+export default function Purchases({ onNavigate, initialTarget, onClearTarget }: PurchasesProps = {}) {
   const [purchases, setPurchases] = useState<Purchase[]>([]);
   const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [supplierOptions, setSupplierOptions] = useState<string[]>([]);
@@ -898,9 +1080,10 @@ export default function Purchases({ onNavigate }: { onNavigate?: (page: Page) =>
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [targetNotice, setTargetNotice] = useState<string | null>(null);
 
   // Server-Side Filter States
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialTarget?.search || "");
   const [selectedSupplier, setSelectedSupplier] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("");
   const [quickDate, setQuickDate] = useState<"all" | "today" | "7days" | "30days" | "thisMonth" | "lastMonth" | "custom">("all");
@@ -928,15 +1111,16 @@ export default function Purchases({ onNavigate }: { onNavigate?: (page: Page) =>
   };
 
   // Server-Side Fetch Purchases with all active filters
-  const fetchPurchases = useCallback(async () => {
+  const fetchPurchases = useCallback(async (overrideSearch?: string, overrideTargetId?: string) => {
     setLoading(true);
     setError("");
 
     try {
+      const activeSearch = overrideSearch !== undefined ? overrideSearch : search;
       const params = new URLSearchParams();
 
-      if (search.trim()) {
-        params.append("search", search.trim());
+      if (activeSearch.trim()) {
+        params.append("search", activeSearch.trim());
       }
       if (selectedSupplier) {
         params.append("supplier", selectedSupplier);
@@ -954,31 +1138,53 @@ export default function Purchases({ onNavigate }: { onNavigate?: (page: Page) =>
       const response = await api.get(`/purchases?${params.toString()}`);
       const purchasesData = Array.isArray(response) ? response : response.data || [];
       setPurchases(purchasesData);
+
+      if (overrideSearch !== undefined || initialTarget) {
+        const targetSearch = (overrideSearch !== undefined ? overrideSearch : initialTarget?.search || "").trim().toLowerCase();
+        const targetId = overrideTargetId || initialTarget?.id;
+
+        const matching = purchasesData.filter(
+          (p: Purchase) =>
+            (targetId && p._id === targetId) ||
+            (targetSearch && p.invoiceNumber && p.invoiceNumber.trim().toLowerCase() === targetSearch) ||
+            (targetSearch && p.invoiceNumber && p.invoiceNumber.trim().toLowerCase().includes(targetSearch))
+        );
+
+        if (matching.length > 0) {
+          const first = matching[0];
+          const groupKey = first.invoiceNumber
+            ? `${first.invoiceNumber.trim()}__${(first.supplier || "").trim()}__${(first.purchaseDate || "").split("T")[0]}`
+            : first._id;
+
+          setExpandedInvoices({ [groupKey]: true });
+          setTargetNotice(null);
+        } else if (purchasesData.length === 0) {
+          setTargetNotice(`Referenced purchase invoice "${overrideSearch || initialTarget?.search || targetId}" was not found or may have been deleted.`);
+        }
+        onClearTarget?.();
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load purchases");
     } finally {
       setLoading(false);
     }
-  }, [search, selectedSupplier, selectedCategory, fromDate, toDate]);
-
-  const fetchProducts = async () => {
-    try {
-      const response = await api.get("/products?admin=true&limit=100");
-      const productsData = Array.isArray(response) ? response : response.data || [];
-      setAllProducts(productsData);
-    } catch (err) {
-      console.error("Failed to load products:", err);
-    }
-  };
+  }, [search, selectedSupplier, selectedCategory, fromDate, toDate, initialTarget, onClearTarget]);
 
   useEffect(() => {
     fetchFilterOptions();
-    fetchProducts();
   }, []);
 
   useEffect(() => {
     fetchPurchases();
   }, [fetchPurchases]);
+
+  useEffect(() => {
+    if (initialTarget && (initialTarget.search || initialTarget.id)) {
+      const targetSearch = initialTarget.search || "";
+      setSearch(targetSearch);
+      fetchPurchases(targetSearch, initialTarget.id);
+    }
+  }, [initialTarget]);
 
   const handleQuickDateSelect = (type: "all" | "today" | "7days" | "30days" | "thisMonth" | "lastMonth" | "custom") => {
     setQuickDate(type);
@@ -1068,7 +1274,6 @@ export default function Purchases({ onNavigate }: { onNavigate?: (page: Page) =>
     try {
       await api.delete(`/purchases/${purchase._id}`);
       await fetchPurchases();
-      await fetchProducts();
       await fetchFilterOptions();
     } catch (err) {
       alert(err instanceof Error ? err.message : "Failed to delete purchase");
@@ -1086,10 +1291,8 @@ export default function Purchases({ onNavigate }: { onNavigate?: (page: Page) =>
               onClose={() => setAdding(false)}
               onAdd={() => {
                 fetchPurchases();
-                fetchProducts();
                 fetchFilterOptions();
               }}
-              allProducts={allProducts}
             />
           )}
           {editing && (
@@ -1097,23 +1300,31 @@ export default function Purchases({ onNavigate }: { onNavigate?: (page: Page) =>
               onClose={() => setEditing(null)}
               onUpdate={() => {
                 fetchPurchases();
-                fetchProducts();
                 fetchFilterOptions();
               }}
               purchase={editing}
-              allProducts={allProducts}
             />
           )}
           {viewTransactionsProductId && (
             <ProductTransactionHistory
               productId={viewTransactionsProductId}
               onClose={() => setViewTransactionsProductId(null)}
+              onNavigate={onNavigate}
             />
           )}
         </>
       )}
 
       <div className="max-w-[1400px] mx-auto px-4 py-5 sm:px-6 sm:py-7 space-y-4 sm:space-y-5">
+
+        {targetNotice && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium px-4 py-3 rounded-xl flex items-center justify-between">
+            <span>{targetNotice}</span>
+            <button type="button" onClick={() => setTargetNotice(null)} className="text-amber-600 hover:text-amber-900 font-bold ml-2">
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-0">

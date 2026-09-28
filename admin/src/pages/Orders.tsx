@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../services/api";
-import type { UIOrder } from "../types";
+import type { UIOrder, Page } from "../types";
 import { mapOrder, mapUIOrderStatus } from "../types";
 import {
   OrderStatusBadge, ModalBackdrop, ModalCard, Avatar, Btn,
@@ -12,6 +12,7 @@ type UIOrderStatus = UIOrder["status"];
 const INR = (n: number) => "₹" + (n || 0).toLocaleString("en-IN");
 
 const STATUS_FLOW: UIOrderStatus[] = ["Pending", "Preparing", "Ready for Pickup", "Picked Up"];
+const TABS: ("All" | UIOrderStatus)[] = ["All", ...STATUS_FLOW];
 
 const NEXT_LABEL: Partial<Record<UIOrderStatus, string>> = {
   "Pending":   "Start Preparing",
@@ -213,18 +214,21 @@ function OrderDetailModal({
   );
 }
 
-// ── Main Page ─────────────────────────────────────────────────────────────────
+interface OrdersProps {
+  onNavigate?: (page: Page, target?: { search?: string; id?: string }) => void;
+  initialTarget?: { search?: string; id?: string };
+  onClearTarget?: () => void;
+}
 
-const TABS: Array<"All" | UIOrderStatus> = ["All", "Pending", "Preparing", "Ready for Pickup", "Picked Up"];
-
-export default function Orders() {
+export default function Orders({ onNavigate, initialTarget, onClearTarget }: OrdersProps = {}) {
   const [orders, setOrders] = useState<UIOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [targetNotice, setTargetNotice] = useState<string | null>(null);
 
   // Filter States
   const [tab, setTab] = useState<"All" | UIOrderStatus>("All");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialTarget?.search || "");
   const [quickDate, setQuickDate] = useState<"all" | "today" | "7days" | "30days">("all");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
@@ -242,11 +246,13 @@ export default function Orders() {
   const [selected, setSelected] = useState<UIOrder | null>(null);
 
   // Fetch Server-Side Search & Filtered Orders
-  const fetchOrders = useCallback(async () => {
+  const fetchOrders = useCallback(async (overrideSearch?: string, overrideTargetId?: string) => {
     setLoading(true);
     setError("");
 
     try {
+      const activeSearch = overrideSearch !== undefined ? overrideSearch : search;
+      const activePage = overrideSearch !== undefined ? 1 : page;
       const params = new URLSearchParams();
 
       if (tab !== "All") {
@@ -254,8 +260,8 @@ export default function Orders() {
         params.append("status", backendStatus);
       }
 
-      if (search.trim()) {
-        params.append("search", search.trim());
+      if (activeSearch.trim()) {
+        params.append("search", activeSearch.trim());
       }
 
       if (fromDate) {
@@ -265,7 +271,7 @@ export default function Orders() {
         params.append("toDate", toDate);
       }
 
-      params.append("page", page.toString());
+      params.append("page", activePage.toString());
       params.append("limit", "20");
 
       const response = await api.get(`/orders?${params.toString()}`);
@@ -274,11 +280,34 @@ export default function Orders() {
       const mappedOrders = ordersData.map(mapOrder);
       setOrders(mappedOrders);
 
+      if (overrideSearch !== undefined || initialTarget) {
+        const targetSearch = (overrideSearch !== undefined ? overrideSearch : initialTarget?.search || "").trim().toLowerCase();
+        const targetId = overrideTargetId || initialTarget?.id;
+
+        const matchedOrder = mappedOrders.find(
+          (o: UIOrder) =>
+            (targetId && o.id === targetId) ||
+            (targetSearch && o.orderNumber.toLowerCase() === targetSearch) ||
+            (targetSearch && o.orderNumber.toLowerCase().includes(targetSearch))
+        );
+
+        if (matchedOrder) {
+          setSelected(matchedOrder);
+          setTargetNotice(null);
+        } else if (mappedOrders.length === 0) {
+          setTargetNotice(`Referenced order "${overrideSearch || initialTarget?.search || targetId}" was not found or may have been deleted.`);
+        } else {
+          setSelected(mappedOrders[0]);
+          setTargetNotice(null);
+        }
+        onClearTarget?.();
+      }
+
       if (response.pagination) {
         setPagination(response.pagination);
       } else {
         setPagination({
-          page: 1,
+          page: activePage,
           limit: mappedOrders.length,
           total: mappedOrders.length,
           totalPages: 1,
@@ -290,11 +319,20 @@ export default function Orders() {
     } finally {
       setLoading(false);
     }
-  }, [tab, search, fromDate, toDate, page]);
+  }, [tab, search, fromDate, toDate, page, initialTarget, onClearTarget]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
+
+  useEffect(() => {
+    if (initialTarget && (initialTarget.search || initialTarget.id)) {
+      const targetSearch = initialTarget.search || "";
+      setSearch(targetSearch);
+      setPage(1);
+      fetchOrders(targetSearch, initialTarget.id);
+    }
+  }, [initialTarget]);
 
   const handleQuickDateSelect = (type: "all" | "today" | "7days" | "30days") => {
     setQuickDate(type);
@@ -356,6 +394,15 @@ export default function Orders() {
       )}
 
       <div className="max-w-[1400px] mx-auto px-4 py-5 sm:px-6 sm:py-7 space-y-4 sm:space-y-5">
+
+        {targetNotice && (
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 text-xs font-medium px-4 py-3 rounded-xl flex items-center justify-between">
+            <span>{targetNotice}</span>
+            <button type="button" onClick={() => setTargetNotice(null)} className="text-amber-600 hover:text-amber-900 font-bold ml-2">
+              ✕
+            </button>
+          </div>
+        )}
 
         {/* Header */}
         <div>

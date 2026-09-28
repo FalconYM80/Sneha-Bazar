@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
 import { api } from "../services/api";
-import type { ProductTransaction, ProductTransactionResponse } from "../types";
+import type { ProductTransaction, ProductTransactionResponse, Page } from "../types";
 import {
   ModalBackdrop, ModalCard, SearchInput, Btn,
-  IconX, IconArrowDownRight, IconArrowUpRight, IconHistory, IconCalendar, IconBarcode,
+  IconX, IconArrowDownRight, IconArrowUpRight, IconHistory, IconCalendar, IconBarcode, IconEye,
 } from "./ui";
+import TransactionDetailModal from "./TransactionDetailModal";
 
 const INR = (n: number) => "₹" + (n || 0).toLocaleString("en-IN", { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
@@ -29,12 +30,37 @@ const formatTime = (dateString: string): string => {
 interface ProductTransactionHistoryProps {
   productId: string;
   onClose: () => void;
+  onNavigate?: (page: Page, target?: { search?: string; id?: string }) => void;
 }
 
-export default function ProductTransactionHistory({ productId, onClose }: ProductTransactionHistoryProps) {
+export default function ProductTransactionHistory({ productId, onClose, onNavigate }: ProductTransactionHistoryProps) {
   const [data, setData] = useState<ProductTransactionResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selectedTransaction, setSelectedTransaction] = useState<ProductTransaction | null>(null);
+
+  const handleReferenceClick = (tx: ProductTransaction) => {
+    if (!onNavigate) return;
+    const isPurchase = tx.type === "PURCHASE" || tx.sourceType === "PURCHASE";
+
+    if (isPurchase) {
+      const searchRef = tx.reference && tx.reference !== "Single Entry" && tx.reference !== "—" 
+        ? tx.reference 
+        : (tx.invoiceNumber || tx.party || "");
+      const purchaseId = tx.purchaseId || tx.sourceId || tx._id;
+
+      onClose();
+      onNavigate("purchases", { search: searchRef, id: purchaseId });
+    } else {
+      const searchRef = tx.reference && tx.reference !== "—" 
+        ? tx.reference 
+        : (tx.orderNumber || tx.customerPhone || "");
+      const orderId = tx.orderId || tx.sourceId || (tx._id.includes("_") ? tx._id.split("_")[0] : tx._id);
+
+      onClose();
+      onNavigate("orders", { search: searchRef, id: orderId });
+    }
+  };
 
   // Filter & Pagination States
   const [typeFilter, setTypeFilter] = useState<"ALL" | "PURCHASE" | "ORDER">("ALL");
@@ -320,6 +346,7 @@ export default function ProductTransactionHistory({ productId, onClose }: Produc
                       <th className="px-4 py-3.5 text-right">Unit Price</th>
                       <th className="px-4 py-3.5 text-right">Total Amount</th>
                       <th className="px-4 py-3.5 text-center">Running Stock</th>
+                      <th className="px-4 py-3.5 text-center w-24">Action</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 text-xs">
@@ -358,9 +385,20 @@ export default function ProductTransactionHistory({ productId, onClose }: Produc
 
                           {/* Reference Number */}
                           <td className="px-4 py-3.5 whitespace-nowrap">
-                            <span className="font-mono-data text-xs text-gray-800 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded font-bold">
-                              {tx.reference}
-                            </span>
+                            {onNavigate && tx.reference && tx.reference !== "—" ? (
+                              <button
+                                type="button"
+                                onClick={() => handleReferenceClick(tx)}
+                                className="font-mono-data text-xs text-gray-800 bg-gray-100 hover:bg-gray-200 hover:text-green-700 hover:border-green-300 border border-gray-200 px-2 py-0.5 rounded font-bold transition-all cursor-pointer inline-flex items-center gap-1 group shadow-xs"
+                                title={`Go to ${isPurchase ? "Purchase Invoice" : "Order"} ${tx.reference}`}
+                              >
+                                <span>{tx.reference}</span>
+                              </button>
+                            ) : (
+                              <span className="font-mono-data text-xs text-gray-800 bg-gray-100 border border-gray-200 px-2 py-0.5 rounded font-bold">
+                                {tx.reference}
+                              </span>
+                            )}
                           </td>
 
                           {/* Party / Supplier / Customer */}
@@ -393,6 +431,19 @@ export default function ProductTransactionHistory({ productId, onClose }: Produc
                           {/* Running Stock */}
                           <td className="px-4 py-3.5 text-center font-mono-data font-bold text-gray-900 bg-gray-50/50">
                             {tx.runningBalance !== undefined ? tx.runningBalance : "—"}
+                          </td>
+
+                          {/* Action Button */}
+                          <td className="px-4 py-3.5 text-center whitespace-nowrap">
+                            <button
+                              type="button"
+                              onClick={() => setSelectedTransaction(tx)}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-gray-700 bg-gray-100 hover:bg-gray-200 border border-gray-200 transition-colors"
+                              title="View Details"
+                            >
+                              <IconEye size={13} className="text-gray-500" />
+                              View
+                            </button>
                           </td>
                         </tr>
                       );
@@ -451,6 +502,16 @@ export default function ProductTransactionHistory({ productId, onClose }: Produc
             Close
           </Btn>
         </div>
+
+        {/* Transaction Detail Modal Overlay */}
+        {selectedTransaction && (
+          <TransactionDetailModal
+            transaction={selectedTransaction}
+            productFallback={data?.product}
+            onClose={() => setSelectedTransaction(null)}
+            onNavigateReference={onNavigate ? handleReferenceClick : undefined}
+          />
+        )}
       </ModalCard>
     </ModalBackdrop>
   );
