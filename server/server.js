@@ -24,6 +24,8 @@ connectDB();
 const defaultAllowedOrigins = [
   "https://www.snehabazar.in",
   "https://snehabazar.in",
+  "https://admin.snehabazar.in",
+  "https://www.admin.snehabazar.in",
   "https://sneha-bazar.vercel.app",
   "https://sneha-bazar-admin.vercel.app",
   "http://localhost:5173",

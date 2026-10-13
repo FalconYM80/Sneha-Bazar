@@ -11,6 +11,8 @@ function createTestApp() {
   const defaultAllowedOrigins = [
     "https://www.snehabazar.in",
     "https://snehabazar.in",
+    "https://admin.snehabazar.in",
+    "https://www.admin.snehabazar.in",
     "https://sneha-bazar.vercel.app",
     "https://sneha-bazar-admin.vercel.app",
     "http://localhost:5173",
@@ -80,6 +82,22 @@ function createTestApp() {
     res.status(200).json({ success: true, data: [] });
   });
 
+  app.get("/api/categories", (req, res) => {
+    res.status(200).json({ success: true, data: [] });
+  });
+
+  app.get("/api/orders", (req, res) => {
+    res.status(200).json({ success: true, data: [] });
+  });
+
+  app.get("/api/products", (req, res) => {
+    res.status(200).json({ success: true, data: [] });
+  });
+
+  app.get("/api/products/low-stock", (req, res) => {
+    res.status(200).json({ success: true, data: [] });
+  });
+
   return app;
 }
 
@@ -133,7 +151,7 @@ describe("Backend CORS Configuration", () => {
     }
   });
 
-  it("handles OPTIONS preflight for https://www.snehabazar.in on customer registration", async () => {
+  it("handles OPTIONS preflight for customer www domain https://www.snehabazar.in", async () => {
     const res = await makeRequest(server, {
       method: "OPTIONS",
       path: "/api/customers/register",
@@ -151,7 +169,7 @@ describe("Backend CORS Configuration", () => {
     assert.match(res.headers["access-control-allow-headers"], /Content-Type/i);
   });
 
-  it("handles OPTIONS preflight for apex domain https://snehabazar.in", async () => {
+  it("handles OPTIONS preflight for customer apex domain https://snehabazar.in", async () => {
     const res = await makeRequest(server, {
       method: "OPTIONS",
       path: "/api/customers/register",
@@ -164,6 +182,69 @@ describe("Backend CORS Configuration", () => {
 
     assert.equal(res.statusCode, 200);
     assert.equal(res.headers["access-control-allow-origin"], "https://snehabazar.in");
+    assert.equal(res.headers["access-control-allow-credentials"], "true");
+  });
+
+  it("handles OPTIONS preflight for admin domain https://admin.snehabazar.in on /api/products", async () => {
+    const res = await makeRequest(server, {
+      method: "OPTIONS",
+      path: "/api/products?page=1&limit=50&admin=true",
+      headers: {
+        Origin: "https://admin.snehabazar.in",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "Authorization, Content-Type",
+      },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers["access-control-allow-origin"], "https://admin.snehabazar.in");
+    assert.equal(res.headers["access-control-allow-credentials"], "true");
+    assert.match(res.headers["access-control-allow-methods"], /GET/);
+  });
+
+  it("handles OPTIONS preflight for admin domain https://admin.snehabazar.in on /api/orders", async () => {
+    const res = await makeRequest(server, {
+      method: "OPTIONS",
+      path: "/api/orders",
+      headers: {
+        Origin: "https://admin.snehabazar.in",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "Authorization",
+      },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers["access-control-allow-origin"], "https://admin.snehabazar.in");
+    assert.equal(res.headers["access-control-allow-credentials"], "true");
+  });
+
+  it("handles OPTIONS preflight for admin domain on /api/products/low-stock", async () => {
+    const res = await makeRequest(server, {
+      method: "OPTIONS",
+      path: "/api/products/low-stock?lowStockThreshold=8&limit=5",
+      headers: {
+        Origin: "https://admin.snehabazar.in",
+        "Access-Control-Request-Method": "GET",
+        "Access-Control-Request-Headers": "Authorization",
+      },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers["access-control-allow-origin"], "https://admin.snehabazar.in");
+    assert.equal(res.headers["access-control-allow-credentials"], "true");
+  });
+
+  it("allows GET /api/categories with Origin: https://admin.snehabazar.in", async () => {
+    const res = await makeRequest(server, {
+      method: "GET",
+      path: "/api/categories",
+      headers: {
+        Origin: "https://admin.snehabazar.in",
+      },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers["access-control-allow-origin"], "https://admin.snehabazar.in");
     assert.equal(res.headers["access-control-allow-credentials"], "true");
   });
 
@@ -200,13 +281,13 @@ describe("Backend CORS Configuration", () => {
       method: "OPTIONS",
       path: "/api/customers/register",
       headers: {
-        Origin: "https://www.snehabazar.in/",
+        Origin: "https://admin.snehabazar.in/",
         "Access-Control-Request-Method": "POST",
       },
     });
 
     assert.equal(res.statusCode, 200);
-    assert.equal(res.headers["access-control-allow-origin"], "https://www.snehabazar.in/");
+    assert.equal(res.headers["access-control-allow-origin"], "https://admin.snehabazar.in/");
   });
 
   it("rejects unauthorized origin without crashing with 500", async () => {
