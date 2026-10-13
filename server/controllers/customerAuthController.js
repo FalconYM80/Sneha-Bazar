@@ -396,7 +396,7 @@ export const forgotPassword = async (req, res) => {
       await customer.save({ validateBeforeSave: false });
 
       // Build frontend reset URL
-      const clientUrl = process.env.CLIENT_URL || "https://sneha-bazar.vercel.app";
+      const clientUrl = process.env.CLIENT_URL || "https://www.snehabazar.in";
       const resetUrl = `${clientUrl.replace(/\/+$/, "")}/reset-password/${rawToken}`;
 
       try {

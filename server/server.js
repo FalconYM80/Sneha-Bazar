@@ -22,38 +22,67 @@ connectDB();
 
 // CORS configuration
 const defaultAllowedOrigins = [
-  "http://localhost:5173",
-  "http://localhost:5174",
+  "https://www.snehabazar.in",
+  "https://snehabazar.in",
   "https://sneha-bazar.vercel.app",
   "https://sneha-bazar-admin.vercel.app",
+  "http://localhost:5173",
+  "http://localhost:5174",
+  "http://localhost:3000",
+  "http://localhost:5175",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:5174",
 ];
 
-const envOrigins = [
-  process.env.CLIENT_URL,
-  process.env.ADMIN_URL,
-  ...(process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(",") : []),
-]
-  .filter(Boolean)
-  .map((origin) => origin.trim().replace(/\/+$/, ""));
+const parseOrigins = (raw) => {
+  if (!raw || typeof raw !== "string") return [];
+  return raw
+    .split(/[,;\s]+/)
+    .map((item) => item.trim().replace(/^['"]|['"]$/g, "").replace(/\/+$/, ""))
+    .filter(Boolean);
+};
 
-const allowedOrigins = Array.from(new Set([...defaultAllowedOrigins, ...envOrigins]));
+const normalizeOrigin = (url) => {
+  if (!url || typeof url !== "string") return "";
+  return url.trim().replace(/\/+$/, "").toLowerCase();
+};
+
+const envOrigins = [
+  ...parseOrigins(process.env.CLIENT_URL),
+  ...parseOrigins(process.env.ADMIN_URL),
+  ...parseOrigins(process.env.ALLOWED_ORIGINS),
+];
+
+const normalizedAllowedOrigins = new Set([
+  ...defaultAllowedOrigins.map(normalizeOrigin),
+  ...envOrigins.map(normalizeOrigin),
+]);
 
 const corsOptions = {
   origin: (origin, callback) => {
-    // Allow requests with no origin (like mobile apps, curl, server-to-server)
+    // Allow requests with no origin (like mobile apps, curl, server-to-server, health check)
     if (!origin) {
       return callback(null, true);
     }
-    const normalizedOrigin = origin.trim().replace(/\/+$/, "");
-    if (allowedOrigins.includes(normalizedOrigin)) {
-      return callback(null, true);
+    const normalized = normalizeOrigin(origin);
+    if (normalizedAllowedOrigins.has(normalized)) {
+      // Return exact origin to support credentials: true
+      return callback(null, origin);
     }
-    return callback(new Error(`CORS error: Origin ${origin} not allowed`));
+    // Deny unauthorized origin cleanly without throwing 500 internal server error
+    return callback(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+  ],
   optionsSuccessStatus: 200,
+  maxAge: 86400,
 };
 
 app.use(cors(corsOptions));
@@ -95,6 +124,15 @@ app.use((req, res) => {
   res.status(404).json({
     success: false,
     message: "Route not found",
+  });
+});
+
+// Global error handler
+app.use((err, req, res, next) => {
+  console.error("Server error:", err);
+  res.status(err.status || 500).json({
+    success: false,
+    message: err.message || "Internal server error",
   });
 });
 
