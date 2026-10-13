@@ -31,6 +31,25 @@ export const Header = ({
   onBack,
   children
 }: HeaderProps) => {
+  const mobileInputRef = React.useRef<HTMLInputElement>(null)
+  const desktopInputRef = React.useRef<HTMLInputElement>(null)
+
+  const handleMobileSubmit = (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault()
+    }
+    executeSearch()
+    mobileInputRef.current?.blur()
+  }
+
+  const handleDesktopSubmit = (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault()
+    }
+    executeSearch()
+    desktopInputRef.current?.blur()
+  }
+
   // Mobile header
   if (isMobile) {
     return (
@@ -58,10 +77,18 @@ export const Header = ({
           </div>
         )}
         <div className="relative">
-          <div className="flex items-center bg-[#F5F6F4] rounded-xl px-3 py-2.5 gap-2 border border-white/20">
+          <form 
+            role="search"
+            action=""
+            onSubmit={handleMobileSubmit}
+            className="flex items-center bg-[#F5F6F4] rounded-xl px-3 py-2.5 gap-2 border border-white/20 m-0"
+          >
             <span className="text-[#64748B]"><IcSearch /></span>
             <input 
-              className="text-[#1F2937] text-sm flex-1 bg-transparent outline-none placeholder-[#64748B]"
+              ref={mobileInputRef}
+              type="search"
+              enterKeyHint="search"
+              className="text-[#1F2937] text-sm flex-1 bg-transparent outline-none placeholder-[#64748B] [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
               placeholder="Search products, brands and categories..."
               value={searchQuery}
               onChange={handleSearch}
@@ -69,11 +96,12 @@ export const Header = ({
               onBlur={handleSearchBlur}
               onKeyDown={(e) => {
                 if (e.key === 'Enter') {
-                  executeSearch()
+                  e.preventDefault()
+                  handleMobileSubmit()
                 }
               }}
             />
-          </div>
+          </form>
           {children}
         </div>
       </div>
@@ -96,10 +124,18 @@ export const Header = ({
 
           {/* Center: Search */}
           <div className="flex-1 max-w-2xl relative">
-            <div className="flex items-center bg-[#F5F6F4] rounded-xl px-4 py-3 gap-3 border border-white/20 shadow-sm">
+            <form 
+              role="search"
+              action=""
+              onSubmit={handleDesktopSubmit}
+              className="flex items-center bg-[#F5F6F4] rounded-xl px-4 py-3 gap-3 border border-white/20 shadow-sm m-0"
+            >
               <span className="text-[#64748B]"><IcSearch /></span>
               <input 
-                className="text-[#1F2937] text-base flex-1 bg-transparent outline-none placeholder-[#64748B]"
+                ref={desktopInputRef}
+                type="search"
+                enterKeyHint="search"
+                className="text-[#1F2937] text-base flex-1 bg-transparent outline-none placeholder-[#64748B] [&::-webkit-search-cancel-button]:hidden [&::-webkit-search-decoration]:hidden"
                 placeholder="Search products, brands and categories..."
                 value={searchQuery}
                 onChange={handleSearch}
@@ -107,11 +143,12 @@ export const Header = ({
                 onBlur={handleSearchBlur}
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    executeSearch()
+                    e.preventDefault()
+                    handleDesktopSubmit()
                   }
                 }}
               />
-            </div>
+            </form>
             {children}
           </div>
 
