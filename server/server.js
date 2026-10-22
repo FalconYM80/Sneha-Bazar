@@ -14,7 +14,7 @@ dotenv.config();
 
 const app = express();
 
-// Trust reverse proxy (Railway uses a single reverse proxy hop)
+// Trust reverse proxy (Render and other cloud hosts use a single reverse proxy hop)
 app.set("trust proxy", 1);
 
 // Connect to MongoDB

@@ -1,6 +1,12 @@
 // Base API URL configuration for Vite
-// Reads from VITE_API_URL in production, falls back to http://localhost:5000/api in development
-const rawApiUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim() || "http://localhost:5000/api";
+// Reads from VITE_API_URL, defaults to https://sneha-bazar.onrender.com/api in production builds,
+// and falls back to http://localhost:5000/api during local development.
+const DEFAULT_DEV_API_URL = "http://localhost:5000/api";
+const DEFAULT_PROD_API_URL = "https://sneha-bazar.onrender.com/api";
+
+const rawApiUrl =
+  (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
+  (import.meta.env.PROD ? DEFAULT_PROD_API_URL : DEFAULT_DEV_API_URL);
 const cleanBaseUrl = rawApiUrl.replace(/\/+$/, "");
 const API_BASE_URL = cleanBaseUrl.endsWith("/api") ? cleanBaseUrl : `${cleanBaseUrl}/api`;
 
