@@ -1,12 +1,17 @@
 // Base API URL configuration for Vite
 // Reads from VITE_API_URL, defaults to https://sneha-bazar.onrender.com/api in production builds,
-// and falls back to http://localhost:5000/api during local development.
+// rejects obsolete Railway URLs, and falls back to http://localhost:5000/api during local development.
 const DEFAULT_DEV_API_URL = 'http://localhost:5000/api'
 const DEFAULT_PROD_API_URL = 'https://sneha-bazar.onrender.com/api'
 
+const rawEnvUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim()
+const isObsoleteRailway = Boolean(rawEnvUrl && rawEnvUrl.includes('railway.app'))
 const rawApiUrl =
-  (import.meta.env.VITE_API_URL as string | undefined)?.trim() ||
-  (import.meta.env.PROD ? DEFAULT_PROD_API_URL : DEFAULT_DEV_API_URL)
+  rawEnvUrl && !isObsoleteRailway
+    ? rawEnvUrl
+    : import.meta.env.PROD
+      ? DEFAULT_PROD_API_URL
+      : DEFAULT_DEV_API_URL
 const cleanBaseUrl = rawApiUrl.replace(/\/+$/, '')
 const API_BASE_URL = cleanBaseUrl.endsWith('/api') ? cleanBaseUrl : `${cleanBaseUrl}/api`
 
