@@ -9,6 +9,7 @@ import orderRoutes from "./routes/orderRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import customerAuthRoutes from "./routes/customerAuthRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
 import { ensureAdminAccount } from "./utils/provisionAdmin.js";
 
 dotenv.config();
@@ -131,6 +132,9 @@ app.use("/api/customers", customerAuthRoutes);
 
 // Cart routes
 app.use("/api/cart", cartRoutes);
+
+// Notification routes (authenticated admin only)
+app.use("/api/notifications", notificationRoutes);
 
 // 404 handler
 app.use((req, res) => {

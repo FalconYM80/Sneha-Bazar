@@ -39,6 +39,30 @@ export interface ProfileResponse {
   data: AdminUser;
 }
 
+export interface OrderNotification {
+  _id: string;
+  type: "new_order";
+  order: string;
+  orderNumber: string;
+  customerName: string;
+  totalAmount: number;
+  totalItemCount: number;
+  isRead: boolean;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface NotificationsResponse {
+  success: boolean;
+  data: OrderNotification[];
+  unreadCount: number;
+}
+
+export interface UnreadCountResponse {
+  success: boolean;
+  unreadCount: number;
+}
+
 // Session-based token storage avoids sensitive long-lived persistence in localStorage
 // while properly persisting state across page refreshes within the tab.
 export const getAdminToken = (): string | null => {
@@ -246,6 +270,48 @@ export const api = {
         credentials: "include",
       });
       return handleResponse<ProfileResponse>(response);
+    },
+  },
+
+  notifications: {
+    getAll: async (limit = 30): Promise<NotificationsResponse> => {
+      const response = await fetch(getUrl(`/notifications?limit=${limit}`), {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+      return handleResponse<NotificationsResponse>(response);
+    },
+
+    getUnreadCount: async (): Promise<UnreadCountResponse> => {
+      const response = await fetch(getUrl("/notifications/unread-count"), {
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+      return handleResponse<UnreadCountResponse>(response);
+    },
+
+    markAsRead: async (id: string): Promise<{ success: boolean; data: OrderNotification }> => {
+      const response = await fetch(getUrl(`/notifications/${id}/read`), {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+      return handleResponse(response);
+    },
+
+    markAllAsRead: async (): Promise<{ success: boolean; message: string }> => {
+      const response = await fetch(getUrl("/notifications/mark-all-read"), {
+        method: "PATCH",
+        headers: getAuthHeaders(),
+        credentials: "include",
+      });
+      return handleResponse(response);
+    },
+
+    getStreamUrl: (): string => {
+      const token = getAdminToken();
+      const base = getUrl("/notifications/stream");
+      return token ? `${base}?token=${encodeURIComponent(token)}` : base;
     },
   },
 };

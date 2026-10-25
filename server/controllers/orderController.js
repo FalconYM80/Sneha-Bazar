@@ -3,6 +3,7 @@ import Order from "../models/Order.js";
 import Product from "../models/Product.js";
 import Counter from "../models/Counter.js";
 import Cart from "../models/Cart.js";
+import { createAndBroadcastOrderNotification } from "../services/notificationService.js";
 
 // Helper function to generate sequential order number using atomic counter
 const generateOrderNumber = async () => {
@@ -159,6 +160,9 @@ export const createOrder = async (req, res) => {
       estimatedPickupTime,
       status: "pending",
     });
+
+    // Notify authenticated admins in real time
+    await createAndBroadcastOrderNotification(order);
 
     // Populate product and customer references for response
     const populatedOrder = await Order.findById(order._id)
@@ -506,6 +510,9 @@ export const checkout = async (req, res) => {
     // Clear the cart only after successful order creation
     cart.items = [];
     await cart.save();
+
+    // Notify authenticated admins in real time
+    await createAndBroadcastOrderNotification(order);
 
     // Populate product and customer references for response
     const populatedOrder = await Order.findById(order._id)

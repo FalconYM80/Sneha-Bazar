@@ -1,6 +1,8 @@
 import { useState, useRef, useEffect } from "react";
-import { IconMenu, IconBell, IconSearch, IconLogOut } from "./ui";
+import { IconMenu, IconSearch, IconLogOut } from "./ui";
 import Logo from "./Logo";
+import NotificationDropdown from "./NotificationDropdown";
+import type { Page } from "../types";
 
 interface HeaderProps {
   title: string;
@@ -8,6 +10,7 @@ interface HeaderProps {
   onToggle: () => void;
   admin?: { name?: string; email?: string } | null;
   onLogout?: () => void;
+  onNavigate?: (page: Page, target?: { search?: string; id?: string }) => void;
 }
 
 export default function Header({
@@ -16,6 +19,7 @@ export default function Header({
   onToggle,
   admin,
   onLogout,
+  onNavigate,
 }: HeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -67,13 +71,8 @@ export default function Header({
         />
       </div>
 
-      <button 
-        aria-label="Notifications"
-        className="relative w-9 h-9 sm:w-10 sm:h-10 rounded-xl text-gray-400 hover:text-gray-700 hover:bg-gray-100 transition-colors flex items-center justify-center flex-shrink-0"
-      >
-        <IconBell size={18} />
-        <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
-      </button>
+      {/* Notification Dropdown with real-time new order alerts */}
+      <NotificationDropdown onNavigate={onNavigate} />
 
       {/* User profile avatar & menu */}
       <div className="relative" ref={menuRef}>

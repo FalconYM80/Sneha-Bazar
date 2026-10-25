@@ -12,6 +12,7 @@ import { FormField, TextInput, Btn } from "./components/ui";
 import Logo from "./components/Logo";
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from "./settings";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
+import { NotificationProvider } from "./contexts/NotificationContext";
 
 const META: Record<Page, { title: string; subtitle: string }> = {
   dashboard:       { title: "Dashboard",        subtitle: "Overview of your store today" },
@@ -208,6 +209,7 @@ function AdminApp() {
           onToggle={handleToggle}
           admin={admin}
           onLogout={logout}
+          onNavigate={handleNavigate}
         />
         {page === "dashboard"       && <Dashboard onNavigate={handleNavigate} />}
         {page === "inventory"       && <Inventory onNavigate={handleNavigate} />}
@@ -235,7 +237,9 @@ function AdminApp() {
 export default function App() {
   return (
     <AuthProvider>
-      <AdminApp />
+      <NotificationProvider>
+        <AdminApp />
+      </NotificationProvider>
     </AuthProvider>
   );
 }
