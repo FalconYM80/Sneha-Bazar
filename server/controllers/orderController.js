@@ -297,6 +297,19 @@ export const getOrderById = async (req, res) => {
       });
     }
 
+    // If caller is authenticated as customer (not admin), verify order ownership
+    if (req.customer && !req.admin) {
+      const isOwner =
+        (order.customer && order.customer._id?.toString() === req.customer._id.toString()) ||
+        (order.customerPhone && order.customerPhone === req.customer.phone);
+      if (!isOwner) {
+        return res.status(403).json({
+          success: false,
+          message: "You are not authorized to view this order",
+        });
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: "Order retrieved successfully",

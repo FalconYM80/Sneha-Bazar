@@ -1,14 +1,14 @@
 import Admin from "../models/Admin.js";
 import jwt from "jsonwebtoken";
 
-// Generate JWT Token
+// Generate JWT Token with explicit admin role and 24-hour expiration
 const generateToken = (id) => {
-  return jwt.sign({ id }, process.env.JWT_SECRET, {
-    expiresIn: "7d",
+  return jwt.sign({ id, role: "admin" }, process.env.JWT_SECRET, {
+    expiresIn: "1d",
   });
 };
 
-// Register admin (only allowed if no admin exists)
+// Register admin (only allowed if no admin exists and not disabled by policy)
 export const registerAdmin = async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -43,7 +43,7 @@ export const registerAdmin = async (req, res) => {
       });
     }
 
-    // Validate email format (basic validation)
+    // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
       return res.status(400).json({
@@ -61,8 +61,8 @@ export const registerAdmin = async (req, res) => {
       });
     }
 
-    // Check if email already exists (double check)
-    const existingAdmin = await Admin.findOne({ email: email.toLowerCase() });
+    // Check if email already exists
+    const existingAdmin = await Admin.findOne({ email: email.toLowerCase().trim() });
     if (existingAdmin) {
       return res.status(400).json({
         success: false,
@@ -70,7 +70,7 @@ export const registerAdmin = async (req, res) => {
       });
     }
 
-    // Create admin
+    // Create admin (password is hashed in Admin schema pre-save hook)
     const admin = await Admin.create({
       name: name.trim(),
       email: email.toLowerCase().trim(),
@@ -79,6 +79,16 @@ export const registerAdmin = async (req, res) => {
 
     // Generate token
     const token = generateToken(admin._id);
+
+    // Set secure cookie if supported
+    if (res.cookie) {
+      res.cookie("adminToken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+    }
 
     // Return admin without password
     res.status(201).json({
@@ -107,26 +117,24 @@ export const loginAdmin = async (req, res) => {
     const { email, password } = req.body;
 
     // Validate required fields
-    if (!email || email.trim() === "") {
+    if (!email || typeof email !== "string" || email.trim() === "") {
       return res.status(400).json({
         success: false,
         message: "Email is required",
       });
     }
 
-    if (!password || password.trim() === "") {
+    if (!password || typeof password !== "string" || password.trim() === "") {
       return res.status(400).json({
         success: false,
         message: "Password is required",
       });
     }
 
-    // Find admin by email and explicitly select password
-    const admin = await Admin.findOne({ email: email.toLowerCase().trim() }).select(
-      "+password"
-    );
+    // Find admin by email
+    const admin = await Admin.findOne({ email: email.toLowerCase().trim() }).select("+password");
 
-    // Generic error message for security
+    // Generic error message for security (prevents user enumeration)
     if (!admin) {
       return res.status(401).json({
         success: false,
@@ -134,7 +142,7 @@ export const loginAdmin = async (req, res) => {
       });
     }
 
-    // Compare password
+    // Compare password with bcrypt hash
     const isPasswordValid = await admin.comparePassword(password.trim());
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -146,7 +154,17 @@ export const loginAdmin = async (req, res) => {
     // Generate token
     const token = generateToken(admin._id);
 
-    // Return admin without password
+    // Set secure cookie
+    if (res.cookie) {
+      res.cookie("adminToken", token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+        maxAge: 24 * 60 * 60 * 1000,
+      });
+    }
+
+    // Return admin details and token
     res.status(200).json({
       success: true,
       message: "Login successful",
@@ -167,10 +185,32 @@ export const loginAdmin = async (req, res) => {
   }
 };
 
+// Logout admin
+export const logoutAdmin = async (req, res) => {
+  try {
+    if (res.clearCookie) {
+      res.clearCookie("adminToken", {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: process.env.NODE_ENV === "production" ? "none" : "lax",
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message || "Error logging out",
+    });
+  }
+};
+
 // Get current admin profile (protected route)
 export const getAdminProfile = async (req, res) => {
   try {
-    // Admin is already attached to req.admin by middleware
     const admin = req.admin;
 
     res.status(200).json({

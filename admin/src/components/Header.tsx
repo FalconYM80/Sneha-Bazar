@@ -1,19 +1,45 @@
-import { IconMenu, IconBell, IconSearch } from "./ui";
+import { useState, useRef, useEffect } from "react";
+import { IconMenu, IconBell, IconSearch, IconLogOut } from "./ui";
 import Logo from "./Logo";
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
   onToggle: () => void;
+  admin?: { name?: string; email?: string } | null;
+  onLogout?: () => void;
 }
 
-export default function Header({ title, subtitle, onToggle }: HeaderProps) {
+export default function Header({
+  title,
+  subtitle,
+  onToggle,
+  admin,
+  onLogout,
+}: HeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const displayName = admin?.name?.trim() || "Admin";
+  const displayEmail = admin?.email?.trim() || "admin@snehabazar.in";
+  const initial = displayName.charAt(0).toUpperCase() || "A";
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
   return (
-    <header className="h-16 bg-white border-b border-gray-100 flex items-center gap-3 sm:gap-4 px-4 sm:px-5 flex-shrink-0">
+    <header className="h-16 bg-white border-b border-gray-100 flex items-center gap-3 sm:gap-4 px-4 sm:px-5 flex-shrink-0 relative z-20">
       <button
         onClick={onToggle}
         aria-label="Toggle Menu"
-        className="w-10 h-10 rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors flex items-center justify-center flex-shrink-0"
+        className="w-10 h-10 rounded-xl text-gray-500 hover:text-gray-800 hover:bg-gray-100 transition-colors flex items-center justify-center flex-shrink-0 cursor-pointer"
       >
         <IconMenu size={18} />
       </button>
@@ -49,8 +75,40 @@ export default function Header({ title, subtitle, onToggle }: HeaderProps) {
         <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border-2 border-white" />
       </button>
 
-      <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-green-700 transition-colors">
-        <span className="text-white text-xs font-bold">A</span>
+      {/* User profile avatar & menu */}
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => setMenuOpen((prev) => !prev)}
+          aria-expanded={menuOpen}
+          aria-haspopup="true"
+          title={`Signed in as ${displayName}`}
+          className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0 cursor-pointer hover:bg-green-700 transition-colors focus:ring-2 focus:ring-green-300 outline-none"
+        >
+          <span className="text-white text-xs font-bold">{initial}</span>
+        </button>
+
+        {menuOpen && (
+          <div className="absolute right-0 mt-2 w-56 bg-white rounded-2xl card-shadow border border-gray-100 py-2 z-30 animate-in fade-in-50 duration-150">
+            <div className="px-4 py-2 border-b border-gray-100">
+              <p className="text-xs font-bold text-gray-900 leading-tight truncate">{displayName}</p>
+              <p className="text-[11px] text-gray-400 mt-0.5 truncate">{displayEmail}</p>
+            </div>
+            {onLogout && (
+              <div className="pt-1">
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onLogout();
+                  }}
+                  className="w-full text-left px-4 py-2 text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2 cursor-pointer"
+                >
+                  <IconLogOut size={14} />
+                  <span>Log out</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </header>
   );

@@ -8,6 +8,8 @@ interface SidebarProps {
   collapsed: boolean;
   mobileOpen?: boolean;
   onCloseMobile?: () => void;
+  admin?: { name?: string; email?: string } | null;
+  onLogout?: () => void;
 }
 
 const NAV: { id: Page; label: string; Icon: React.FC<{ size?: number }> }[] = [
@@ -24,11 +26,17 @@ export default function Sidebar({
   collapsed,
   mobileOpen = false,
   onCloseMobile,
+  admin,
+  onLogout,
 }: SidebarProps) {
   const handleNavClick = (id: Page) => {
     onNavigate(id);
     onCloseMobile?.();
   };
+
+  const displayName = admin?.name?.trim() || "Admin";
+  const displayEmail = admin?.email?.trim() || "admin@snehabazar.in";
+  const initial = displayName.charAt(0).toUpperCase() || "A";
 
   const w = collapsed ? 64 : 228;
 
@@ -60,6 +68,7 @@ export default function Sidebar({
           <button
             onClick={onCloseMobile}
             className="w-8 h-8 rounded-lg text-gray-400 hover:text-gray-700 hover:bg-gray-100 flex items-center justify-center transition-colors"
+            aria-label="Close menu"
           >
             <IconX size={16} />
           </button>
@@ -91,14 +100,26 @@ export default function Sidebar({
 
         {/* Mobile Profile footer */}
         <div className="border-t border-gray-100 p-4 flex-shrink-0">
-          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-gray-50">
-            <div className="w-9 h-9 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
-              <span className="text-white text-xs font-bold">A</span>
+          <div className="flex items-center justify-between gap-3 px-3 py-2 rounded-xl bg-gray-50">
+            <div className="flex items-center gap-2.5 min-w-0">
+              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
+                <span className="text-white text-xs font-bold">{initial}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-gray-800 truncate leading-none">{displayName}</p>
+                <p className="text-[10px] text-gray-400 mt-1 truncate">{displayEmail}</p>
+              </div>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-gray-800 truncate leading-none">Admin</p>
-              <p className="text-[10px] text-gray-400 mt-1 truncate">admin@snehabazar.in</p>
-            </div>
+            {onLogout && (
+              <button
+                onClick={onLogout}
+                title="Logout"
+                aria-label="Logout"
+                className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
+              >
+                <IconLogOut size={16} />
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -150,21 +171,34 @@ export default function Sidebar({
         {/* Profile + logout */}
         <div className={`border-t border-gray-100 p-3 flex-shrink-0 ${collapsed ? "flex justify-center" : ""}`}>
           {collapsed ? (
-            <button className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center" title="Admin">
-              <span className="text-white text-xs font-bold">A</span>
+            <button
+              onClick={onLogout}
+              className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center hover:bg-red-600 transition-colors group relative"
+              title={`Logged in as ${displayName} (${displayEmail}). Click to log out.`}
+              aria-label="Logout"
+            >
+              <span className="text-white text-xs font-bold group-hover:hidden">{initial}</span>
+              <span className="text-white hidden group-hover:block"><IconLogOut size={13} /></span>
             </button>
           ) : (
-            <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-gray-50 cursor-pointer transition-colors group">
+            <div className="flex items-center gap-2.5 px-2 py-2 rounded-xl hover:bg-gray-50 transition-colors group">
               <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
-                <span className="text-white text-xs font-bold">A</span>
+                <span className="text-white text-xs font-bold">{initial}</span>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-gray-800 truncate leading-none">Admin</p>
-                <p className="text-[10px] text-gray-400 mt-0.5 truncate">admin@snehabazar.in</p>
+                <p className="text-xs font-semibold text-gray-800 truncate leading-none">{displayName}</p>
+                <p className="text-[10px] text-gray-400 mt-0.5 truncate">{displayEmail}</p>
               </div>
-              <button className="text-gray-300 hover:text-red-400 transition-colors p-1 opacity-0 group-hover:opacity-100">
-                <IconLogOut size={14} />
-              </button>
+              {onLogout && (
+                <button
+                  onClick={onLogout}
+                  title="Logout"
+                  aria-label="Logout"
+                  className="text-gray-400 hover:text-red-600 hover:bg-red-50 p-1.5 rounded-lg transition-colors cursor-pointer"
+                >
+                  <IconLogOut size={15} />
+                </button>
+              )}
             </div>
           )}
         </div>

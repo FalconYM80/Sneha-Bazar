@@ -9,6 +9,7 @@ import {
   checkout,
 } from "../controllers/orderController.js";
 import { protectCustomer } from "../middleware/customerAuthMiddleware.js";
+import { protect, protectOrderAccess } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -21,16 +22,16 @@ router.get("/my-orders", protectCustomer, getMyOrders);
 // Create a new order (protected - customer only)
 router.post("/", protectCustomer, createOrder);
 
-// Get all orders with optional filters (admin endpoint - unprotected for now)
-router.get("/", getOrders);
+// Get all orders with optional filters (admin endpoint - protected)
+router.get("/", protect, getOrders);
 
-// Get a single order by ID (admin endpoint - unprotected for now)
-router.get("/:id", getOrderById);
+// Get a single order by ID (protected - admin or order owner)
+router.get("/:id", protectOrderAccess, getOrderById);
 
-// Update order status
-router.put("/:id/status", updateOrderStatus);
+// Update order status (admin endpoint - protected)
+router.put("/:id/status", protect, updateOrderStatus);
 
-// Delete an order (permanent delete)
-router.delete("/:id", deleteOrder);
+// Delete an order (admin endpoint - protected)
+router.delete("/:id", protect, deleteOrder);
 
 export default router;

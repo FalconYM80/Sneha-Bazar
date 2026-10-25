@@ -7,8 +7,11 @@ import Inventory from "./pages/Inventory";
 import Orders from "./pages/Orders";
 import Purchases from "./pages/Purchases";
 import PurchaseEntryWorkspace from "./pages/PurchaseEntryWorkspace";
+import Login from "./pages/Login";
 import { FormField, TextInput, Btn } from "./components/ui";
+import Logo from "./components/Logo";
 import { loadSettings, saveSettings, DEFAULT_SETTINGS } from "./settings";
+import { AuthProvider, useAuth } from "./contexts/AuthContext";
 
 const META: Record<Page, { title: string; subtitle: string }> = {
   dashboard:       { title: "Dashboard",        subtitle: "Overview of your store today" },
@@ -82,7 +85,7 @@ function SettingsPage() {
         {/* Success banner */}
         {saved && (
           <div className="bg-green-50 border border-green-200 text-green-700 text-xs sm:text-sm font-medium px-4 py-3 rounded-xl">
-            ✓ Settings saved successfully.
+            Settings saved successfully.
           </div>
         )}
 
@@ -138,7 +141,8 @@ function SettingsPage() {
   );
 }
 
-export default function App() {
+function AdminApp() {
+  const { isAuthenticated, admin, isLoading, login, logout } = useAuth();
   const [page, setPage] = useState<Page>("dashboard");
   const [navigationTarget, setNavigationTarget] = useState<NavigationTarget | null>(null);
   const [collapsed, setCollapsed] = useState(false);
@@ -161,6 +165,31 @@ export default function App() {
     }
   };
 
+  // If loading auth state: show branded loading screen
+  if (isLoading) {
+    return (
+      <div className="h-full w-full flex flex-col items-center justify-center p-6" style={{ background: "#f4f6f4" }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="p-3 bg-white rounded-2xl card-shadow border border-gray-100 animate-pulse">
+            <Logo className="w-12 h-12 rounded-xl" />
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-green-600 animate-bounce" style={{ animationDelay: "0ms" }} />
+            <div className="w-2.5 h-2.5 rounded-full bg-green-600 animate-bounce" style={{ animationDelay: "150ms" }} />
+            <div className="w-2.5 h-2.5 rounded-full bg-green-600 animate-bounce" style={{ animationDelay: "300ms" }} />
+          </div>
+          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Verifying Admin Session...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If not authenticated: render Login page
+  if (!isAuthenticated) {
+    return <Login onLogin={login} onSuccess={() => setPage("dashboard")} />;
+  }
+
+  // If authenticated: render full admin portal
   return (
     <div className="flex h-full overflow-hidden" style={{ background: "#f4f6f4" }}>
       <Sidebar 
@@ -169,12 +198,16 @@ export default function App() {
         collapsed={collapsed} 
         mobileOpen={mobileSidebarOpen}
         onCloseMobile={() => setMobileSidebarOpen(false)}
+        admin={admin}
+        onLogout={logout}
       />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <Header
           title={META[page].title}
           subtitle={META[page].subtitle}
           onToggle={handleToggle}
+          admin={admin}
+          onLogout={logout}
         />
         {page === "dashboard"       && <Dashboard onNavigate={handleNavigate} />}
         {page === "inventory"       && <Inventory onNavigate={handleNavigate} />}
@@ -196,5 +229,13 @@ export default function App() {
         {page === "settings"        && <SettingsPage />}
       </div>
     </div>
+  );
+}
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <AdminApp />
+    </AuthProvider>
   );
 }

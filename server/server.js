@@ -9,6 +9,7 @@ import orderRoutes from "./routes/orderRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import customerAuthRoutes from "./routes/customerAuthRoutes.js";
 import cartRoutes from "./routes/cartRoutes.js";
+import { ensureAdminAccount } from "./utils/provisionAdmin.js";
 
 dotenv.config();
 
@@ -17,8 +18,10 @@ const app = express();
 // Trust reverse proxy (Render and other cloud hosts use a single reverse proxy hop)
 app.set("trust proxy", 1);
 
-// Connect to MongoDB
-connectDB();
+// Connect to MongoDB and provision admin if env credentials provided
+connectDB().then(() => {
+  ensureAdminAccount();
+});
 
 // CORS configuration
 const defaultAllowedOrigins = [

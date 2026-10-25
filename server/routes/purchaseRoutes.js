@@ -7,8 +7,12 @@ import {
   deletePurchase,
   getPurchaseFilterOptions,
 } from "../controllers/purchaseController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+// All purchase routes are admin-only and protected
+router.use(protect);
 
 // Create a new purchase record
 router.post("/", createPurchase);
