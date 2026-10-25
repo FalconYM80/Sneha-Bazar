@@ -1,5 +1,6 @@
 import Admin from "../models/Admin.js";
 import jwt from "jsonwebtoken";
+import { maskEmail } from "../utils/provisionAdmin.js";
 
 // Generate JWT Token with explicit admin role and 24-hour expiration
 const generateToken = (id) => {
@@ -61,8 +62,8 @@ export const registerAdmin = async (req, res) => {
       });
     }
 
-    // Check if email already exists
-    const existingAdmin = await Admin.findOne({ email: email.toLowerCase().trim() });
+    const cleanEmail = email.toLowerCase().trim();
+    const existingAdmin = await Admin.findOne({ email: cleanEmail });
     if (existingAdmin) {
       return res.status(400).json({
         success: false,
@@ -73,7 +74,7 @@ export const registerAdmin = async (req, res) => {
     // Create admin (password is hashed in Admin schema pre-save hook)
     const admin = await Admin.create({
       name: name.trim(),
-      email: email.toLowerCase().trim(),
+      email: cleanEmail,
       password: password.trim(),
     });
 
@@ -118,6 +119,7 @@ export const loginAdmin = async (req, res) => {
 
     // Validate required fields
     if (!email || typeof email !== "string" || email.trim() === "") {
+      console.warn("[Auth] Admin login rejected: Email is missing or empty.");
       return res.status(400).json({
         success: false,
         message: "Email is required",
@@ -125,17 +127,32 @@ export const loginAdmin = async (req, res) => {
     }
 
     if (!password || typeof password !== "string" || password.trim() === "") {
+      console.warn("[Auth] Admin login rejected: Password is missing or empty.");
       return res.status(400).json({
         success: false,
         message: "Password is required",
       });
     }
 
-    // Find admin by email
-    const admin = await Admin.findOne({ email: email.toLowerCase().trim() }).select("+password");
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanPassword = password.trim();
+    const masked = maskEmail(cleanEmail);
 
-    // Generic error message for security (prevents user enumeration)
+    // Case-insensitive, whitespace-tolerant lookup for email resilience
+    const escaped = cleanEmail.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const admin = await Admin.findOne({
+      $or: [
+        { email: cleanEmail },
+        { email: new RegExp(`^\\s*${escaped}\\s*$`, "i") },
+      ],
+    }).select("+password");
+
+    // Generic error message for security (prevents user enumeration on public response)
     if (!admin) {
+      const totalAdmins = await Admin.countDocuments();
+      console.warn(
+        `[Auth] Admin login rejected: No admin account found matching ${masked}. (Total admin accounts in database: ${totalAdmins})`
+      );
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
@@ -143,13 +160,18 @@ export const loginAdmin = async (req, res) => {
     }
 
     // Compare password with bcrypt hash
-    const isPasswordValid = await admin.comparePassword(password.trim());
+    const isPasswordValid = await admin.comparePassword(cleanPassword);
     if (!isPasswordValid) {
+      console.warn(
+        `[Auth] Admin login rejected: Password verification failed for admin ${masked}.`
+      );
       return res.status(401).json({
         success: false,
         message: "Invalid email or password",
       });
     }
+
+    console.log(`[Auth] Admin login successful for ${masked}.`);
 
     // Generate token
     const token = generateToken(admin._id);
@@ -178,6 +200,7 @@ export const loginAdmin = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("[Auth] Admin login server error:", error.message);
     res.status(500).json({
       success: false,
       message: error.message || "Error logging in",

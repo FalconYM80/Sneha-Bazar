@@ -19,9 +19,17 @@ const app = express();
 app.set("trust proxy", 1);
 
 // Connect to MongoDB and provision admin if env credentials provided
-connectDB().then(() => {
-  ensureAdminAccount();
-});
+connectDB()
+  .then(async () => {
+    try {
+      await ensureAdminAccount();
+    } catch (err) {
+      console.error("[Admin Provisioning] Initialization error:", err.message);
+    }
+  })
+  .catch((err) => {
+    console.error("[MongoDB] Connection failure:", err.message);
+  });
 
 // CORS configuration
 const defaultAllowedOrigins = [
